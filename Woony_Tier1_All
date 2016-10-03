@@ -6,7 +6,8 @@
 #
 # Version Notes:
 # Developed in ArcGIS 10.3
-# Initialized with v25
+# v26 implemented setParam to streamline arcpy.Parameter
+# Date: 8/18/2016
 """
 
 import sys, os
@@ -15,7 +16,26 @@ import arcpy
 from arcpy import env
 from arcpy import da
 
+arcpy.env.parallelProcessingFactor = "100%" #won't matter in most cases
+
 ###########FUNCTIONS###########
+"""Set Input Parameter
+Purpose: returns arcpy.Parameter for provided string, setting defaults for missing."""
+def setParam(str1, str2, str3, str4, str5):
+    lst = [str1, str2, str3, str4, str5]
+    defLst = ["Input", "name", "GpFeatureLayer", "Required", "Input"]
+    i = 0
+    for str_ in lst:
+        if str_ =="":
+            lst[i]=defLst[i]
+        i+=1       
+    return arcpy.Parameter(
+        displayName = lst[0],
+        name = lst[1],
+        datatype = lst[2],
+        parameterType = lst[3],
+        direction = lst[4])
+
 """Global Timer
 Purpose: returns the message and calc time since the last time the function was used."""
 #Function Notes: used during testing to compare efficiency of each step
@@ -314,66 +334,28 @@ class Tier_1_Flood (object):
 
     def getParameterInfo(self):
     #Define IN/OUT parameters
-        RestorationSites = arcpy.Parameter( #sites
-            displayName = "Restoration Site Polygons",
-            name = "in_poly",
-            datatype = "GpFeatureLayer",
-            parameterType = "Required",
-            direction = "Input")
-        #beneficiaries
-        addresses = arcpy.Parameter(
-            displayName = "Address Points",
-            name = "in_pnts",
-            datatype = "GpFeatureLayer",
-            parameterType = "Optional", #change to optional with raster
-            direction = "Input")
-        popRast = arcpy.Parameter(
-            displayName = "Population Raster",
-            name = "popRast",
-            #datatype = "GPRasterDataLayer",
-            datatype = "DERasterDataset",
-            parameterType = "Optional", #change to optional with addresses
-            direction = "Input")
+        restorationSites = setParam("Restoration Site Polygons", "in_poly", "", "", "")
+        addresses = setParam("Address Points", "in_pnts", "", "Optional", "")#beneficiaries points
+        popRast = setParam("Population Raster", "popRast", "DERasterDataset", "Optional", "")#beneficiaries raster
         #special datasets (only appear if boxes are checked)
-        flood_zone = arcpy.Parameter(
-            displayName = "FEMA Flood Polygons",
-            name = "Flood_Zone",
-            datatype = "GPFeatureLayer",
-            parameterType = "Optional", #change to optional?
-            direction = "Input")
+        floodZone = setParam("FEMA Flood Polygons", "Flood_Zone", "", "Optional", "")
         #flood stream? #Need some way to tell what is downstream
-                
         #wetlands
-        ExistingWetlands = arcpy.Parameter(
-            displayName = "Other Wetland Polygons",
-            name = "in_poly",
-            datatype = "GpFeatureLayer",
-            parameterType = "Required",
-            direction = "Input")
-        #roads
-        dams = arcpy.Parameter(
-            displayName = "Dams or Levees",
-            name = "in_subs",
-            datatype = "DEFeatureClass",
-            parameterTypa = "Required",
-            direction = "Output")
+        existingWetlands = setParam("Other Wetland Polygons","in_poly","","","")
+        #roads?
+        dams = setParam("Dams or Levees", "in_subs", "", "", "")
         #outputs
-        outTbl = arcpy.Parameter( #could code this as a folder or updated wetland shp instead, info table?
-            displayName = "Output",
-            name = "outTable",
-            datatype = "DEFeatureClass",
-            parameterType = "Required", #could be made optional with an over write default
-            direction = "Output")
-        params = [RestorationSites, addresses, popRast, flood_zone, ExistingWetlands, outTbl, dams]
+        outTbl = setParam("Output", "outTable", "DEFeatureClass", "", "Output")
+        #could code this as a folder or updated wetland shp instead, info table?
+        #could be made optional with an over write default
+        params = [restorationSites, addresses, popRast, floodZone, existingWetlands, dams, outTbl]
         return params
 
     def isLicensed(self):
         return True
     def updateParameters(self, params):
-        #may need to add
         return
     def updateMessages(self, params):
-        #may need to add
         return
     
     def execute(self, params, messages):
@@ -384,8 +366,8 @@ class Tier_1_Flood (object):
         popRast = params[2].valueAsText
         flood_zone = params[3].valueAsText
         ExistingWetlands = params[4].valueAtText
-        outTbl = params[5].valueAsText
-        subs = params[6].valueAsText
+        subs = params[5].valueAsText
+        outTbl = params[6].valueAsText
         
         path = os.path.dirname(outTbl) + os.sep
         
@@ -398,8 +380,8 @@ class Tier_1_Flood (object):
         outTbl_flood = path + "int_flood.dbf"
         floodArea = path + "int_FloodArea"
 
-        flood_areaB = floodArea + "temp.shp" #buffers
         flood_area = floodArea + ".shp"
+        flood_areaB = floodArea + "temp.shp" #buffers
         assets = floodArea + "_assets.shp"
                     
         #step 1: check that there are people in the flood zone
@@ -492,64 +474,20 @@ class Tier_1_Scenic_views (object):
 
     def getParameterInfo(self):
     #Define IN/OUT parameters
-        RestorationSites = arcpy.Parameter( #sites
-            displayName = "Restoration Site Polygons",
-            name = "in_poly",
-            datatype = "GpFeatureLayer",
-            parameterType = "Required",
-            direction = "Input")
-        #beneficiaries
-        addresses = arcpy.Parameter(
-            displayName = "Address Points",
-            name = "in_pnts",
-            datatype = "GpFeatureLayer",
-            parameterType = "Optional", #change to optional with raster
-            direction = "Input")
-        popRast = arcpy.Parameter(
-            displayName = "Population Raster",
-            name = "popRast",
-            datatype = "DERasterDataset",
-            parameterType = "Optional", #change to optional with addresses
-            direction = "Input")
-        roads = arcpy.Parameter(
-            displayName = "Roads (streets, highways, etc.)",
-            name = "roads",
-            datatype = "GpFeatureLayer",
-            parameterType = "Optional",
-            direction = "Input")
-        trails =arcpy.Parameter(
-            displayName = "Trails (hiking, biking, etc.)",
-            name = "trails",
-            datatype = "GpFeatureLayer",
-            parameterType = "Optional",
-            direction = "Input")
-        preWetlands = arcpy.Parameter( #pre-existing wetlands
-            displayName = "Wetland Polygons",
-            name = "in_wet",
-            datatype = "GpFeatureLayer",
-            parameterType = "Optional",
-            direction = "Input") 
-        landUse = arcpy.Parameter(
-            displayName = "Land use or greenspace Polygons",
-            name = "land_use",
-            datatype = "GpFeatureLayer",
-            parameterType = "Optional",
-            direction = "Input")        
-        fieldLULC = arcpy.Parameter(
-            displayName = "Landuse Field",
-            name="LULCFld",
-            datatype="Field",
-            parameterType="Optional",
-            direction = "Input")
+        RestorationSites = setParam("Restoration Site Polygons", "in_poly", "", "", "") #sites
+        addresses = setParam("Address Points", "in_pnts", "","Optional", "") #beneficiaries points
+        popRast = setParam("Population Raster", "popRast", "DERasterDataset", "Optional", "") #beneficiaries raster
+        roads = setParam("Roads (streets, highways, etc.)", "roads", "", "Optional", "")
+        trails = setParam("Trails (hiking, biking, etc.)", "trails", "", "Optional", "")
+        #pre-existing wetlands
+        preWetlands = setParam("Wetland Polygons", "in_wet", "", "Optional", "")
+        landUse = setParam("Land use or greenspace Polygons", "land_use","", "Optional", "")       
+        fieldLULC = setParam("Landuse Field", "LULCFld", "Field", "Optional", "")
         #outputs
-        outTbl = arcpy.Parameter( #could code this as a folder or updated wetland shp instead, info table?
-            displayName = "Output",
-            name = "outTable",
-            datatype = "DEFeatureClass",
-            parameterType = "Required", #could be made optional with an over write default
-            direction = "Output")
+        outTbl = setParam("Output", "outTable", "DEFeatureClass", "Required", "Output")
+        #could code this as a folder or updated wetland shp instead, info table?
+        #could be made optional with an over write default
         params = [RestorationSites, addresses, popRast, roads, trails, preWetlands, landUse, fieldLULC, outTbl]
-
         return params
 
     def isLicensed(self):
@@ -616,38 +554,18 @@ class Tier_1_SocialEquity_Tool (object):
 
     def getParameterInfo(self):
     #Define IN/OUT parameters
-        RestorationSites = arcpy.Parameter( #sites
-            displayName = "Restoration Site Polygons",
-            name = "in_poly",
-            datatype = "GpFeatureLayer",
-            parameterType = "Required",
-            direction = "Input")
-        SocialVulnerability = arcpy.Parameter(
-            displayName = "SoVI",
-            name = "sovi_poly",
-            datatype = "GPFeatureLayer",
-            parameterType = "Required",
-            direction = "Input")
-        SoVI_Field = arcpy.Parameter( #user must select 1 field to base calculation on
-            displayName = "SoVI Score",
-            name="SoVI_ScoreFld",
-            datatype="Field",
-            parameterType="Optional",
-            direction = "Input")
-        distance = arcpy.Parameter( #distance beneficiaries travel
-            displayName = "Buffer Distance",
-            name="bufferUnits",
-            datatype="GPLinearUnit",
-            parameterType="Required",
-            direction = "Input")
+        #sites
+        RestorationSites = setParam("Restoration Site Polygons", "in_poly", "", "", "")
+        SocialVulnerability = setParam("SoVI", "sovi_poly", "", "", "")
+        #user must select 1 field to base calculation on
+        SoVI_Field = setParam("SoVI Score", "SoVI_ScoreFld","Field", "", "")
+        #distance beneficiaries travel
+        distance = setParam("Buffer Distance", "bufferUnits", "GPLinearUnit", "", "")
         #outputs
-        outTbl = arcpy.Parameter( #could code this as a folder or updated wetland shp instead, info table?
-            displayName = "Output",
-            name = "outTable",
-            datatype = "DETable",
-            parameterType = "Required", #could be made optional with an over write default
-            direction = "Output")
-
+        outTbl = setParam("Output", "outTable", "DETable", "", "Output")
+        #could code this as a folder or updated wetland shp instead, info table?
+        #could be made optional with an over write default
+        
 	#Set the FieldsList to be filtered by the list from the feature dataset
         SoVI_Field.parameterDependencies = [SocialVulnerability.name]
         distance.parameterDependencies = [RestorationSites.name]
@@ -666,10 +584,8 @@ class Tier_1_SocialEquity_Tool (object):
     def isLicensed(self):
         return True
     def updateParameters(self, params):
-        #may need to add
         return
     def updateMessages(self, params):
-        #may need to add
         return
     
     def execute(self, params, messages):
@@ -723,76 +639,25 @@ class Tier_1_Reliability_Tool (object):
     def getParameterInfo(self):
     #Define IN/OUT parameters
         #sites
-        RestorationSites = arcpy.Parameter(
-            displayName = "Restoration Site Polygons",
-            name = "in_poly",
-            datatype = "GpFeatureLayer",
-            parameterType = "Required",
-            direction = "Input")
-        Conservation = arcpy.Parameter(
-            displayName = "Conservation lands",
-            name = "cons_poly",
-            datatype = "GPFeatureLayer",
-            parameterType = "Required",
-            direction = "Input")
-        Conserve_Field = arcpy.Parameter( #user must select 1 field to base calculation on
-            displayName = "Conservation Field",
-            name="Conservation_Field",
-            datatype="Field",
-            parameterType="Required",
-            direction = "Input")
+        RestorationSites = setParam("Restoration Site Polygons", "in_poly", "", "", "")
+        Conservation = setParam("Conservation lands", "cons_poly", "", "", "")
+        Conserve_Field = setParam("Conservation Field", "Conservation_Field", "Field", "", "")
+        #user must select 1 field to base calculation on
         #good values
-        useType1 = arcpy.Parameter(
-            displayName = "First Conservation Type",
-            name="Conservation_Type1",
-            datatype="GPString",
-            parameterType="Optional",
-            direction = "Input")
-        useType2 = arcpy.Parameter(
-            displayName = "Second Conservation Type",
-            name="Conservation_Type2",
-            datatype="GPString",
-            parameterType="Optional",
-            direction = "Input")
-        useType3 = arcpy.Parameter(
-            displayName = "Third Conservation Type",
-            name="Conservation_Type3",
-            datatype="GPString",
-            parameterType="Optional",
-            direction = "Input")
-        useType4 = arcpy.Parameter(
-            displayName = "Fourth Conservation Type",
-            name="Conservation_Type4",
-            datatype="GPString",
-            parameterType="Optional",
-            direction = "Input")
-        useType5 = arcpy.Parameter(
-            displayName = "Fifth Conservation Type",
-            name="Conservation_Type5",
-            datatype="GPString",
-            parameterType="Optional",
-            direction = "Input")
+        useType1 = setParam("First Conservation Type", "Conservation_Type1", "GPString", "Optional", "")
+        useType2 = setParam("Second Conservation Type", "Conservation_Type2", "GPString", "Optional", "")
+        useType3 = setParam("Third Conservation Type", "Conservation_Type3", "GPString", "Optional", "")
+        useType4 = setParam("Fourth Conservation Type", "Conservation_Type4", "GPString", "Optional", "")
+        useType5 = setParam("Fifth Conservation Type", "Conservation_Type5", "GPString", "Optional", "")
         #Bad values?
-        threatType1 = arcpy.Parameter(
-            displayName = "First Threat Type",
-            name="Threat_Type1",
-            datatype="GPString",
-            parameterType="Optional",
-            direction = "Input")
-        distance = arcpy.Parameter( #distance beneficiaries travel
-            displayName = "Buffer Distance",
-            name="bufferUnits",
-            datatype="GPLinearUnit",
-            parameterType="Required",
-            direction = "Input")
+        threatType1 = setParam("First Threat Type", "Threat_Type1", "GPString", "Optional", "")
+        #distance beneficiaries travel
+        distance = setParam("Buffer Distance", "bufferUnits", "GPLinearUnit", "", "")
         #outputs
-        outTbl = arcpy.Parameter( #could code this as a folder or updated wetland shp instead, info table?
-            displayName = "Output",
-            name = "outTable",
-            datatype = "DEFeatureClass",
-            parameterType = "Required", #could be made optional with an over write default
-            direction = "Output")
-
+        outTbl = setParam("Output", "outTable", "DEFeatureClass", "", "Output")
+#could code this as a folder or updated wetland shp instead, info table?
+#could be made optional with an over write default
+        
         #Set the List to be filtered by the list from the feature dataset
         Conserve_Field.parameterDependencies = [Conservation.name]
         distance.parameterDependencies = [RestorationSites.name]
@@ -911,127 +776,43 @@ class Tier_1_Indicator_Tool (object):
 
     def getParameterInfo(self):
     #Define IN/OUT parameters
-        #sites
-        RestorationSites = arcpy.Parameter(
-            displayName = "Restoration Site Polygons",
-            name = "in_poly",
-            datatype = "GpFeatureLayer",
-            parameterType = "Required",
-            direction = "Input")
-        #beneficiaries
-        addresses = arcpy.Parameter(
-            displayName = "Address Points",
-            name = "in_pnts",
-            datatype = "GpFeatureLayer",
-            parameterType = "Optional", #change to optional with raster
-            direction = "Input")
-        popRast = arcpy.Parameter(
-            displayName = "Population Raster",
-            name = "popRast",
-            #datatype = "GPRasterDataLayer",
-            datatype = "DERasterDataset",
-            parameterType = "Optional", #change to optional with addresses
-            direction = "Input")      
+        sites = setParam("Restoration Site Polygons", "in_poly", "", "", "")#sites
+        addresses = setParam("Address Points", "in_pnts", "", "Optional", "")#beneficiaries points
+        popRast = setParam("Population Raster", "popRast", "DERasterDataset", "Optional", "")#beneficiaries raster
         #check boxes for services the user wants to assess
         serviceLst=["Reduced Flooding", "Scenic Views", "Environmental Education", "Bird Watching", "Recreation"]
-        view = arcpy.Parameter(
-            displayName = serviceLst[1],
-            name = "view",
-            datatype = "GPBoolean",
-            parameterType = "Optional",
-            direction = "Input")
-        edu = arcpy.Parameter(
-            displayName = serviceLst[2],
-            name = "edu",
-            datatype = "GPBoolean",
-            parameterType = "Optional",
-            direction = "Input")
-        bird = arcpy.Parameter(
-            displayName = serviceLst[3],
-            name = "bird",
-            datatype = "GPBoolean",
-            parameterType = "Optional",
-            direction = "Input")
-        rec = arcpy.Parameter(
-            displayName = serviceLst[4],
-            name = "rec",
-            datatype = "GPBoolean",
-            parameterType = "Optional",
-            direction = "Input")
-        #special datasets (only appear if boxes are checked)                
-        edu_inst = arcpy.Parameter(
-            displayName = "Educational Institution Points",
-            name = "edu_inst",
-            datatype = "GpFeatureLayer",
-            parameterType = "Optional", #change to optional?
-            direction = "Input")
-        bus_stp = arcpy.Parameter(
-            displayName = "Bus Stop Points", #could it accomodate lines too?
-            name = "bus_stp",
-            datatype = "GpFeatureLayer",
-            parameterType = "Optional", #change to optional?
-            direction = "Input")        
-        trails =arcpy.Parameter(
-            displayName = "Trails (hiking, biking, etc.)",
-            name = "trails",
-            datatype = "GpFeatureLayer",
-            parameterType = "Optional", #change to optional?
-            direction = "Input")
-        roads = arcpy.Parameter(
-            displayName = "Roads (streets, highways, etc.)",
-            name = "roads",
-            datatype = "GpFeatureLayer",
-            parameterType = "Optional",
-            direction = "Input")
+        view = setParam(serviceLst[1], "view", "GPBoolean", "Optional", "")
+        edu = setParam(serviceLst[2], "edu", "GPBoolean", "Optional", "")
+        bird = setParam(serviceLst[3], "bird", "GPBoolean", "Optional", "")
+        rec = setParam(serviceLst[4], "rec", "GPBoolean", "Optional", "")
+        #special datasets (only appear if boxes are checked)
+        edu_inst = setParam("Educational Institution Points", "edu_inst", "", "Optional", "")
+        bus_stp = setParam("Bus Stop Points", "bus_stp", "", "Optional", "") #could it accomodate lines too?
+        trails = setParam("Trails (hiking, biking, etc.)", "trails", "", "Optional", "")
+        roads = setParam("Roads (streets, highways, etc.)", "roads", "", "Optional", "")
         #pre-existing wetlands
-        preWetlands = arcpy.Parameter(
-            displayName = "Wetland Polygons",
-            name = "in_wet",
-            datatype = "GpFeatureLayer",
-            parameterType = "Optional",
-            direction = "Input") 
-        landUse = arcpy.Parameter(
-            displayName = "Land use or greenspace Polygons",
-            name = "land_use",
-            datatype = "GpFeatureLayer",
-            parameterType = "Optional",
-            direction = "Input")        
-        fieldLULC = arcpy.Parameter(
-            displayName = "Landuse Field",
-            name="LULCFld",
-            datatype="Field",
-            parameterType="Optional",
-            direction = "Input")
+        preWetlands = setParam("Wetland Polygons", "in_wet", "", "Optional", "")#pre-existing wetlands
+        landUse = setParam("Land use or greenspace Polygons", "land_use", "", "Optional", "")
+        fieldLULC = setParam("Landuse Field", "LULCFld", "Field", "Optional", "")
 #list of fields from table
-
         #outputs
-        outTbl = arcpy.Parameter( #could code this as a folder or updated wetland shp instead, info table?
-            displayName = "Output",
-            name = "outTable",
-            datatype = "DETable",
-            parameterType = "Required", #could be made optional with an over write default
-            direction = "Output")
-        #report = arcpy.Parameter(
-        #    displayName ="Report (optional)",
-        #    name = "report",
-        #    dataType = "DEMapDocument",
-        #    parameterType = "Optional",
-        #    direction = "Output")
+        outTbl = setParam("Output", "outTable", "DETable", "", "Output")
+        #could code this as a folder or updated wetland shp instead, info table?
+        #could be made optional with an over write default
+
+        #report = setParam("Report (optional)", "report", "DEMapDocument", "Optional", "Output")
 
         #dependencies
         fieldLULC.parameterDependencies = [landUse.name]
         
-        params = [RestorationSites, addresses, popRast, view, edu, bird, rec, edu_inst, bus_stp, trails, roads, preWetlands, landUse, fieldLULC, outTbl] #add landuse
-
+        params = [sites, addresses, popRast, view, edu, bird, rec, edu_inst, bus_stp, trails, roads, preWetlands, landUse, fieldLULC, outTbl]
         return params
 
     def isLicensed(self):
         return True
     def updateParameters(self, params):
-        #may need to add
         return
     def updateMessages(self, params):
-        #may need to add
         return
     
     def execute(self, params, messages):
@@ -1421,48 +1202,13 @@ class LCCBuffer(object):
         
     def getParameterInfo(self):
 #Define parameters
-        in_landuse = arcpy.Parameter(
-            displayName ="Input Landuse Polygons",
-            name="in_landuse",
-            datatype="DEFeatureClass",
-            parameterType="Required",
-            direction = "Input")
-        IDfield = arcpy.Parameter(
-            displayName = "Landuse Unique ID Field",
-            name="LULC_ID",
-            datatype="Field",
-            parameterType="Optional",
-            direction = "Input")
-        sitePnts = arcpy.Parameter(
-            displayName = "Site Point Locations",
-            name="sitePnts",
-            datatype ="DEFeatureClass",
-            parameterType="Required",
-            direction = "Input")
-        buffer1 = arcpy.Parameter(
-            displayName = "First Buffer Distance",
-            name="bufferUnits",
-            datatype="GPLinearUnit",
-            parameterType="Required",
-            direction = "Input")        
-        buffer2 = arcpy.Parameter(
-            displayName = "Second Buffer Distance",
-            name="buffer2",
-            datatype="GPLinearUnit",
-            parameterType="Optional",
-            direction = "Input")
-        buffer3 = arcpy.Parameter(
-            displayName = "Third Buffer Distance",
-            name="buffer3",
-            datatype="GPLinearUnit",
-            parameterType="Optional",
-            direction = "Input")
-        out_poly = arcpy.Parameter(
-            displayName = "Output File",
-            name = "out_poly",
-            datatype="DEFeatureClass",
-            parameterType="Required",
-            direction = "Output")
+        in_landuse = setParam("Input Landuse Polygons", "in_landuse", "DEFeatureClass", "", "")
+        IDfield = setParam("Landuse Unique ID Field", "LULC_ID", "Field", "Optional", "")
+        sitePnts = setParam("Site Point Locations", "sitePnts", "DEFeatureClass", "", "")
+        buffer1 = setParam("First Buffer Distance", "bufferUnits", "GPLinearUnit", "", "")      
+        buffer2 = setParam("Second Buffer Distance", "buffer2", "GPLinearUnit", "Optional", "")
+        buffer3 = setParam("Third Buffer Distance", "buffer3", "GPLinearUnit", "Optional", "")
+        out_poly = setParam("Output File", "out_poly", "DEFeatureClass", "", "Output")
 
         #set the unique LandClass field based on feature dataset
         IDfield.parameterDependencies = [in_landuse.name]
@@ -1619,56 +1365,26 @@ class Report_Generator_Tool (object):
 
     def getParameterInfo(self):
     #Define IN/OUT parameters
-        outTbl = arcpy.Parameter( #could code this as updated wetland shp instead
-            displayName = "Results",
-            name = "outTable",
-            datatype = "DEFeatureClass",
-            parameterType = "Required",
-            direction = "Input")
-        watershed = arcpy.Parameter(
-            displayName = "Watershed",
-            name = "watershed",
-            datatype = "GpFeatureLayer",
-            parameterType = "Optional",
-            direction = "Input")
-        ReportTable = arcpy.Parameter(
-            displayName = "Include Summary Table in Report",
-            name = "Table",
-            datatype = "GPBoolean",
-            parameterType = "Optional",
-            direction = "Input")
+        outTbl = setParam("Results", "outTable", "DEFeatureClass", "","")
+        #could code this as updated wetland shp instead
+        watershed = setParam("Watershed", "watershed", "", "", "")
+        ReportTable = setParam("Include Summary Table in Report", "Table", "GPBoolean", "Optional", "")
         #Pdf Save
-        ReportPages = arcpy.Parameter(
-            displayName = "Include Site Pages in Report",
-            name = "Pages",
-            datatype = "GPBoolean",
-            parameterType = "Optional",
-            direction = "Input")
+        ReportPages = setParam("Include Site Pages in Report", "Pages", "GPBoolean", "Optional", "")
         #mxd template (with .rlf)
-        reportTemplate = arcpy.Parameter(
-            displayName = "Report Template (downloaded with tool)",
-            name = "template",
-            datatype = "DEMapDocument",
-            parameterType = "Required",
-            direction = "Input")
-        
+        reportTemplate = setParam("Report Template (downloaded with tool)", "template", "DEMapDocument","","")
         #outputs-pdf name
-        pdfName = arcpy.Parameter( #could code this as a folder or updated wetland shp instead, info table?
-            displayName = "PDF filename and location",
-            name = "outPDF",
-            datatype = "GPDataFile",
-            parameterType = "Required", #could be made optional with an over write default
-            direction = "Input")
+        pdfName = setParam("PDF filename and location", "outPDF", "GPDataFile", "", "")
+        #could code this as a folder or updated wetland shp instead, info table?
+        #could be made optional with an over write default
         params = [outTbl,watershed, ReportTable, ReportPages, reportTemplate, pdfName]
         return params
 
     def isLicensed(self):
         return True
     def updateParameters(self, params):
-        #may need to add
         return
     def updateMessages(self, params):
-        #may need to add
         return
     
     def execute(self, params, messages):
