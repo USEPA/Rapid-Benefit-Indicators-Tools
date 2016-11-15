@@ -2,7 +2,7 @@
 
 ![alt text](https://github.com/jbousquin/Rapid-Benefit-Indicators-Tools/blob/master/figures/headerIcon.png "The Rapid Benefit Indicators (RBI) Approach: A Process for Assessing the Social Benefits of Ecological Restoration")
 
-## A process for Assessing the Social Benefits of Ecological Restoration
+## A Process for Assessing the Social Benefits of Ecological Restoration
 This code repository contains tools and files related to the Rapid Benefit Indicators (RBI) assessment approach.
 
 ###Overview
