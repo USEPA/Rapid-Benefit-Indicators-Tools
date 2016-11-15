@@ -254,14 +254,12 @@ with arcpy.da.SearchCursor(outTbl, ["SHAPE@"]) as cursor:
     for row in cursor:
         siteAreaLst.append(row[0].getArea("GEODESIC", "ACRES"))
 #add results at end (siteAreaLst)
-
-##STOPPED DE-BUG HERE
         
 #3.3.B: SCARCITY
 if ExistingWetlands is not None:
     ExistingWetlands = checkSpatialReference(outTbl, ExistingWetlands) #check spatial ref
     #lst_floodRet_Density = percent_cover(ExistingWetlands, flood_areaC) #analysis for scarcity
-#CONCERN- the above only looks at wetlands in the flood areas within 2.5 miles, the below does entire buffer (up/down outside)
+#CONCERN- the above only looks at wetlands in the flood areas within 2.5 miles, the below does entire buffer
     lst_floodRet_Density = percent_cover(ExistingWetlands, flood_areaB) #analysis for scarcity
 #CONCERN: THIS IS WICKED SLOW
 #add results at end (lst_floodRet_Density)
@@ -269,7 +267,7 @@ if ExistingWetlands is not None:
 #3.3.C: SUBSTITUTES
 if subs is not None:
     subs = checkSpatialReference(outTbl, subs)
-    lst_subs_cnt = buffer_contains(flood_areaC, assets) #subs in buffer/flood
+    lst_subs_cnt = buffer_contains(flood_areaC, subs) #subs in buffer/flood
     #lst_subs_cnt = buffer_contains(flood_areaB, subs) # all subs in 2.5 miles
     #lst_subs_cnt = buffer_contains(flood_area, subs) #only subs in flood zone
         #list how many dams/levees in flood of buffersmanagement(outTbl, "Flood_sub", "Double")
