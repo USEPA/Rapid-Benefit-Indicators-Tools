@@ -27,10 +27,10 @@ Downloadable PDF manual that provides guidance on using the Checklist Tool. Also
 Downloadable fillable PDF version of the Checklist Tool. For an alternative to the spreadsheet-based RBI Approach Checklist Tool, these fillable, formatted sheets are available. They do not have all the functionality of the spreadsheet and only allow for comparison of two sites at a time, but they will work on systems that may not be able to run the checklist tool.
 
 ##Related Research
-The RBI Approach was developed as part of a research effort within EPA’s Office of Research and Development’s Safe and Sustainable Water Resources Research Program. Other components of this research are available in this folder, including the following:
+The RBI Approach was developed as part of a research effort within EPA’s Office of Research and Development’s Safe and Sustainable Water Resources Research Program. Other components of this research are available elsewhere:
 
 ###Benefit Indicators for Flood Regulation Services of Wetlands: A Modeling Approach.
-This report describes a modeling process, following the RBI Approach, used to develop indicators to assess increases in flood protection benefits from wetlands restoration. Also accessible from [US EPA](https://cfpub.epa.gov/si/si_public_record_Report.cfm?dirEntryId=309610 "EPA Science Inventory").
+This report describes a modeling process, following the RBI Approach, used to develop indicators to assess increases in flood protection benefits from wetlands restoration. Accessible from [US EPA](https://cfpub.epa.gov/si/si_public_record_Report.cfm?dirEntryId=309610 "EPA Science Inventory").
 
 ###Barriers, Opportunities, and Strategies for Urban Ecosystem Restoration: Lessons Learned from Restoration Managers in Rhode Island, U.S.A.
 This is a report that presents barriers, opportunities, and strategies for restoration projects and synthesizes lessons learned by restoration managers working in primarily urban settings.
