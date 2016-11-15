@@ -21,7 +21,7 @@ Interatcive, Macro-Enabled Excel workbook (.xlsm).
 This tool accompanies the guidebook and provides a way to record information and compare sites using the RBI Approach. This spreadsheet-based tool includes prompts to guide you through the assessment process, and automatically summarizes your entries.
 
 ###Rapid Benefit Indicator (RBI) Checklist Tool - Quick Start Manual
-Downloadable PDF manual that provides guidance on using the Checklist Tool.
+Downloadable PDF manual that provides guidance on using the Checklist Tool. Also accessible from [US EPA](https://cfpub.epa.gov/si/si_public_record_report.cfm?dirEntryId=331110 "EPA Science Inventory").
 
 ###Rapid Benefit Indicator (RBI) Checklist Tool - Fillable Forms
 Downloadable fillable PDF version of the Checklist Tool. For an alternative to the spreadsheet-based RBI Approach Checklist Tool, these fillable, formatted sheets are available. They do not have all the functionality of the spreadsheet and only allow for comparison of two sites at a time, but they will work on systems that may not be able to run the checklist tool.
@@ -30,13 +30,13 @@ Downloadable fillable PDF version of the Checklist Tool. For an alternative to t
 The RBI Approach was developed as part of a research effort within EPA’s Office of Research and Development’s Safe and Sustainable Water Resources Research Program. Other components of this research are available in this folder, including the following:
 
 ###Benefit Indicators for Flood Regulation Services of Wetlands: A Modeling Approach.
-This report describes a modeling process, following the RBI Approach, used to develop indicators to assess increases in flood protection benefits from wetlands restoration.
+This report describes a modeling process, following the RBI Approach, used to develop indicators to assess increases in flood protection benefits from wetlands restoration. Also accessible from [US EPA](https://cfpub.epa.gov/si/si_public_record_Report.cfm?dirEntryId=309610 "EPA Science Inventory").
 
 ###Barriers, Opportunities, and Strategies for Urban Ecosystem Restoration: Lessons Learned from Restoration Managers in Rhode Island, U.S.A.
 This is a report that presents barriers, opportunities, and strategies for restoration projects and synthesizes lessons learned by restoration managers working in primarily urban settings.
 
 ###Manager Perspectives on Communication and Public Engagement in Ecological Restoration Project Success.
-This article focuses on the restoration community in Rhode Island, USA and the rivers, wetlands, marshes, and estuaries they work to protect, to draw connections among communication, community involvement, and ecological restoration project success. Offering real-world examples drawn from interviews with 27 local, state, federal, and nonprofit restoration managers, it synthesizes the mechanisms that managers found effective.
+This article focuses on the restoration community in Rhode Island, USA and the rivers, wetlands, marshes, and estuaries they work to protect, to draw connections among communication, community involvement, and ecological restoration project success. Offering real-world examples drawn from interviews with 27 local, state, federal, and nonprofit restoration managers, it synthesizes the mechanisms that managers found effective. Accessible from [Ecology and Society](http://www.ecologyandsociety.org/vol20/iss1/art58/ "Ecology and Society")
 
 ###Making Science Marketable: Marketing Tips for Research Scientists.
 This report provides practical methods, based on marketing research, that research scientists can use to help insure that their research products meet the wants and needs of their target audiences. Learn how the RBI Approach research team applied marketing principles throughout their research, and take away key points that can enhance the creation, exposure, and use of any scientific tool or resource.
