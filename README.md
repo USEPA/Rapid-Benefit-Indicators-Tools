@@ -1,7 +1,8 @@
-# Rapid-Benefit-Indicators-Tools
-This code repository contains tools and files related to the Rapid Benefit Indicators (RBI) assessment approach.
-
 ![alt text](https://github.com/jbousquin/Rapid-Benefit-Indicators-Tools/blob/master/figures/headerIcon.png "The Rapid Benefit Indicators (RBI) Approach: A Process for Assessing the Social Benefits of Ecological Restoration")
+
+# Rapid-Benefit-Indicators-Tools
+## A process for Assessing the Social Benefits of Ecological Restoration
+This code repository contains tools and files related to the Rapid Benefit Indicators (RBI) assessment approach.
 
 ##Overview
 The Rapid Benefit Indicators (RBI) Approach is an easy-to-use process for assessing restoration sites using non-monetary benefit indicators. The RBI Approach uses readily-available data to estimate and quantify benefits to people around an ecological restoration site. Whether you are a federal, state, or local manager, or a member of an interest group or funding organization, this simple yet powerful site analysis will allow you and your stakeholders to systematically and equitably incorporate social benefits in restoration decisions.
