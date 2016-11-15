@@ -4,7 +4,7 @@
 ## A process for Assessing the Social Benefits of Ecological Restoration
 This code repository contains tools and files related to the Rapid Benefit Indicators (RBI) assessment approach.
 
-##Overview
+###Overview
 The Rapid Benefit Indicators (RBI) Approach is an easy-to-use process for assessing restoration sites using non-monetary benefit indicators. The RBI Approach uses readily-available data to estimate and quantify benefits to people around an ecological restoration site. Whether you are a federal, state, or local manager, or a member of an interest group or funding organization, this simple yet powerful site analysis will allow you and your stakeholders to systematically and equitably incorporate social benefits in restoration decisions.
 
 ###One Page RBI Approach Description
@@ -12,12 +12,14 @@ This downloadable pdf briefly describes the RBI Approach and how it might be use
 
 ###Assessing the Benefits of Wetland Restoration - A Rapid Benefits Indicators Approach for Decision Markers
 Downloadable PDF of the full EPA Report, also accessible from [US EPA](https://cfpub.epa.gov/si/si_public_record_report.cfm?dirEntryId=325010 "EPA Science Inventory").
-####Description:
+
+**Description:**
 This EPA report presents the RBI Approach using an example application to wetland restoration. In this guide, each step of the RBI Approach is introduced by an overview section that summarizes the step and explains how to apply it. Following the full walkthrough of each step, you will find “Step in Action” pages that demonstrate how the step is applied in a real-world scenario, using an example application to freshwater wetland restoration in the Woonasquatucket River Watershed in Rhode Island, USA.
 
 ###Rapid Benefit Indicator (RBI) Checklist Tool
 Interatcive, Macro-Enabled Excel workbook (.xlsm).
-####Description:
+
+**Description:**
 This tool accompanies the guidebook and provides a way to record information and compare sites using the RBI Approach. This spreadsheet-based tool includes prompts to guide you through the assessment process, and automatically summarizes your entries.
 
 ###Rapid Benefit Indicator (RBI) Checklist Tool - Quick Start Manual
