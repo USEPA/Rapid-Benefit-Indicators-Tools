@@ -67,54 +67,74 @@ def dbfreader(f):
         
 # Main Function
 if __name__ == "__main__":
-    InputFC = sys.argv[1] # NHDPlus feature
-    InputField = sys.argv[2] # Field with COMID or FEATUREID
+    #ADD CODE TO SELECT Catchment using restoration site
+    #InputFC = sys.argv[1] # NHDPlus feature
+    InputFC = r"C:\ArcGIS\Local_GIS\NHD_Plus\NHDPlusNationalData\NHDPlusV21_National_Seamless.gdb\NHDPlusCatchment\Catchment" #selection on FC in GDB
+    #InputField = sys.argv[2] # Field with COMID or FEATUREID
+    InputField = "FEATUREID" #field from feature layer
     Path = arcpy.Describe(InputFC).Path
-    UpDown = sys.argv[3]
-    if (InputFC == "Catchment"):
-        Flow = Path.replace('NHDPlusCatchment','NHDPlusAttributes')+'\PlusFlow.dbf' #replace(*old*, *new*) 
-    else:
-        Flow = Path.replace('NHDSnapshot\\Hydrography','NHDPlusAttributes')+'\PlusFlow.dbf'
     arcpy.env.workspace = Path
+    #UpDown = sys.argv[3]
+    UpDown = "Downstream" #alt = "Upstream"
+    #if (InputFC == "Catchment"):
+    #    Flow = Path.replace('NHDPlusCatchment','NHDPlusAttributes')+'\PlusFlow.dbf' #replace(*old*, *new*) 
+    #else:
+    #    Flow = Path.replace('NHDSnapshot\\Hydrography','NHDPlusAttributes')+'\PlusFlow.dbf'
+    Flow = Path.replace('\\NHDPlusCatchment','\\PlusFlow')
+    
     try:
         UpCOMs = defaultdict(list)
         DownCOMs = defaultdict(list)
         FeatureclassName = arcpy.Describe(InputFC).Name
         arcpy.AddMessage("Gathering info on upstream / downstream relationships")
-        infile = open(Flow, 'rb')
-        arcpy.AddMessage("Making list from dbf file.")
-        data = list(dbfreader(infile))
-        infile.close()
-        for line in data[2:]:
-            FROMCOMID=line[0]
-            TOCOMID=line[3]
-            UpCOMs[TOCOMID].append(FROMCOMID)
-            DownCOMs[FROMCOMID].append(TOCOMID)
-        for k in UpCOMs.iterkeys():
-            for items in UpCOMs[k]:
-                if items == 0:
-                    UpCOMs[k] = []
-        for k in DownCOMs.iterkeys():
-            for items in DownCOMs[k]:
-                if items == 0:
-                    DownCOMs[k] = []
+        #pull to/from out into memory
+        with arcpy.da.SearchCursor(Flow, ["FROMCOMID", "TOCOMID"]) as cursor:
+            for row in cursor:
+                FROMCOMID = row[0]
+                TOCOMID = row[1]
+                if TOCOMID != 0:
+                    UpCOMs[TOCOMID].append(TOCOMID)
+                    DownCOMs[FROMCOMID].append(TOCOMID)
+        #infile = open(Flow, 'rb')
+        #arcpy.AddMessage("Making list from dbf file.")
+        #data = list(dbfreader(infile))
+        #infile.close()
+        #for line in data[2:]:
+        #    FROMCOMID=line[0]
+        #    TOCOMID=line[3]
+        #    UpCOMs[TOCOMID].append(FROMCOMID)
+        #    DownCOMs[FROMCOMID].append(TOCOMID)
+        #for k in UpCOMs.iterkeys():
+        #    for items in UpCOMs[k]:
+        #        if items == 0:
+        #            UpCOMs[k] = []
+        #for k in DownCOMs.iterkeys():
+        #    for items in DownCOMs[k]:
+        #        if items == 0:
+        #            DownCOMs[k] = []
+#loop this section until selection is outside of buffer
+        #if InputFC is within Buffer == TRUE:
+        with arcpy.da.SearchCursor(InputFC, [InputField]) as cursor:
+            for row in cursor:
+                COMID = row[0]
 
-        rows = arcpy.SearchCursor(InputFC)
-        for row in rows:
-            COMID = (row.getValue("%s"%(InputField)))
+        #rows = arcpy.SearchCursor(InputFC)
+        #for row in rows:
+        #    COMID = (row.getValue("%s"%(InputField)))
             
-        if UpDown == "Upstream":
-            stuff = str(UpCOMs[COMID]).strip('[]')
-            string = "\"%s\" IN (%s)"%(InputField,stuff)
-            arcpy.AddMessage("Adding upstream features(s) to selection...")
-            arcpy.SelectLayerByAttribute_management(InputFC,"ADD_TO_SELECTION",string)
-        
-        if UpDown == "Downstream":
-            stuff = str(DownCOMs[COMID]).strip('[]')
-            string = "\"%s\" IN (%s)"%(InputField,stuff)
-            arcpy.AddMessage("Adding downstream features(s) to selection...")
-            arcpy.SelectLayerByAttribute_management(InputFC,"ADD_TO_SELECTION",string)
+                if UpDown == "Upstream":
+                    stuff = str(UpCOMs[COMID]).strip('[]')
+                    string = "\"%s\" IN (%s)"%(InputField,stuff)
+                    arcpy.AddMessage("Adding upstream features(s) to selection...")
+                    arcpy.SelectLayerByAttribute_management(InputFC,"ADD_TO_SELECTION",string)
                 
+                if UpDown == "Downstream":
+                    stuff = str(DownCOMs[COMID]).strip('[]')
+                    string = "\"%s\" IN (%s)"%(InputField,stuff)
+                    arcpy.AddMessage("Adding downstream features(s) to selection...")
+                    arcpy.SelectLayerByAttribute_management(InputFC,"ADD_TO_SELECTION",string)
+        #Else:
+                    arcpy.AddMessages("Selection complete")
         arcpy.AddMessage(" ")
     except:
       arcpy.GetMessages()
