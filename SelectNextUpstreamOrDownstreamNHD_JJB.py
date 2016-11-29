@@ -7,14 +7,28 @@
 """
 # Import system modules
 import os, arcpy, sys
-import struct, decimal, itertools
+#import struct, decimal, itertools
 from collections import deque, defaultdict
 
+"""Selection Query String from list
+Purpose: return a string for a where clause from a list of field values
+"""
 def selectStr_by_list(field, lst):
     exp = ''
     for item in lst:
         exp += '"' + field + '" = ' + str(item) + " OR "
     return (exp[:-4])
+
+"""Intersect Boolean
+Purpose: returns T/F if two layers intersect at all
+"""
+def intersect_boolean(lyr1, lyr2):
+    arcpy.SelectLayerByLocation_management(lyr1, 'intersect', lyr2)
+    cnt = int(arcpy.GetCount_management(lyr1)[0])
+    if cnt == 0:
+        return False
+    else:
+        return True
 
 # Main Function
 if __name__ == "__main__":
@@ -32,6 +46,12 @@ if __name__ == "__main__":
     #else:
     #    Flow = Path.replace('NHDSnapshot\\Hydrography','NHDPlusAttributes')+'\PlusFlow.dbf'
     Flow = Path.replace('\\NHDPlusCatchment','\\PlusFlow')
+
+    RestorationSite = r"L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Test_Results\Intermediates2.gdb\Results"
+
+    #make FCs into lyrs
+    arcpy.MakeFeatureLayer_management(RestorationSite, "RestorationSite_lyr")
+    arcpy.MakeFeatureLayer_management(InputFC, "InputFC_lyr")
     
     try:
         #STEP 1: pull to/from out into memory
@@ -65,10 +85,12 @@ if __name__ == "__main__":
         #            DownCOMs[k] = []
         
         #STEP 2: Get start IDs from input
+        #select catchment using restoration site
+        arcpy.SelectLayerByLocation_management("InputFC_lyr", 'intersect', "RestorationSite_lyr")
         COMID_lst = [] #set instead? would eliminate duplicates
-        with arcpy.da.SearchCursor(InputFC, [InputField]) as cursor:
+        with arcpy.da.SearchCursor(InputFC_lyr, [InputField]) as cursor:
             for row in cursor:
-                COMID_lst.append = row[0]
+                COMID_lst.append(row[0])
 #QUESTION: Nest function into each row instead of using list?
         #STEP 3: Use IDs list to find upstream/downstream
         for COMID in COMID_lst:
@@ -112,6 +134,3 @@ if __name__ == "__main__":
         arcpy.AddMessage(" ")
     except:
       arcpy.GetMessages()
-
-
-
