@@ -21,6 +21,7 @@ from decimal import *
 ###########FUNCTIONS##########
 """Find downstream
 Purpose:"""
+###MESS, NOT USING ANYWAY
 def select_downstream(UpDown, catch_lyr, field, COMs):
     #if UpCOMs == None or DownCOMs == None:
     #    arcpy.AddMessage("Gathering info on upstream / downstream relationships")
@@ -35,6 +36,19 @@ def select_downstream(UpDown, catch_lyr, field, COMs):
         #    selection = selectStr_by_list(field, UpCOMs[COMID])
         #if UpDown == "Downstream":
             selection = selectStr_by_list(field, COMs[COMID])
+"""List children
+Purpose: returns list of all children"""
+def children(token, tree):
+    visited = set()
+    to_crawl = deque([token])
+    while to_crawl:
+        current = to_crawl.popleft()
+        if current in visited:
+            continue
+        visited.add(current)
+        node_children = set(tree[current])
+        to_crawl.extendleft(node_children - visited)
+    return list(visited)
             
 """Read in NHD Relates
 Purpose: read the upstream/downstream table to memory"""
@@ -238,6 +252,8 @@ floodArea = path + "int_FloodArea"
 flood_area = floodArea #+ ".shp"
 flood_areaB = floodArea + "temp"#.shp" #buffers
 flood_areaC = floodArea + "temp2"#.shp" #buffers
+flood_areaD = floodArea + "temp3_single" #.shp #single downstream buffer 
+flood_areaD = floodArea + "temp3" #.shp #downstream
 assets = floodArea + "_assets" #addresses/population in flood zone
 
 #3.2: NUMBER WHO BENEFIT                    
@@ -282,14 +298,35 @@ arcpy.MakeFeatureLayer_management(Catchment, "catchment_lyr")
 arcpy.AddMessage("Gathering info on upstream / downstream relationships")
 UpCOMs, DownCOMs = setNHD_dict(Flow)
 
+i=1
 with arcpy.da.SearchCursor(outTbl, ["SHAPE@"]) as cursor:
     for site in cursor:
         arcpy.SelectLayerByLocation_management("catchment_lyr", "intersect", site[0])
+        #start function here
+        HUC_ID_lst = []
+        with arcpy.da.SearchCursor("catchment_lyr", [InputField]) as cursor_inner:
+            for row in cursor_inner:
+                HUC_ID_lst.append(row[0])
+        downCatchments = children(HUC_ID_lst, DownCOMs) #list catchments downstream of site
+        upCatchments = children(HUC_ID_lst, UpCOMs) #list catchments upstream of site
         #intersectPoly = site[0].intersect("floodArea_lyr", 4)
         #Downstream
-        select_downstream("downstream", "catchment_lyr", InputField, DownCOMs)
+        #select_downstream("downstream", "catchment_lyr", InputField, DownCOMs)
         #select_downstream(Flow, UpDown, "catchment_lyr", InputField, UpCOMs, DownCOMs)
-
+        #SELECT downstream
+        slt_qry_down = selectStr_by_list(InputField, downCatchments)
+        #return selection here
+        arcpy.SelectLayerByAttribute_management("catchment_lyr", "NEW_SELECTION", slt_qry_down)
+        #select correct flood area
+        arcpy.MakeFeatureLayer_management(flood_areaC, "flood_areaD")
+        whereClause = '"OBJECTID" = ' + str(i)
+        arcpy.SelectLayerByAttribute_management("flood_areaD", "NEW_SELECTION", whereClause)
+        #arcpy.CopyFeatures_management("flood_areaD", flood_areaD)
+        #clip flood area D
+        arcpy.Clip_analysis("flood_areaD", "catchment_lyr", flood_areaD_temp)
+        #do something with single Feature
+        i+=1
+        
 #step 3C: calculate flood area as benefitting percentage
 arcpy.AddField_management(flood_areaC, "area", "Double")
 arcpy.AddField_management(flood_areaC, "area_pct", "Double")
