@@ -27,6 +27,7 @@ def del_exists(item):
         arcpy.Delete_management(item)
         arcpy.AddMessage(str(item) + " already exists, it was deleted and will be replaced.")
         print(str(item) + " already exists, it was deleted and will be replaced.")
+        
 """List in buffer
 Purpose: generates a list of catchments in buffer"""
 def list_buffer(lyr, field, lyr_range):
@@ -345,7 +346,7 @@ with arcpy.da.SearchCursor(outTbl, ["SHAPE@", "OID@"]) as cursor:
         shortDownCOMs = defaultdict(list)
         for item in bufferCatchments:
             shortDownCOMs[item].append(DownCOMs[item])
-        
+            shortDownCOMs[item] = list(itertools.chain.from_iterable(shortDownCOMs[item]))
         #list downstream catchments
         downCatchments = list_downstream("catchment_lyr", InputField, shortDownCOMs)
 
