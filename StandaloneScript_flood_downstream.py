@@ -7,7 +7,7 @@
 # Version Notes:
 # Developed in ArcGIS 10.3
 # v27 Tier 1 Rapid Benefit Indicator Assessment
-# Date: 11/7/2016
+# Date: 12/5/2016
 
 #inputs from mxd:
 #L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Full_Demo.mxd
@@ -20,23 +20,36 @@ from collections import deque, defaultdict
 from arcpy import da
 from decimal import *
 ###########FUNCTIONS##########
-"""Find downstream
-Purpose:"""
-###MESS, NOT USING ANYWAY
-def select_downstream(UpDown, catch_lyr, field, COMs):
-    #if UpCOMs == None or DownCOMs == None:
-    #    arcpy.AddMessage("Gathering info on upstream / downstream relationships")
-    #    UpCOMs, DownCOMs = setNHD_dict(Flow)
-    COMID_lst = [] #create a list of the catchments
-    with arcpy.da.SearchCursor(catch_lyr, [field]) as cursor:
-        for row in cursor:
-            COMID_lst.append(row[0])
-    arcpy.AddMessage("Finding next {} feature(s)...".format(UpDown))
-    for COMID in COMID_lst: #for each catchment find the next upstream/downstream
-        #if UpDown == "Upstream":
-        #    selection = selectStr_by_list(field, UpCOMs[COMID])
-        #if UpDown == "Downstream":
-            selection = selectStr_by_list(field, COMs[COMID])
+""" Delete if exists
+Purpose: if a file exists it is deleted and noted in a message message"""
+def del_exists(item):
+    if arcpy.Exists(item):
+        arcpy.Delete_management(item)
+        arcpy.AddMessage(str(item) + " already exists, it was deleted and will be replaced.")
+        print(str(item) + " already exists, it was deleted and will be replaced.")
+"""List in buffer
+Purpose: generates a list of catchments in buffer"""
+def list_buffer(lyr, field, lyr_range):
+    arcpy.SelectLayerByAttribute_management(lyr, "CLEAR_SELECTION")
+    arcpy.SelectLayerByLocation_management(lyr, "INTERSECT", lyr_range)
+    HUC_ID_lst = field_to_lst(lyr, field) #list catchment IDs
+    return (HUC_ID_lst)
+
+"""List Downstream
+Purpose: generates a list of catchments downstream of catchments in layer"""
+#written to alternatively work for upstream
+def list_downstream(lyr, field, COMs):
+    #list lyr IDs
+    HUC_ID_lst = field_to_lst(lyr, field)
+    #list catchments downstream of site
+    downCatchments = []
+    for ID in set(HUC_ID_lst):
+        downCatchments.append(children(ID, COMs))
+        #upCatchments.append(children(ID, UpCOMs)) #list catchments upstream of site #alt
+    #flatten list and remove any duplicates
+    downCatchments = set(list(itertools.chain.from_iterable(downCatchments)))
+    return(list(downCatchments))
+
 """List children
 Purpose: returns list of all children"""
 def children(token, tree):
@@ -57,6 +70,7 @@ def setNHD_dict(Flow):
     UpCOMs = defaultdict(list)
     DownCOMs = defaultdict(list)
     arcpy.AddMessage("Gathering info on upstream / downstream relationships")
+    print("Gathering info on upstream / downstream relationships")
     with arcpy.da.SearchCursor(Flow, ["FROMCOMID", "TOCOMID"]) as cursor:
         for row in cursor:
             FROMCOMID = row[0]
@@ -82,6 +96,7 @@ def exec_time(start, message):
     end = time.clock()
     comp_time = end - start
     arcpy.AddMessage("Run time for " + message + ": " + str(comp_time))
+    print("Run time for " + message + ": " + str(comp_time))
     start = time.clock()
     return start
 
@@ -94,6 +109,7 @@ def checkSpatialReference(alphaFC, otherFC):
     if alphaSR.name != otherSR.name:
         #e.g. .name = u'WGS_1984_UTM_Zone_19N' for Projected Coordinate System = WGS_1984_UTM_Zone_19N
         arcpy.AddMessage("Spatial reference for " + otherFC + " does not match.")
+        print("Spatial reference for " + otherFC + " does not match.")
         try:
             path = os.path.dirname(alphaFC)
             newName = os.path.basename(otherFC)
@@ -101,8 +117,10 @@ def checkSpatialReference(alphaFC, otherFC):
             arcpy.Project_management(otherFC, output, alphaSR)
             fc = output
             arcpy.AddMessage("File was re-projected and saved as " + fc)
+            print("File was re-projected and saved as " + fc)
         except:
             arcpy.AddMessage("Warning: spatial reference could not be updated.")
+            print("Warning: spatial reference could not be updated.")
             fc = otherFC
     else:
         fc = otherFC
@@ -161,7 +179,8 @@ def percent_cover(poly, bufPoly):
 
 """Read Field to List
 Purpose:"""
-#Function Notes: if field is: string, 1 field at a time; list , 1 field at a time or 1st field is used to sort
+#Function Notes: if field is: string, 1 field at a time;
+#                               list, 1 field at a time or 1st field is used to sort
 #Example: lst = field_to_lst("table.shp", "fieldName")
 def field_to_lst(table, field):
     lst = []
@@ -183,6 +202,7 @@ def field_to_lst(table, field):
             orderLst, lst = (list(x) for x in zip(*sorted(zip(orderLst, lst))))
     else:
         arcpy.AddMessage("Something went wrong with the field to list function")
+        print("Something went wrong with the field to list function")
     return lst
 
 """Add List to Field
@@ -196,8 +216,8 @@ def lst_to_field(table, field, lst):
             row[0] = lst[i]
             i+=1
             cursor.updateRow(row)
+            
 ###########FLOODING##########
-
 start = time.clock() #start the clock
 #inputs gdb
 in_gdb = r"L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Test_Inputs.gdb"
@@ -248,18 +268,18 @@ start=exec_time(start, "intiating variables")
 #set variables
 outTbl_flood = path + "int_flood.dbf" #table of flood results
 #naming convention for flood intermediates
-floodArea = path + "int_FloodArea"
+FA = path + "int_FloodArea"
 
-flood_area = floodArea #+ ".shp"
-flood_areaB = floodArea + "temp"#.shp" #buffers
-flood_areaC = floodArea + "temp2"#.shp" #buffers
-flood_areaD = floodArea + "temp3" #.shp #downstream
-flood_areaD_clip_single = floodArea + "temp3_single" #.shp #downstream
-clip_name = os.path.basename(floodArea) + "temp3_clip" #.shp #single downstream buffer 
-assets = floodArea + "_assets" #addresses/population in flood zone
+flood_area = FA #+ ".shp"
+flood_areaB = FA + "temp"#.shp" #buffers
+flood_areaC = FA + "temp2"#.shp" #buffers
+flood_areaD = FA + "temp3" #.shp #downstream
+flood_areaD_clip_single = FA + "temp3_single" #.shp #downstream
+clip_name = os.path.basename(FA) + "temp3_clip" #.shp #single downstream buffer 
+assets = FA + "_assets" #addresses/population in flood zone
 
 #3.2: NUMBER WHO BENEFIT                    
-#step 1: check that there are people in the flood zone
+#3.2 Step 1: check that there are people in the flood zone
 if addresses is not None: #if using addresses
     addresses = checkSpatialReference(outTbl, addresses) #check spatial ref
     flood_zone = checkSpatialReference(outTbl, flood_zone) #check spatial ref
@@ -289,63 +309,63 @@ elif popRast is not None: #not yet tested
 else:
     arcpy.AddError("No population inputs specified")
 
-#step 2: buffer each site by 5 miles
+#3.2 Step 2: buffer each site by 5 miles
 arcpy.Buffer_analysis(outTbl, flood_areaB, "2.5 Miles")
 #step 3A: clip the buffer to flood polygon
+arcpy.AddMessage("Reducing flood zone to 2.5 Miles from sites...")
+print("Reducing flood zone to 2.5 Miles from sites...")
 arcpy.Clip_analysis(flood_areaB, flood_zone, flood_areaC)
 
-#step 3B: clip the buffered flood area to downstream basins (OPTIONAL)
+#3.2 Step 3B: clip the buffered flood area to downstream basins (OPTIONAL)
+#if Catchment is not None:
+arcpy.AddMessage("Using {} to determine downstream areas of flood zone".format(Catchment))
+print("Using {} to determine downstream areas of flood zone".format(Catchment))
+arcpy.MakeFeatureLayer_management(flood_areaB, "buffer_lyr")
 arcpy.MakeFeatureLayer_management(Catchment, "catchment_lyr")
-#arcpy.MakeFeatureLayer_management(flood_areaC, "floodArea_lyr")
-arcpy.AddMessage("Gathering info on upstream / downstream relationships")
-UpCOMs, DownCOMs = setNHD_dict(Flow)
 
+UpCOMs, DownCOMs = setNHD_dict(Flow) #reduce to downstream only?
 #create empty FC for downstream catchments
+del_exists(path + os.sep + clip_name) #may not need?
 flood_areaD_clip = arcpy.CreateFeatureclass_management(path, clip_name, "POLYGON", spatial_reference = "catchment_lyr")
 
-#i=1
-with arcpy.da.SearchCursor(outTbl, ["SHAPE@"]) as cursor:
+site_cnt = arcpy.GetCount_management(outTbl)
+
+with arcpy.da.SearchCursor(outTbl, ["SHAPE@", "OID@"]) as cursor:
     for site in cursor:
+        #select catchments where the restoration site is
         arcpy.SelectLayerByLocation_management("catchment_lyr", "INTERSECT", site[0])
-        #start function here
-        HUC_ID_lst = []
-        downCatchments = []
-        upCatchments = []
-        with arcpy.da.SearchCursor("catchment_lyr", [InputField]) as cursor_inner:
-            for row in cursor_inner:
-                HUC_ID_lst.append(row[0])
-        for ID in set(HUC_ID_lst):
-            downCatchments.append(children(ID, DownCOMs)) #list catchments downstream of site
-            upCatchments.append(children(ID, UpCOMs)) #list catchments upstream of site
-        #intersectPoly = site[0].intersect("floodArea_lyr", 4)
-        #Downstream
-        #select_downstream("downstream", "catchment_lyr", InputField, DownCOMs)
-        #select_downstream(Flow, UpDown, "catchment_lyr", InputField, UpCOMs, DownCOMs)
-        #SELECT downstream
-        #flatten list
-        downCatchments = set(list(itertools.chain.from_iterable(downCatchments)))
-        slt_qry_down = selectStr_by_list(InputField, downCatchments)
-        #return selection here
-        arcpy.SelectLayerByAttribute_management("catchment_lyr", "NEW_SELECTION", slt_qry_down) #SLOW
+        #select buffer for site
+        where_clause = "OBJECTID = " + str(site[1])
+        arcpy.SelectLayerByAttribute_management("buffer_lyr", "NEW_SELECTION", where_clause)
+
+        #list catchments in buffer
+        bufferCatchments = list_buffer("catchment_lyr", InputField, "buffer_lyr")
+
+        #subset DownCOMs to only those in buffer (keeps them consecutive
+        shortDownCOMs = defaultdict(list)
+        for item in bufferCatchments:
+            shortDownCOMs[item].append(DownCOMs[item])
+        
+        #list downstream catchments
+        downCatchments = list_downstream("catchment_lyr", InputField, shortDownCOMs)
+
+        #catchments in both lists
+        catchment_lst = list(set(downCatchments).intersection(bufferCatchments))
+        
+        #SELECT downstream catchments in buffer
+        slt_qry_down = selectStr_by_list(InputField, catchment_lst)
+        arcpy.SelectLayerByAttribute_management("catchment_lyr", "NEW_SELECTION", slt_qry_down)
         #make this selection into single feature
         arcpy.Dissolve_management("catchment_lyr", flood_areaD_clip_single)
         #append to empty clip set
         arcpy.Append_management(flood_areaD_clip_single, flood_areaD_clip)
-        #insert cursor to add new clipped instead?        
-        #with arcpy.da.InsertCursor(flood_areaD_clip, ["SHAPE@"]) as  cursorInsert:
-            #for catch in cursorInsert:
-                   
-        #select correct flood area
-        #arcpy.MakeFeatureLayer_management(flood_areaC, "flood_areaD")
-        #whereClause = '"OBJECTID" = ' + str(i)
-        #arcpy.SelectLayerByAttribute_management("flood_areaD", "NEW_SELECTION", whereClause)
-        #arcpy.CopyFeatures_management("flood_areaD", flood_areaD)
-        #clip flood area D
-        #arcpy.Clip_analysis("flood_areaD", "catchment_lyr", flood_areaD_clip)
-        #do something with single Feature
-        #i+=1
+        clip_rows = arcpy.GetCount_management(flood_areaD_clip)
+        arcpy.AddMessage("Determine catchments downstream for row {}, of {}".format(clip_rows, site_cnt))
+        print("Determine catchments downstream for row {}, of {}".format(clip_rows, site_cnt))
 
 #Clip the flood area within each buffer to the corresponding downstream segments
+arcpy.AddMessage("Reducing flood zone areas downstream from sites...")
+print("Reducing flood zone areas downstream from sites...")
 arcpy.Clip_analysis(flood_areaC, flood_areaD_clip, flood_areaD)
 
 #step 3C: calculate flood area as benefitting percentage
