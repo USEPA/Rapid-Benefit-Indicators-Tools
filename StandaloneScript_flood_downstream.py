@@ -15,6 +15,7 @@
 ###########IMPORTS###########
 import os, sys, time
 import arcpy
+import decimal, itertools
 from collections import deque, defaultdict
 from arcpy import da
 from decimal import *
@@ -252,8 +253,9 @@ floodArea = path + "int_FloodArea"
 flood_area = floodArea #+ ".shp"
 flood_areaB = floodArea + "temp"#.shp" #buffers
 flood_areaC = floodArea + "temp2"#.shp" #buffers
-flood_areaD = floodArea + "temp3_single" #.shp #single downstream buffer 
 flood_areaD = floodArea + "temp3" #.shp #downstream
+flood_areaD_clip_single = floodArea + "temp3_single" #.shp #downstream
+clip_name = os.path.basename(floodArea) + "temp3_clip" #.shp #single downstream buffer 
 assets = floodArea + "_assets" #addresses/population in flood zone
 
 #3.2: NUMBER WHO BENEFIT                    
@@ -298,35 +300,54 @@ arcpy.MakeFeatureLayer_management(Catchment, "catchment_lyr")
 arcpy.AddMessage("Gathering info on upstream / downstream relationships")
 UpCOMs, DownCOMs = setNHD_dict(Flow)
 
-i=1
+#create empty FC for downstream catchments
+flood_areaD_clip = arcpy.CreateFeatureclass_management(path, clip_name, "POLYGON", spatial_reference = "catchment_lyr")
+
+#i=1
 with arcpy.da.SearchCursor(outTbl, ["SHAPE@"]) as cursor:
     for site in cursor:
-        arcpy.SelectLayerByLocation_management("catchment_lyr", "intersect", site[0])
+        arcpy.SelectLayerByLocation_management("catchment_lyr", "INTERSECT", site[0])
         #start function here
         HUC_ID_lst = []
+        downCatchments = []
+        upCatchments = []
         with arcpy.da.SearchCursor("catchment_lyr", [InputField]) as cursor_inner:
             for row in cursor_inner:
                 HUC_ID_lst.append(row[0])
-        downCatchments = children(HUC_ID_lst, DownCOMs) #list catchments downstream of site
-        upCatchments = children(HUC_ID_lst, UpCOMs) #list catchments upstream of site
+        for ID in set(HUC_ID_lst):
+            downCatchments.append(children(ID, DownCOMs)) #list catchments downstream of site
+            upCatchments.append(children(ID, UpCOMs)) #list catchments upstream of site
         #intersectPoly = site[0].intersect("floodArea_lyr", 4)
         #Downstream
         #select_downstream("downstream", "catchment_lyr", InputField, DownCOMs)
         #select_downstream(Flow, UpDown, "catchment_lyr", InputField, UpCOMs, DownCOMs)
         #SELECT downstream
+        #flatten list
+        downCatchments = set(list(itertools.chain.from_iterable(downCatchments)))
         slt_qry_down = selectStr_by_list(InputField, downCatchments)
         #return selection here
-        arcpy.SelectLayerByAttribute_management("catchment_lyr", "NEW_SELECTION", slt_qry_down)
+        arcpy.SelectLayerByAttribute_management("catchment_lyr", "NEW_SELECTION", slt_qry_down) #SLOW
+        #make this selection into single feature
+        arcpy.Dissolve_management("catchment_lyr", flood_areaD_clip_single)
+        #append to empty clip set
+        arcpy.Append_management(flood_areaD_clip_single, flood_areaD_clip)
+        #insert cursor to add new clipped instead?        
+        #with arcpy.da.InsertCursor(flood_areaD_clip, ["SHAPE@"]) as  cursorInsert:
+            #for catch in cursorInsert:
+                   
         #select correct flood area
-        arcpy.MakeFeatureLayer_management(flood_areaC, "flood_areaD")
-        whereClause = '"OBJECTID" = ' + str(i)
-        arcpy.SelectLayerByAttribute_management("flood_areaD", "NEW_SELECTION", whereClause)
+        #arcpy.MakeFeatureLayer_management(flood_areaC, "flood_areaD")
+        #whereClause = '"OBJECTID" = ' + str(i)
+        #arcpy.SelectLayerByAttribute_management("flood_areaD", "NEW_SELECTION", whereClause)
         #arcpy.CopyFeatures_management("flood_areaD", flood_areaD)
         #clip flood area D
-        arcpy.Clip_analysis("flood_areaD", "catchment_lyr", flood_areaD_temp)
+        #arcpy.Clip_analysis("flood_areaD", "catchment_lyr", flood_areaD_clip)
         #do something with single Feature
-        i+=1
-        
+        #i+=1
+
+#Clip the flood area within each buffer to the corresponding downstream segments
+arcpy.Clip_analysis(flood_areaC, flood_areaD_clip, flood_areaD)
+
 #step 3C: calculate flood area as benefitting percentage
 arcpy.AddField_management(flood_areaC, "area", "Double")
 arcpy.AddField_management(flood_areaC, "area_pct", "Double")
