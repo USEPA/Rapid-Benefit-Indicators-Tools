@@ -272,9 +272,9 @@ outTbl_flood = path + "int_flood.dbf" #table of flood results
 FA = path + "int_FloodArea"
 
 flood_area = FA #+ ".shp"
-flood_areaB = FA + "temp"#.shp" #buffers
-flood_areaC = FA + "temp2"#.shp" #buffers
-flood_areaD = FA + "temp3" #.shp #downstream
+flood_areaB = FA + "temp_buffer"#.shp" #buffers
+flood_areaC = FA + "temp2_zone"#.shp" #buffers
+flood_areaD = FA + "temp3_down" #.shp #downstream
 flood_areaD_clip_single = FA + "temp3_single" #.shp #downstream
 clip_name = os.path.basename(FA) + "temp3_clip" #.shp #single downstream buffer 
 assets = FA + "_assets" #addresses/population in flood zone
@@ -333,24 +333,27 @@ site_cnt = arcpy.GetCount_management(outTbl)
 
 with arcpy.da.SearchCursor(outTbl, ["SHAPE@", "OID@"]) as cursor:
     for site in cursor:
-        #select catchments where the restoration site is
-        arcpy.SelectLayerByLocation_management("catchment_lyr", "INTERSECT", site[0])
         #select buffer for site
         where_clause = "OBJECTID = " + str(site[1])
         arcpy.SelectLayerByAttribute_management("buffer_lyr", "NEW_SELECTION", where_clause)
-
+        
         #list catchments in buffer
         bufferCatchments = list_buffer("catchment_lyr", InputField, "buffer_lyr")
 
-        #subset DownCOMs to only those in buffer (keeps them consecutive
+        #subset DownCOMs to only those in buffer (keeps them consecutive)
         shortDownCOMs = defaultdict(list)
         for item in bufferCatchments:
             shortDownCOMs[item].append(DownCOMs[item])
             shortDownCOMs[item] = list(itertools.chain.from_iterable(shortDownCOMs[item]))
+
+        #select catchments where the restoration site is
+        arcpy.SelectLayerByLocation_management("catchment_lyr", "INTERSECT", site[0])
+
         #list downstream catchments
         downCatchments = list_downstream("catchment_lyr", InputField, shortDownCOMs)
 
         #catchments in both lists
+        #NOTE: THIS SHOULDN'T BE NEEDED, the last catchment will already be outside the buffer clip
         catchment_lst = list(set(downCatchments).intersection(bufferCatchments))
         
         #SELECT downstream catchments in buffer
