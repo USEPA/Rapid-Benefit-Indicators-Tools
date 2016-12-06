@@ -370,74 +370,119 @@ with arcpy.da.SearchCursor(outTbl, ["SHAPE@", "OID@"]) as cursor:
 #Clip the flood area within each buffer to the corresponding downstream segments
 arcpy.AddMessage("Reducing flood zone areas downstream from sites...")
 print("Reducing flood zone areas downstream from sites...")
-arcpy.Clip_analysis(flood_areaC, flood_areaD_clip, flood_areaD)
+arcpy.Clip_analysis(flood_areaC, flood_areaD_clip, flood_areaD) #FIX THIS
 
 #step 3C: calculate flood area as benefitting percentage
+arcpy.AddMessage("Measuring flood zone area downstream of each site...")
+print("Measuring flood zone area downstream of each site...")
+
+#Add/calculate fields for flood
 arcpy.AddField_management(flood_areaC, "area", "Double")
 arcpy.AddField_management(flood_areaC, "area_pct", "Double")
 arcpy.CalculateField_management(flood_areaC, "area", "!SHAPE.area!", "PYTHON_9.3", "")
+arcpy.AddField_management(flood_areaC, "areaD_pct", "Double")
 
-with arcpy.da.UpdateCursor(flood_areaC, ["area_pct", "area", "BUFF_DIST"]) as cursor:
+#Add/calculate fields for downstream flood zone
+arcpy.AddField_management(flood_areaD, "areaD", "Double")
+arcpy.CalculateField_management(flood_areaD, "areaD", "!SHAPE.area!", "PYTHON_9.3", "")
+
+#move downstream area result to flood zone table
+arcpy.JoinField_management(flood_areaC, "OBJECT_ID", flood_areaD, "OBJECT_ID", ["areaD"])
+
+#calculate percent area fields
+with arcpy.da.UpdateCursor(flood_areaC, ["area_pct", "area", "BUFF_DIST", "areaD_pct", "areaD"]) as cursor:
     #BUFF_DIST is used rather than 25 sq miles because it is in the datum units used for area calculation
     #if BUFF_DIST is field in wetlands it was renamed by index in flood_area
     for row in cursor:
-        row[0] = row[1]/(math.pi*((row[2]**2.0)))
+        row[0] = row[1]/(math.pi*((row[2]**2.0))) #percent of zone (2.5 mile radius) that is flood zone
+        row[3] = row[4]/row[1] #percent of flood zone in range that is downstream of site
         cursor.updateRow(row)
+
+lst_floodzoneArea_pct = field_to_lst(flood_areaC, "area_pct")
+lst_floodzoneD = field_to_lst(flood_areaC, "areaD")
+lst_floodzoneD_pct = field_to_lst(flood_areaC, "areaD_pct")
                 
 #step 4: calculate number of people benefitting.
+arcpy.AddMessage("Counting people who benefit...")
+print("Counting people who benefit...")
 if addresses is not None:
-    lst_flood_cnt = buffer_contains(flood_areaC, assets) #addresses in buffer/flood
+    lst_flood_cnt = buffer_contains(flood_areaD, assets) #addresses in buffer/flood zone/downstream
 
 elif popRast is not None: #not yet tested
-    lst_flood_cnt = buffer_population(flood_areaC, popRast)
-#add results at end (lst_flood_cnt)
+    lst_flood_cnt = buffer_population(flood_areaD, popRast) #population in buffer/flood zone/downstream 
     
-start=exec_time(start, "flood analysis")
+start=exec_time(start, "Flood Risk 3.2 How Many Benefit analysis")
 
 #3.3.A: SERVICE QUALITY
+arcpy.AddMessage("Measuring area of each restoration site...")
+print("Measuring area of each restoration site...")
+
 #calculate area of each restoration site
 siteAreaLst =[]
 with arcpy.da.SearchCursor(outTbl, ["SHAPE@"]) as cursor:
     for row in cursor:
         siteAreaLst.append(row[0].getArea("GEODESIC", "ACRES"))
-#add results at end (siteAreaLst)
+
+start = exec_time (start, "Flood Risk 3.3.A Service Quality analysis")
+
+#3.3.B: SUBSTITUTES
+if subs is not None:
+    arcpy.AddMessage("Estimating number of substitutes within 2.5 miles downstream of restoration site...")
+    print("Estimating number of substitutes within 2.5 miles downstream of restoration site...")
+    subs = checkSpatialReference(outTbl, subs)
+
+    lst_subs_cnt = buffer_contains(flood_areaD, subs) #subs in buffer/flood/downstream
+
+    #convert lst to binary list
+    lst_subs_cnt_boolean = []
+    for item in lst_subs_cnt:
+          if item >0:
+              lst_subs_cnt_boolean.append("YES")
+          else:
+              lst_subs_cnt_boolean.append("NO")
+
+    start = exec_time (start, "Flood Risk 3.3.B Scarcity (substitutes) analysis")
         
 #3.3.B: SCARCITY
 if ExistingWetlands is not None:
+    arcpy.AddMessage("Estimating area of wetlands within 2.5 miles in both directions (5 miles total) of restoration site...")
+    print("Estimating area of wetlands within 2.5 miles in both directions (5 miles total) of restoration site...")
     ExistingWetlands = checkSpatialReference(outTbl, ExistingWetlands) #check spatial ref
     #lst_floodRet_Density = percent_cover(ExistingWetlands, flood_areaC) #analysis for scarcity
 #CONCERN- the above only looks at wetlands in the flood areas within 2.5 miles, the below does entire buffer
     lst_floodRet_Density = percent_cover(ExistingWetlands, flood_areaB) #analysis for scarcity
 #CONCERN: THIS IS WICKED SLOW
-#add results at end (lst_floodRet_Density)
-
-#3.3.C: SUBSTITUTES
-if subs is not None:
-    subs = checkSpatialReference(outTbl, subs)
-    lst_subs_cnt = buffer_contains(flood_areaC, subs) #subs in buffer/flood
-    #lst_subs_cnt = buffer_contains(flood_areaB, subs) # all subs in 2.5 miles
-    #lst_subs_cnt = buffer_contains(flood_area, subs) #only subs in flood zone
-        #list how many dams/levees in flood of buffersmanagement(outTbl, "Flood_sub", "Double")
-        #lst_to_field(outTbl, "Flood_cnt", lst_subs_cnt)
-#add results at end (lst_subs_cnt)
-
-start=exec_time(start, "flood benefit")
-                                           
+    start = exec_time (start, "Flood Risk 3.3.B Scarcity analysis")
+                                          
 #FINAL STEP: move results to results file
 #count of beneficiaries = lst_flood_cnt
-arcpy.AddField_management(outTbl, "Flood_cnt", "Double")
-lst_to_field(outTbl, "Flood_cnt", lst_flood_cnt)
+arcpy.AddField_management(outTbl, "FR_2_cnt", "Double")
+lst_to_field(outTbl, "FR_2_cnt", lst_flood_cnt)
+#percent surrounding area in flood zone = lst_floodzoneArea_pct(not in summary)
+arcpy.AddField_management(outTbl, "FR_zPct", "Double")
+lst_to_field(outTbl, "FR_zPct", lst_floodzoneArea_pct)  
+#area of flood zone downstream = lst_floodzoneD(not in summary)
+arcpy.AddField_management(outTbl, "FR_zDown", "Double")
+lst_to_field(outTbl, "FR_zDown", lst_floodzoneD)          
+#percent of flood zone downstream = lst_floodzoneD_pct(not in summary)
+arcpy.AddField_management(outTbl, "FR_zDoPct", "Double")
+lst_to_field(outTbl, "FR_zDoPct", lst_floodzoneD_pct)
 #area of each site = siteAreaLst
-arcpy.AddField_management(outTbl, "Flood_acr", "Double")
-lst_to_field(outTbl, "Flood_acr", siteAreaLst)
+arcpy.AddField_management(outTbl, "FR_3A_acr", "Double")
+lst_to_field(outTbl, "FR_3A_acr", siteAreaLst)
+#subs at each site = lst_subs_cnt (not in summary)
+arcpy.AddField_management(outTbl, "FR_sub", "Double")
+lst_to_field(outTbl, "FR_sub", lst_subs_cnt)
+#subs at each site Y/N = lst_subs_cnt_boolean
+arcpy.AddField_management(outTbl, "FR_3B_boo", "Text")
+lst_to_field(outTbl, "FR_3B_boo", lst_subs_cnt_boolean)
 #scarcitty at each site =lst_floodRet_Density
-arcpy.AddField_management(outTbl, "FScarcity", "Double")
-lst_to_field(outTbl, "Fscarcity", lst_floodRet_Density)
-#subs at each site = lst_subs_cnt
-arcpy.AddField_management(outTbl, "Flood_sub", "Double")
-lst_to_field(outTbl, "Flood_sub", lst_subs_cnt)
+arcpy.AddField_management(outTbl, "FR_3B_sca", "Double")
+lst_to_field(outTbl, "FR_3B_sca", lst_floodRet_Density)
 
 #cleanup
+arcpy.Delete_management(flood_areaD_Clip)
+arcpy.Delete_management(flood_areaD)
 arcpy.Delete_management(flood_areaC)
 arcpy.Delete_management(flood_areaB)
 arcpy.Delete_management(flood_area)
