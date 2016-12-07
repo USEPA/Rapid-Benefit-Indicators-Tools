@@ -3,14 +3,11 @@
 # Purpose: Calculate values for benefit indicators using wetland restoration site polygons
 #          and a variety of other input data
 # Author: Justin Bousquin
-#
+# Additional Author Credits: Marc Weber and Tad Larsen (StreamCat)
+
 # Version Notes:
 # Developed in ArcGIS 10.3
 # v27 Tier 1 Rapid Benefit Indicator Assessment
-# Date: 12/5/2016
-
-#inputs from mxd:
-#L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Full_Demo.mxd
 """
 ###########IMPORTS###########
 import os, sys, time
@@ -220,7 +217,7 @@ def lst_to_field(table, field, lst):
             i+=1
             cursor.updateRow(row)
             
-###########FLOODING##########
+###########FLOODING MOD##########
 start = time.clock() #start the clock
 #inputs gdb
 in_gdb = r"L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Test_Inputs.gdb"
@@ -263,22 +260,21 @@ Flow = NHD_path.replace('\\NHDPlusCatchment','\\PlusFlow')
         
 path = os.path.dirname(outTbl) + os.sep
         
-#Copy wetlands in for results
+#Copy restoration wetlands in for results
 arcpy.CopyFeatures_management(wetlands, outTbl)
 
 start=exec_time(start, "intiating variables")
         
 #set variables
-outTbl_flood = path + "int_flood.dbf" #table of flood results
-#naming convention for flood intermediates
-FA = path + "int_FloodArea"
+FA = path + "int_FloodArea" #naming convention for flood intermediates
 
-flood_area = FA #+ ".shp"
+#flood_area = FA #+ ".shp"
 flood_areaB = FA + "temp_buffer"#.shp" #buffers
 flood_areaC = FA + "temp2_zone"#.shp" #buffers
 flood_areaD_clip = FA + "temp3_clip" #.shp #downstream
 flood_areaD_clip_single = FA + "temp3_single" #.shp #downstream
-clip_name = os.path.basename(FA) + "temp3_down" #.shp #single downstream buffer 
+clip_name = os.path.basename(FA) + "temp3_down" #.shp #single downstream buffer
+flood_areaD = path + os.sep + clip_name
 assets = FA + "_assets" #addresses/population in flood zone
 
 #3.2: NUMBER WHO BENEFIT                    
@@ -287,10 +283,10 @@ if addresses is not None: #if using addresses
     addresses = checkSpatialReference(outTbl, addresses) #check spatial ref
     flood_zone = checkSpatialReference(outTbl, flood_zone) #check spatial ref
     #start cutting back the datasets
-    if watershed is not None: #if user specified watershed
-        watershed = checkSpatialReference(outTbl, watershed)
+#    if watershed is not None: #if user specified watershed
+#        watershed = checkSpatialReference(outTbl, watershed)
         #limit flood zone to what is within watershed
-        flood_zone = arcpy.Clip_analysis(flood_zone, watershed, flood_area)
+#        flood_zone = arcpy.Clip_analysis(flood_zone, watershed, flood_area)
     #limit addresses to only those within the flood_zone
     arcpy.Clip_analysis(addresses, flood_zone, assets)
     total_cnt = arcpy.GetCount_management(assets) #count addresses
@@ -300,10 +296,10 @@ if addresses is not None: #if using addresses
         raise arcpy.ExecuteError
 elif popRast is not None: #not yet tested
     #check projection?
-    if watershed is not None: #if user specified watershed
-        watershed = checkSpatialReference(outTbl, watershed)
+#    if watershed is not None: #if user specified watershed
+#        watershed = checkSpatialReference(outTbl, watershed)
         #limit flood zone to what is within watershed
-        flood_zone = arcpy.Clip_analysis(flood_zone, watershed, flood_area)
+#        flood_zone = arcpy.Clip_analysis(flood_zone, watershed, flood_area)
     arcpy.Clip_management(popRast, "", assets, flood_zone, "", "ClippingGeometry", "NO_MAINTAIN_EXTENT")
     #add error handel to fail if floodarea contains no population    
     arcpy.AddError("Nothing to do with input raster yet")
@@ -312,7 +308,7 @@ elif popRast is not None: #not yet tested
 else:
     arcpy.AddError("No population inputs specified")
 
-#3.2 Step 2: buffer each site by 5 miles
+#3.2 Step 2: buffer each site by 2.5 mile radius
 arcpy.Buffer_analysis(outTbl, flood_areaB, "2.5 Miles")
 #step 3A: clip the buffer to flood polygon
 arcpy.AddMessage("Reducing flood zone to 2.5 Miles from sites...")
@@ -329,9 +325,8 @@ arcpy.MakeFeatureLayer_management(Catchment, "catchment_lyr")
 
 UpCOMs, DownCOMs = setNHD_dict(Flow) #reduce to downstream only?
 #create empty FC for downstream catchments
-del_exists(path + os.sep + clip_name) #may not need?
-#flood_areaD_clip = arcpy.CreateFeatureclass_management(path, clip_name, "POLYGON", spatial_reference = "catchment_lyr")
-flood_areaD = arcpy.CreateFeatureclass_management(path, clip_name, "POLYGON", spatial_reference = "flood_zone_lyr")
+del_exists(path + os.sep + clip_name) #may not need with overwrite? If using should use consistently throughout.
+arcpy.CreateFeatureclass_management(path, clip_name, "POLYGON", spatial_reference = "flood_zone_lyr")
 
 site_cnt = arcpy.GetCount_management(outTbl)
 
@@ -357,13 +352,13 @@ with arcpy.da.SearchCursor(outTbl, ["SHAPE@", "OID@"]) as cursor:
         downCatchments = list_downstream("catchment_lyr", InputField, shortDownCOMs)
 
         #catchments in both lists
-        #NOTE: THIS SHOULDN'T BE NEEDED, the last catchment will already be outside the buffer clip
+        #NOTE: this is redundant, the last catchment will already be outside the buffer clip
         catchment_lst = list(set(downCatchments).intersection(bufferCatchments))
         
         #SELECT downstream catchments in buffer
         slt_qry_down = selectStr_by_list(InputField, catchment_lst)
         arcpy.SelectLayerByAttribute_management("catchment_lyr", "NEW_SELECTION", slt_qry_down)
-        #make this selection into single feature
+        #may need to make this selection into single feature for population as raster
         #arcpy.Dissolve_management("catchment_lyr", flood_areaD_clip_single)
 
         #select and clip corresponding flood zone
@@ -372,16 +367,14 @@ with arcpy.da.SearchCursor(outTbl, ["SHAPE@", "OID@"]) as cursor:
         arcpy.MakeFeatureLayer_management(flood_areaD_clip, "flood_zone_down_lyr")
         arcpy.Dissolve_management("flood_zone_down_lyr", flood_areaD_clip_single)
                            
-        #append to empty clip set
+        #append to empty clipped set
         arcpy.Append_management(flood_areaD_clip_single, flood_areaD)
         clip_rows = arcpy.GetCount_management(flood_areaD)
         arcpy.AddMessage("Determine catchments downstream for row {}, of {}".format(clip_rows, site_cnt))
         print("Determine catchments downstream for row {}, of {}".format(clip_rows, site_cnt))
 
-#Clip the flood area within each buffer to the corresponding downstream segments
 arcpy.AddMessage("Finished reducing flood zone areas to downstream from sites...")
 print("Finished reducing flood zone areas to downstream from sites...")
-#arcpy.Clip_analysis(flood_areaC, flood_areaD_clip, flood_areaD)
 
 #step 3C: calculate flood area as benefitting percentage
 arcpy.AddMessage("Measuring flood zone area downstream of each site...")
@@ -461,7 +454,8 @@ if ExistingWetlands is not None:
     print("Estimating area of wetlands within 2.5 miles in both directions (5 miles total) of restoration site...")
     ExistingWetlands = checkSpatialReference(outTbl, ExistingWetlands) #check spatial ref
     #lst_floodRet_Density = percent_cover(ExistingWetlands, flood_areaC) #analysis for scarcity
-#CONCERN- the above only looks at wetlands in the flood areas within 2.5 miles, the below does entire buffer
+#CONCERN- the above only looks at wetlands in the flood areas within 2.5 miles, the below does entire buffer.
+#Should this be restricted to upstream/downstream?
     lst_floodRet_Density = percent_cover(ExistingWetlands, flood_areaB) #analysis for scarcity
 #CONCERN: THIS IS WICKED SLOW
     start = exec_time (start, "Flood Risk 3.3.B Scarcity analysis")
