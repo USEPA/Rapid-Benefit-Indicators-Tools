@@ -136,7 +136,9 @@ def buffer_contains(poly, pnts):
     #poly_out = poly[:-4] + "_2.shp" #check to be sure this is created in outTbl folder
     poly_out = poly + "_2" #if this is created in outTbl GDB
     arcpy.SpatialJoin_analysis(poly, pnts, poly_out, "JOIN_ONE_TO_ONE", "KEEP_ALL", "", "INTERSECT", "", "")
-    lst = field_to_lst(poly_out, ["ORIG_FID", "Join_Count"])
+    #lst = field_to_lst(poly_out, ["ORIG_FID", "Join_Count"])
+    #sort on poly shouldn't be needed, I'm wondering why I did this. Sort on pnts would be strange if not bad
+    lst = field_to_lst(poly_out, ["OID@", "Join_Count"]) #polygon OID token (works for .shp or FC)
     arcpy.Delete_management(poly_out)
     return lst
 
@@ -274,9 +276,9 @@ FA = path + "int_FloodArea"
 flood_area = FA #+ ".shp"
 flood_areaB = FA + "temp_buffer"#.shp" #buffers
 flood_areaC = FA + "temp2_zone"#.shp" #buffers
-flood_areaD = FA + "temp3_down" #.shp #downstream
+flood_areaD_clip = FA + "temp3_clip" #.shp #downstream
 flood_areaD_clip_single = FA + "temp3_single" #.shp #downstream
-clip_name = os.path.basename(FA) + "temp3_clip" #.shp #single downstream buffer 
+clip_name = os.path.basename(FA) + "temp3_down" #.shp #single downstream buffer 
 assets = FA + "_assets" #addresses/population in flood zone
 
 #3.2: NUMBER WHO BENEFIT                    
@@ -322,12 +324,14 @@ arcpy.Clip_analysis(flood_areaB, flood_zone, flood_areaC)
 arcpy.AddMessage("Using {} to determine downstream areas of flood zone".format(Catchment))
 print("Using {} to determine downstream areas of flood zone".format(Catchment))
 arcpy.MakeFeatureLayer_management(flood_areaB, "buffer_lyr")
+arcpy.MakeFeatureLayer_management(flood_areaC, "flood_zone_lyr")
 arcpy.MakeFeatureLayer_management(Catchment, "catchment_lyr")
 
 UpCOMs, DownCOMs = setNHD_dict(Flow) #reduce to downstream only?
 #create empty FC for downstream catchments
 del_exists(path + os.sep + clip_name) #may not need?
-flood_areaD_clip = arcpy.CreateFeatureclass_management(path, clip_name, "POLYGON", spatial_reference = "catchment_lyr")
+#flood_areaD_clip = arcpy.CreateFeatureclass_management(path, clip_name, "POLYGON", spatial_reference = "catchment_lyr")
+flood_areaD = arcpy.CreateFeatureclass_management(path, clip_name, "POLYGON", spatial_reference = "flood_zone_lyr")
 
 site_cnt = arcpy.GetCount_management(outTbl)
 
@@ -349,7 +353,7 @@ with arcpy.da.SearchCursor(outTbl, ["SHAPE@", "OID@"]) as cursor:
         #select catchments where the restoration site is
         arcpy.SelectLayerByLocation_management("catchment_lyr", "INTERSECT", site[0])
 
-        #list downstream catchments
+        #list catchments downstream selection
         downCatchments = list_downstream("catchment_lyr", InputField, shortDownCOMs)
 
         #catchments in both lists
@@ -360,17 +364,24 @@ with arcpy.da.SearchCursor(outTbl, ["SHAPE@", "OID@"]) as cursor:
         slt_qry_down = selectStr_by_list(InputField, catchment_lst)
         arcpy.SelectLayerByAttribute_management("catchment_lyr", "NEW_SELECTION", slt_qry_down)
         #make this selection into single feature
-        arcpy.Dissolve_management("catchment_lyr", flood_areaD_clip_single)
+        #arcpy.Dissolve_management("catchment_lyr", flood_areaD_clip_single)
+
+        #select and clip corresponding flood zone
+        arcpy.SelectLayerByAttribute_management("flood_zone_lyr", "NEW_SELECTION", where_clause)
+        arcpy.Clip_analysis("flood_zone_lyr", "catchment_lyr", flood_areaD_clip)
+        arcpy.MakeFeatureLayer_management(flood_areaD_clip, "flood_zone_down_lyr")
+        arcpy.Dissolve_management("flood_zone_down_lyr", flood_areaD_clip_single)
+                           
         #append to empty clip set
-        arcpy.Append_management(flood_areaD_clip_single, flood_areaD_clip)
-        clip_rows = arcpy.GetCount_management(flood_areaD_clip)
+        arcpy.Append_management(flood_areaD_clip_single, flood_areaD)
+        clip_rows = arcpy.GetCount_management(flood_areaD)
         arcpy.AddMessage("Determine catchments downstream for row {}, of {}".format(clip_rows, site_cnt))
         print("Determine catchments downstream for row {}, of {}".format(clip_rows, site_cnt))
 
 #Clip the flood area within each buffer to the corresponding downstream segments
-arcpy.AddMessage("Reducing flood zone areas downstream from sites...")
-print("Reducing flood zone areas downstream from sites...")
-arcpy.Clip_analysis(flood_areaC, flood_areaD_clip, flood_areaD) #FIX THIS
+arcpy.AddMessage("Finished reducing flood zone areas to downstream from sites...")
+print("Finished reducing flood zone areas to downstream from sites...")
+#arcpy.Clip_analysis(flood_areaC, flood_areaD_clip, flood_areaD)
 
 #step 3C: calculate flood area as benefitting percentage
 arcpy.AddMessage("Measuring flood zone area downstream of each site...")
@@ -387,7 +398,7 @@ arcpy.AddField_management(flood_areaD, "areaD", "Double")
 arcpy.CalculateField_management(flood_areaD, "areaD", "!SHAPE.area!", "PYTHON_9.3", "")
 
 #move downstream area result to flood zone table
-arcpy.JoinField_management(flood_areaC, "OBJECT_ID", flood_areaD, "OBJECT_ID", ["areaD"])
+arcpy.JoinField_management(flood_areaC, "OBJECTID", flood_areaD, "OBJECTID", ["areaD"])
 
 #calculate percent area fields
 with arcpy.da.UpdateCursor(flood_areaC, ["area_pct", "area", "BUFF_DIST", "areaD_pct", "areaD"]) as cursor:
@@ -395,7 +406,8 @@ with arcpy.da.UpdateCursor(flood_areaC, ["area_pct", "area", "BUFF_DIST", "areaD
     #if BUFF_DIST is field in wetlands it was renamed by index in flood_area
     for row in cursor:
         row[0] = row[1]/(math.pi*((row[2]**2.0))) #percent of zone (2.5 mile radius) that is flood zone
-        row[3] = row[4]/row[1] #percent of flood zone in range that is downstream of site
+        if row[4] is not None:
+            row[3] = row[4]/row[1] #percent of flood zone in range that is downstream of site
         cursor.updateRow(row)
 
 lst_floodzoneArea_pct = field_to_lst(flood_areaC, "area_pct")
@@ -406,7 +418,7 @@ lst_floodzoneD_pct = field_to_lst(flood_areaC, "areaD_pct")
 arcpy.AddMessage("Counting people who benefit...")
 print("Counting people who benefit...")
 if addresses is not None:
-    lst_flood_cnt = buffer_contains(flood_areaD, assets) #addresses in buffer/flood zone/downstream
+    lst_flood_cnt = buffer_contains(str(flood_areaD), assets) #addresses in buffer/flood zone/downstream
 
 elif popRast is not None: #not yet tested
     lst_flood_cnt = buffer_population(flood_areaD, popRast) #population in buffer/flood zone/downstream 
@@ -431,7 +443,7 @@ if subs is not None:
     print("Estimating number of substitutes within 2.5 miles downstream of restoration site...")
     subs = checkSpatialReference(outTbl, subs)
 
-    lst_subs_cnt = buffer_contains(flood_areaD, subs) #subs in buffer/flood/downstream
+    lst_subs_cnt = buffer_contains(str(flood_areaD), subs) #subs in buffer/flood/downstream
 
     #convert lst to binary list
     lst_subs_cnt_boolean = []
@@ -481,11 +493,11 @@ arcpy.AddField_management(outTbl, "FR_3B_sca", "Double")
 lst_to_field(outTbl, "FR_3B_sca", lst_floodRet_Density)
 
 #cleanup
-arcpy.Delete_management(flood_areaD_Clip)
-arcpy.Delete_management(flood_areaD)
+arcpy.Delete_management(flood_areaD_clip_single)
+arcpy.Delete_management(flood_areaD_clip)
+arcpy.Delete_management(str(flood_areaD))
 arcpy.Delete_management(flood_areaC)
 arcpy.Delete_management(flood_areaB)
-arcpy.Delete_management(flood_area)
 arcpy.Delete_management(assets)
                                    
 arcpy.AddMessage("Flood Module Complete")
