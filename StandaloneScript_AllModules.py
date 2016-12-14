@@ -103,17 +103,12 @@ def message(string):
     arcpy.AddMessage(string)
     print(string)
 
-"""Custom Error Message
-Purpose: error message shortcut"""
-def error_message(text):
-    arcpy.AddMessage("ERROR occured while " + text + ".")
-
 """Global Timer
 Purpose: returns the message and calc time since the last time the function was used."""
 #Function Notes: used during testing to compare efficiency of each step
 def exec_time(start, message):
     end = time.clock()
-    comp_time = end - start
+    comp_time = time.strftime("%H:%M:%S", time.gmtime(end-start))
     arcpy.AddMessage("Run time for " + message + ": " + str(comp_time))
     print("Run time for " + message + ": " + str(comp_time))
     start = time.clock()
