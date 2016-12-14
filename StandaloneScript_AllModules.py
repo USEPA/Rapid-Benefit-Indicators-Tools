@@ -311,7 +311,8 @@ def quant_to_qual_lst(lst):
 ###########MODULES############
 ##########FLOOD RISK##########
 def FR_MODULE(PARAMS):
-    start = time.clock() #start the clock
+    start1 = time.clock() #start the clock (full module)
+    start = time.clock() #start the clock (parts)
 
     addresses, popRast = PARAMS[0], PARAMS[1]
     flood_zone = PARAMS[2]
@@ -415,7 +416,7 @@ def FR_MODULE(PARAMS):
             #append to empty clipped set
             arcpy.Append_management(flood_areaD_clip_single, flood_areaD)
             clip_rows = arcpy.GetCount_management(flood_areaD)
-            message("Determine catchments downstream for row {}, of {}".format(clip_rows, site_cnt))
+            message("Determined catchments downstream for site {}, of {}".format(clip_rows, site_cnt))
 
     message("Finished reducing flood zone areas to downstream from sites...")
 
@@ -480,7 +481,10 @@ def FR_MODULE(PARAMS):
         #convert lst to binary list
         lst_subs_cnt_boolean = quant_to_qual_lst(lst_subs_cnt)
 
-        start = exec_time (start, "Flood Risk 3.3.B Scarcity (substitutes) analysis")
+        start = exec_time (start, "Flood Risk 3.3.B Scarcity (substitutes - 'FR_3B_boo') analysis")
+    else:
+        message("Substitutes (dams and levees) input not specified, 'FR_sub' will all be '0' and 'FR_3B_boo' will be left blank.")
+        lst_subs_cnt, lst_subs_cnt_boolean = [], []
             
     #3.3.B: SCARCITY
     if ExistingWetlands is not None:
@@ -490,25 +494,28 @@ def FR_MODULE(PARAMS):
     #Should this be restricted to upstream/downstream?
         lst_floodRet_Density = percent_cover(ExistingWetlands, flood_areaB) #analysis for scarcity
     #CONCERN: THIS IS WICKED SLOW
-        start = exec_time (start, "Flood Risk 3.3.B Scarcity analysis")
-                                              
+        start = exec_time (start, "Flood Risk 3.3.B Scarcity (scarcity - 'FR_3B_sca') analysis")
+    else:
+        message("Substitutes (existing wetlands) input not specified, 'FR_3B_sca' will all be '0'.")
+        lst_floodRet_Density = []
+        
     #FINAL STEP: move results to results file
     fields_lst = ["FR_2_cnt", "FR_zPct", "FR_zDown", "FR_zDoPct", "FR_3A_acr", "FR_sub", "FR_3B_boo", "FR_3B_sca"]
     list_lst = [lst_flood_cnt, lst_floodzoneArea_pct, lst_floodzoneD, lst_floodzoneD_pct, siteAreaLst, lst_subs_cnt, lst_subs_cnt_boolean, lst_floodRet_Density]
-    type_lst ["", "","","","","","Text",""]
+    type_lst = ["", "", "", "", "", "", "Text", ""]
 
     lst_to_AddField_lst(outTbl, field_lst, list_lst, type_lst)
 
     #cleanup
-    arcpy.Delete_management(flood_areaD_clip_single)
-    arcpy.Delete_management(flood_areaD_clip)
-    arcpy.Delete_management(str(flood_areaD))
-    arcpy.Delete_management(flood_areaC)
-    arcpy.Delete_management(flood_areaB)
-    arcpy.Delete_management(assets)
+    #arcpy.Delete_management(flood_areaD_clip_single)
+    #arcpy.Delete_management(flood_areaD_clip)
+    #arcpy.Delete_management(str(flood_areaD))
+    #arcpy.Delete_management(flood_areaC)
+    #arcpy.Delete_management(flood_areaB)
+    #arcpy.Delete_management(assets)
                                        
     message("Flood Module Complete")
-    start=exec_time(start, "flood module")
+    start1=exec_time(start1, "full flood module")
     
 ##############################
 #############VIEWS############
@@ -963,24 +970,25 @@ flood, view, edu, rec, bird, socEq, rel = True, True, True, True, True, True, Tr
 
 #inputs gdb
 in_gdb = r"L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Test_Inputs.gdb" + os.sep
-wetlands = in_gdb  + "restoration_Sites"
+sites = in_gdb  + "restoration_Sites"
 addresses = in_gdb + "e911_14_Addresses"
 popRast = None
 flood_zone = in_gdb + "FEMA_FloodZones_clp"
 ExistingWetlands = in_gdb + "NWI14"
 subs = in_gdb + "dams"
-trails = in_gdb + ""
+landuse = in_gdb + ""
 roads = in_gdb + ""
+trails = in_gdb + ""
 edu_inst = in_gdb + ""
 
 Catchment = r"C:\ArcGIS\Local_GIS\NHD_Plus\NHDPlusNationalData\NHDPlusV21_National_Seamless.gdb\NHDPlusCatchment\Catchment"
 InputField = "FEATUREID" #field from feature layer
-outTbl = r"L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Test_Results\Intermediates2.gdb\Results"
+outTbl = r"L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Test_Results\Intermediates.gdb\Results_full"
             
 message("Checking input variables...")
 
 #Copy restoration wetlands in for results
-arcpy.CopyFeatures_management(wetlands, outTbl)
+arcpy.CopyFeatures_management(sites, outTbl)
 
 #check spatial references for inputs
 #test? all require except edu
