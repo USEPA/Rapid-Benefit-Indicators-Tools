@@ -18,7 +18,7 @@ Downloadable PDF of the full EPA Report, also accessible from [US EPA](https://c
 This EPA report presents the RBI Approach using an example application to wetland restoration. In this guide, each step of the RBI Approach is introduced by an overview section that summarizes the step and explains how to apply it. Following the full walkthrough of each step, you will find “Step in Action” pages that demonstrate how the step is applied in a real-world scenario, using an example application to freshwater wetland restoration in the Woonasquatucket River Watershed in Rhode Island, USA.
 
 ###Rapid Benefit Indicator (RBI) Checklist Tool
-Interatcive, Macro-Enabled Excel workbook (.xlsm).
+Interatcive, Macro-Enabled Excel workbook (.xlsm). Also accessible from [US EPA](https://cfpub.epa.gov/si/si_public_record_report.cfm?dirEntryId=331110 "EPA Science Inventory").
 
 **Description:**
 This tool accompanies the guidebook and provides a way to record information and compare sites using the RBI Approach. This spreadsheet-based tool includes prompts to guide you through the assessment process, and automatically summarizes your entries.
@@ -27,7 +27,7 @@ This tool accompanies the guidebook and provides a way to record information and
 Downloadable PDF manual that provides guidance on using the Checklist Tool. Also accessible from [US EPA](https://cfpub.epa.gov/si/si_public_record_report.cfm?dirEntryId=331110 "EPA Science Inventory").
 
 ###Rapid Benefit Indicator (RBI) Checklist Tool - Fillable Forms
-Downloadable fillable PDF version of the Checklist Tool. For an alternative to the spreadsheet-based RBI Approach Checklist Tool, these fillable, formatted sheets are available. They do not have all the functionality of the spreadsheet and only allow for comparison of two sites at a time, but they will work on systems that may not be able to run the checklist tool.
+Downloadable fillable PDF version of the Checklist Tool. For an alternative to the spreadsheet-based RBI Approach Checklist Tool, these fillable, formatted sheets are available. They do not have all the functionality of the spreadsheet and only allow for comparison of two sites at a time, but they will work on systems that may not be able to run the checklist tool. Also accessible from [US EPA](https://cfpub.epa.gov/si/si_public_record_report.cfm?dirEntryId=331110 "EPA Science Inventory").
 
 ##Related Research
 The RBI Approach was developed as part of a research effort within EPA’s Office of Research and Development’s Safe and Sustainable Water Resources Research Program. Other components of this research are available elsewhere:
