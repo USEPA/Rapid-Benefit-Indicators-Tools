@@ -227,7 +227,10 @@ Purpose: return a string for a where clause from a list of field values
 def selectStr_by_list(field, lst):
     exp = ''
     for item in lst:
-        exp += '"' + field + '" = ' + str(item) + " OR "
+        if type(item)==str:
+            exp += '"' + field + '" = ' + "'" + str(item) + "' OR "
+        else:
+            exp += '"' + field + '" = ' + str(item) + " OR " #numeric
     return (exp[:-4])
 
 """Read Field to List
@@ -831,10 +834,7 @@ def Bird_MODULE(PARAMS):
 
     addresses, popRast = PARAMS[0], PARAMS[1]
     trails, roads = PARAMS[2], PARAMS[3]
-    wetlandsOri = PARAMS[4]
-    landuse = PARAMS[5]
-    field, fieldLst = PARAMS[6]. PARAMS[7]
-    outTbl = PARAMS[8]
+    outTbl = PARAMS[4]
 
     path = os.path.dirname(outTbl) + os.sep
     ext = arcpy.Describe(outTbl).extension
@@ -888,8 +888,7 @@ def socEq_MODULE(PARAMS):
     start = time.clock() #start the clock
 
     sovi = PARAMS[0]
-    field = PARAMS[1]
-    SoVI_High = PARAMS[2]
+    field, SoVI_High = PARAMS[1], PARAMS[2]
     bufferDist = PARAMS[3]
     outTbl = PARAMS[4]
 
@@ -919,6 +918,7 @@ def socEq_MODULE(PARAMS):
                 name = "SoVI_High"
             else:
                 name = val.replace(" ", "_")[0:9]
+            print name
             arcpy.AddField_management(outTbl, name, "DOUBLE", "", "", "", val, "", "", "")
             whereClause = field + " = '" + val + "'"
             arcpy.SelectLayerByAttribute_management("soviLyr", "NEW_SELECTION", whereClause)
@@ -938,11 +938,11 @@ def socEq_MODULE(PARAMS):
 #########RELIABILITY##########
 def reliability_MODULE(PARAMS):
     start = time.clock() #start the clock
+    start1 = time.clock() #start the clock
 
     cons_poly = PARAMS[0]
     field = PARAMS[1]
-    consLst = PARAMS[2]
-    threatLst = PARAMS[3]
+    consLst, threatLst = PARAMS[2], PARAMS[3]
     bufferDist = PARAMS[4]
     outTbl = PARAMS[5]
 
@@ -952,7 +952,7 @@ def reliability_MODULE(PARAMS):
     #set variables
     buf = path + "conservation" + ext
 
-    #remove None from lists
+    #remove None from lists #WHY WAS THIS A CONCERN?
     consLst = [x for x in consLst if x is not None]
     threatLst = [x for x in threatLst if x is not None]
 
@@ -980,9 +980,10 @@ def reliability_MODULE(PARAMS):
     fields_lst = ["Conserved", "threatene"]
     list_lst = [pct_consLst, pct_threatLst]
 
-    lst_to_AddField_lst(table, field_lst, list_lst, ["", ""])
-        
-    start = exec_time(start, "Reliability assessment complete.")
+    lst_to_AddField_lst(outTbl, fields_lst, list_lst, ["", ""])
+
+    message("Reliability assessment complete.")
+    start1 = exec_time(start1, "Reliability assessment")
     
 ##############################
 #############MAIN#############
@@ -991,7 +992,7 @@ start = time.clock() #start the clock
 message("Loading Variables...")
 
 #check boxes
-flood, view, edu, rec, bird, socEq, rel = True, True, True, False, False, False, False
+flood, view, edu, rec, bird, socEq, rel = True, True, True, True, True, True, True
 
 #inputs gdb
 in_gdb = r"L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Test_Inputs.gdb" + os.sep
@@ -1004,18 +1005,28 @@ subs = in_gdb + "dams"
 roads = in_gdb + "e911Roads13q2"
 trails = in_gdb + "bikepath"
 landuse = in_gdb + "rilu0304"
-#these variables will come from front end in future
+
 field = "LCLU"
-fieldLst =[430, 410, 162, 161] #add this as front end parameter
+fieldLst =[430, 410, 162, 161]
 
 edu_inst = in_gdb + "schools08"
 bus_Stp = in_gdb + "RIPTAstops0116"
-#conserved = in_gdb + "LandUse2025"
-#sovi = in_gdb + "SoVI0610_RI"
+
+buff_dist = "2.5 Miles"
+
+sovi = in_gdb + "SoVI0610_RI"
+sovi_field = "SoVI0610_1"
+sovi_High = "High"
+
+conserved = in_gdb + "LandUse2025"
+rel_field = "Map_Legend"
+cons_fieldLst = ['Conservation/Limited', 'Major Parks & Open Space', 'Narragansett Indian Lands', 'Reserve', 'Water Bodies']
+threat_fieldLst = ['Non-urban Developed', 'Prime Farmland', 'Sewered Urban Developed', 'Urban Development']
+
 
 Catchment = r"C:\ArcGIS\Local_GIS\NHD_Plus\NHDPlusNationalData\NHDPlusV21_National_Seamless.gdb\NHDPlusCatchment\Catchment"
 InputField = "FEATUREID" #field from feature layer
-outTbl = r"L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Test_Results\Intermediates.gdb\Results_full"
+outTbl = r"L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Test_Results\IntermediatesFinal.gdb\Results_full"
             
 message("Checking input variables...")
 
@@ -1082,19 +1093,19 @@ else: #create and set all fields to none?
     message("Recreation Benefits not assessed")
             
 if bird == True:
-    Bird_PARAMS = []
+    Bird_PARAMS = [addresses, popRast, trails, roads, outTbl]
     Bird_MODULE(Bird_PARAMS)
 else: #create and set all fields to none?
     message("Bird Watching Benefits not assessed")
 
 if socEq == True:
-    soc_PARAMS = []
+    soc_PARAMS = [sovi, sovi_field, sovi_High, buff_dist, outTbl]
     socEq_MODULE(soc_PARAMS)
 else: #create and set all fields to none?
     message("Social Equity of benefits not assessed")
     
 if rel == True:
-    Rel_PARAMS = []
+    Rel_PARAMS = [conserved, rel_field, cons_fieldLst, threat_fieldLst, buff_dist, outTbl]
     reliability_MODULE(Rel_PARAMS)
 else: #create and set all fields to none?
     message("Reliability of benefits not assessed")
