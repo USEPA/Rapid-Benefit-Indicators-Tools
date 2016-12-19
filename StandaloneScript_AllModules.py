@@ -1,5 +1,5 @@
 """
-# Name: Tier 1 Rapid Benefit Indicator Assessment- Flood Module
+# Name: Tier 1 Rapid Benefit Indicator Assessment- All Modules
 # Purpose: Calculate values for benefit indicators using wetland restoration site polygons
 #          and a variety of other input data
 # Author: Justin Bousquin
@@ -638,6 +638,12 @@ def View_MODULE(PARAMS):
 
     lst_to_AddField_lst(outTbl, fields_lst, list_lst, type_lst)
 
+    #cleanup FC, then lyrs
+    #arcpy.Delete_management(100int
+    #arcpy.Delete_management(200sp
+    #arcpy.Delete_management(wetland_dis?
+    #arcpy.Delete_management("")
+
     message("Scenic View Module Complete")
     start1=exec_time(start1, "full view module")
     #return?
@@ -684,6 +690,12 @@ def Edu_MODULE(PARAMS):
 
     lst_to_AddField_lst(outTbl, fields_lst, list_lst, type_lst)
 
+    #cleanup FC, then lyrs
+    #arcpy.Delete_management(eduArea
+    #arcpy.Delete_management(eduArea_2?
+    #arcpy.Delete_management(edu_2
+    #arcpy.Delete_management("")
+
     message("Environmental Education Module Complete")
     start1=exec_time(start1, "full Environmental Education module")
     
@@ -691,7 +703,6 @@ def Edu_MODULE(PARAMS):
 ##############REC#############
 def Rec_MODULE(PARAMS):
     start = time.clock() #start the clock
-    start1 = time.clock() #start the clock
 
     addresses, popRast = PARAMS[0], PARAMS[1]
     trails, bus_Stp = PARAMS[2], PARAMS[3]
@@ -825,7 +836,10 @@ def Rec_MODULE(PARAMS):
 
     lst_to_AddField_lst(outTbl, fields_lst, list_lst, type_lst)
 
-    start=exec_time(start, "Recreation benefits analysis complete")
+    #cleanup FC, then lyrs
+    #arcpy.Delete_management(eduArea
+
+    message("Recreation benefits analysis complete.")
     
 ##############################
 #############BIRD#############
@@ -880,12 +894,15 @@ def Bird_MODULE(PARAMS):
 
     lst_to_AddField_lst(outTbl, fields_lst, list_lst, type_lst)
 
-    start = exec_time(start, "Bird Watching benefit assessment complete.")
-    
+    #cleanup FC, then lyrs
+    #arcpy.Delete_management(eduArea
+
+    message("Bird Watching benefit assessment complete.")
+
 ##############################
 ##########SOC_EQUITY##########
 def socEq_MODULE(PARAMS):
-    start = time.clock() #start the clock
+    #start = time.clock() #start the clock
 
     sovi = PARAMS[0]
     field, SoVI_High = PARAMS[1], PARAMS[2]
@@ -932,13 +949,13 @@ def socEq_MODULE(PARAMS):
         arcpy.SelectLayerByAttribute_management("soviLyr", "NEW_SELECTION", whereClause)
         pct_lst = percent_cover("soviLyr", buf)
         lst_to_field(outTbl, name, pct_lst)
-    start = exec_time(start, "Social Equity assessment complete.")
+
+    message("Social Equity assessment complete.")
     
 ##############################
 #########RELIABILITY##########
 def reliability_MODULE(PARAMS):
     start = time.clock() #start the clock
-    start1 = time.clock() #start the clock
 
     cons_poly = PARAMS[0]
     field = PARAMS[1]
@@ -983,11 +1000,11 @@ def reliability_MODULE(PARAMS):
     lst_to_AddField_lst(outTbl, fields_lst, list_lst, ["", ""])
 
     message("Reliability assessment complete.")
-    start1 = exec_time(start1, "Reliability assessment")
     
 ##############################
 #############MAIN#############
 start = time.clock() #start the clock
+start1 = time.clock() #start the clock
 
 message("Loading Variables...")
 
@@ -996,7 +1013,7 @@ flood, view, edu, rec, bird, socEq, rel = True, True, True, True, True, True, Tr
 
 #inputs gdb
 in_gdb = r"L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Test_Inputs.gdb" + os.sep
-sites = in_gdb  + "restoration_Sites_subset"
+sites = in_gdb  + "restoration_Sites"
 addresses = in_gdb + "e911_14_Addresses"
 popRast = None
 flood_zone = in_gdb + "FEMA_FloodZones_clp"
@@ -1026,7 +1043,7 @@ threat_fieldLst = ['Non-urban Developed', 'Prime Farmland', 'Sewered Urban Devel
 
 Catchment = r"C:\ArcGIS\Local_GIS\NHD_Plus\NHDPlusNationalData\NHDPlusV21_National_Seamless.gdb\NHDPlusCatchment\Catchment"
 InputField = "FEATUREID" #field from feature layer
-outTbl = r"L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Test_Results\IntermediatesFinal.gdb\Results_full"
+outTbl = r"L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Test_Results\IntermediatesFinal77.gdb\Results_full"
             
 message("Checking input variables...")
 
@@ -1067,46 +1084,57 @@ if view == True or bird == True or rec == True:
     else:
         message("Trails input not specified, some fields will be left blank for selected benefits.")
 
+#message/time:
+start1 = exec_time(start1, "verify inputs")
+message("Running selected benefit modules...")
+
 #run modules based on checkboxes
 if flood == True:
     Flood_PARAMS = [addresses, popRast, flood_zone, OriWetlands, subs, Catchment, InputField, outTbl]
     FR_MODULE(Flood_PARAMS)
+    start1 = exec_time(start1, "Flood Risk benefit assessment")
 else: #create and set all fields to none?
     message("Flood Risk benefits not assessed")
     
 if view == True:
     View_PARAMS = [addresses, popRast, trails, roads, OriWetlands, landuse, field, fieldLst, outTbl]
     View_MODULE(View_PARAMS)
+    start1 = exec_time(start1, "Scenic View benefit assessment")
 else: #create and set all fields to none?
     message("Scenic View Benefits not assessed")
             
 if edu == True:
     EDU_PARAMS = [edu_inst, OriWetlands, outTbl]
     Edu_MODULE(EDU_PARAMS)
+    start1 = exec_time(start1, "Environmental Education benefit assessment")
 else: #create and set all fields to none?
     message("Environmental Education Benefits not assessed")
 
 if rec == True:
     REC_PARAMS = [addresses, popRast, trails, bus_Stp, OriWetlands, landuse, field, fieldLst, outTbl]
     Rec_MODULE(REC_PARAMS)
+    start1 = exec_time(start1, "Recreation benefit assessment")
 else: #create and set all fields to none?
     message("Recreation Benefits not assessed")
             
 if bird == True:
     Bird_PARAMS = [addresses, popRast, trails, roads, outTbl]
     Bird_MODULE(Bird_PARAMS)
+    start1 = exec_time(start1, "Bird Watching benefit assessment"
 else: #create and set all fields to none?
     message("Bird Watching Benefits not assessed")
 
 if socEq == True:
     soc_PARAMS = [sovi, sovi_field, sovi_High, buff_dist, outTbl]
     socEq_MODULE(soc_PARAMS)
+    start1 = exec_time(start1, "Social Equity assessment")
 else: #create and set all fields to none?
     message("Social Equity of benefits not assessed")
     
 if rel == True:
     Rel_PARAMS = [conserved, rel_field, cons_fieldLst, threat_fieldLst, buff_dist, outTbl]
     reliability_MODULE(Rel_PARAMS)
+    start1 = exec_time(start1, "Reliability assessment")
 else: #create and set all fields to none?
     message("Reliability of benefits not assessed")
 
