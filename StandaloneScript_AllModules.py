@@ -165,13 +165,18 @@ Purpose: returns number of points in buffer as list"""
 #Function Notes:
 #Example: lst = buffer_contains(view_50, addresses)
 def buffer_contains(poly, pnts):
-    lst = []
-    #poly_out = poly[:-4] + "_2.shp" #check to be sure this is created in outTbl folder
-    poly_out = poly + "_2" #if this is created in outTbl GDB
+    ext = arcpy.Describe(poly).extension
+    poly_out = os.path.splitext(poly)[0] + "_2" + ext #hopefully this is created in outTbl
     arcpy.SpatialJoin_analysis(poly, pnts, poly_out, "JOIN_ONE_TO_ONE", "KEEP_ALL", "", "INTERSECT", "", "")
-    #lst = field_to_lst(poly_out, ["ORIG_FID", "Join_Count"])
-    #sort on poly shouldn't be needed, I'm wondering why I did this. Sort on pnts would be strange if not bad
-    lst = field_to_lst(poly_out, ["OID@", "Join_Count"]) #polygon OID token (works for .shp or FC)
+    #When a buffer is created for a site it may get a new OBJECT_ID, but the site ID is maintained as ORIG_FID,
+    #"OID@" returns the ID generated for poly_out, based on TARGET_FID (OBJECT_ID for buffer). Since results
+    #are joined back to the site they must be sorted in that order.
+    #check for ORIG_FID
+    fields = arcpy.ListFields(poly_out)
+    if "ORIG_FID" in fields:
+        lst = field_to_lst(poly_out, ["ORIG_FID", "Join_Count"])
+    else:
+        lst = field_to_lst(poly_out, ["Join_Count"])
     arcpy.Delete_management(poly_out)
     return lst
 
@@ -503,9 +508,11 @@ def FR_MODULE(PARAMS):
         lst_floodRet_Density = []
         
     #FINAL STEP: move results to results file
-    fields_lst = ["FR_2_cnt", "FR_zPct", "FR_zDown", "FR_zDoPct", "FR_3A_acr", "FR_sub", "FR_3B_boo", "FR_3B_sca"]
-    list_lst = [lst_flood_cnt, lst_floodzoneArea_pct, lst_floodzoneD, lst_floodzoneD_pct, siteAreaLst, lst_subs_cnt, lst_subs_cnt_boolean, lst_floodRet_Density]
-    type_lst = ["", "", "", "", "", "", "Text", ""]
+    fields_lst = ["FR_2_cnt", "FR_zPct", "FR_zDown", "FR_zDoPct", "FR_3A_acr", "FR_3A_boo", "FR_sub",
+                  "FR_3B_boo", "FR_3B_sca", "FR_3D_boo"]
+    list_lst = [lst_flood_cnt, lst_floodzoneArea_pct, lst_floodzoneD, lst_floodzoneD_pct, siteAreaLst, [], lst_subs_cnt,
+                lst_subs_cnt_boolean, lst_floodRet_Density, []]
+    type_lst = ["", "", "", "", "", "Text", "", "Text", "", "Text"]
 
     lst_to_AddField_lst(outTbl, fields_lst, list_lst, type_lst)
 
@@ -545,7 +552,7 @@ def View_MODULE(PARAMS):
     VA = path + "int_ViewArea" #naming convention for view intermediates
     view_50, view_100 = VA + "_50" + ext, VA + "_100" + ext #50 and 100m buffers
     view_100_int =  VA + "_100int" + ext
-    view_200 = VA + "_200sp" + ext #200m buffer
+    view_200 = VA + "_200" + ext #200m buffer
 
     wetlands_dis = path + "wetland_dis" + ext #wetlands dissolved
 
@@ -632,9 +639,11 @@ def View_MODULE(PARAMS):
         lst_comp = []
 
     #FINAL STEP: move results to results file
-    fields_lst = ["V_2_50", "V_2_100", "V_2_score", "V_2_boo", "V_3B_scar", "V_3C_comp"]
-    list_lst = [lst_view_50, lst_view_100, lst_view_score, rteLst, lst_view_Density, lst_comp]
-    type_lst = ["", "", "", "Text", "", ""]
+    fields_lst = ["V_2_50", "V_2_100", "V_2_score", "V_2_boo",
+                  "V_3A_boo", "V_3B_scar", "V_3C_comp", "V_3D_boo"]
+    list_lst = [lst_view_50, lst_view_100, lst_view_score, rteLst,
+                [], lst_view_Density, lst_comp, []]
+    type_lst = ["", "", "", "Text", "Text", "", "", "Text"]
 
     lst_to_AddField_lst(outTbl, fields_lst, list_lst, type_lst)
 
@@ -755,7 +764,7 @@ def Rec_MODULE(PARAMS):
         lst_rec_trails = buffer_contains(rec_500m, trails) #bike trails in 500m
         rteLst_rec_trails = quant_to_qual_lst(lst_rec_trails) #if there are = YES
     else:
-        message("No trails specified for determining if there are bike paths within 1/3 mi of site (R_2_03_bo)")
+        message("No trails specified for determining if there are bike paths within 1/3 mi of site (R_2_03_tb)")
         lst_rec_trails = []
         rteLst_rec_trails = []
         
@@ -766,7 +775,7 @@ def Rec_MODULE(PARAMS):
         lst_rec_bus = buffer_contains(rec_500m, bus_Stp) #bus stops in 500m
         rteLst_rec_bus = quant_to_qual_lst(lst_rec_bus) #if there are = YES
     else:
-        message("No bus stops specified for determining if there are bus stops within 1/3 mi of site (R_2_03_b2)")
+        message("No bus stops specified for determining if there are bus stops within 1/3 mi of site (R_2_03_bb)")
         lst_rec_bus = []
         rteLst_rec_bus = []
 
@@ -830,9 +839,9 @@ def Rec_MODULE(PARAMS):
     start=exec_time(start, "Recreation analysis: 3.3B Scarcity")
 
     #Add results from lists
-    fields_lst = ["R_2_03", "R_2_05", "R_2_6", "R_3A_acr", "R_3B_sc06", "R_3B_sc1", "R_3B_sc12", "R_2_03_bo", "R_2_03_b2", "R_3C_boo", "R_3D_boo"]
-    list_lst = [lst_rec_cnt_03, lst_rec_cnt_05, lst_rec_cnt_6, lst_green_neighbor, lst_rec_06_Density, lst_rec_1_Density, lst_rec_12_Density, rteLst_rec_trails, rteLst_rec_bus, [], []]
-    type_lst = ["", "", "", "", "", "", "", "Text", "Text", "Text", "Text"]
+    fields_lst = ["R_2_03", "R_2_03_tb", "R_2_03_bb", "R_2_05", "R_2_6", "R_3A_acr", "R_3B_sc06", "R_3B_sc1", "R_3B_sc12", "R_3C_boo", "R_3D_boo"]
+    list_lst = [lst_rec_cnt_03, rteLst_rec_trails, rteLst_rec_bus, lst_rec_cnt_05, lst_rec_cnt_6, lst_green_neighbor, lst_rec_06_Density, lst_rec_1_Density, lst_rec_12_Density, [], []]
+    type_lst = ["", "Text", "Text", "", "", "", "", "", "", "Text", "Text"]
 
     lst_to_AddField_lst(outTbl, fields_lst, list_lst, type_lst)
 
@@ -1043,7 +1052,7 @@ threat_fieldLst = ['Non-urban Developed', 'Prime Farmland', 'Sewered Urban Devel
 
 Catchment = r"C:\ArcGIS\Local_GIS\NHD_Plus\NHDPlusNationalData\NHDPlusV21_National_Seamless.gdb\NHDPlusCatchment\Catchment"
 InputField = "FEATUREID" #field from feature layer
-outTbl = r"L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Test_Results\IntermediatesFinal77.gdb\Results_full"
+outTbl = r"L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Test_Results\IntermediatesFinal77_2.gdb\Results_full"
             
 message("Checking input variables...")
 
@@ -1120,7 +1129,7 @@ else: #create and set all fields to none?
 if bird == True:
     Bird_PARAMS = [addresses, popRast, trails, roads, outTbl]
     Bird_MODULE(Bird_PARAMS)
-    start1 = exec_time(start1, "Bird Watching benefit assessment"
+    start1 = exec_time(start1, "Bird Watching benefit assessment")
 else: #create and set all fields to none?
     message("Bird Watching Benefits not assessed")
 
