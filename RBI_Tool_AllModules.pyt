@@ -1027,9 +1027,11 @@ def main(params):
     #params = [sites, addresses, popRast, flood, view, edu, bird, rec, socEq, rel,
     #      edu_inst, bus_stp, trails, roads, preWetlands, landUse, fieldLULC, fieldVal, SocVul, SoVI_Field,
     #      socVal, distance, Conservation, Conserve_Field, useType, outTbl]
-
-    flood, view, edu, rec, bird = params[3], params[4], params[5], params[6], params[7] #valueAsText?
-    socEq, rel = params[8], params[9]
+    ck=[]
+    for i in range(3, 10):
+        ck.append(params[i].value)
+    flood, view, edu, rec, bird = ck[0], ck[1], ck[2], ck[3], ck[4]
+    socEq, rel = ck[5], ck[6]
     
     sites = params[0].valueAsText #in_gdb  + "restoration_Sites"
     addresses = params[1].valueAsText #in_gdb + "e911_14_Addresses"
@@ -1058,45 +1060,56 @@ def main(params):
     cons_fieldLst = params[24].valueAsText #['Conservation/Limited', 'Major Parks & Open Space', 'Narragansett Indian Lands', 'Reserve', 'Water Bodies']
     #threat_fieldLst = params[17].valueAsText #['Non-urban Developed', 'Prime Farmland', 'Sewered Urban Developed', 'Urban Development']
 
-
     Catchment = r"C:\ArcGIS\Local_GIS\NHD_Plus\NHDPlusNationalData\NHDPlusV21_National_Seamless.gdb\NHDPlusCatchment\Catchment"
     InputField = "FEATUREID" #field from feature layer
     outTbl = params[25].valueAsText #r"L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Test_Results\IntermediatesFinal77.gdb\Results_full"
-                
+    start1 = exec_time(start1, "loading variables")            
     message("Checking input variables...")
 
     #Copy restoration wetlands in for results
     arcpy.CopyFeatures_management(sites, outTbl)
+    if edu == True:
+        message("EDU: " + str(edu))
+    message(str(addresses))
 
     #check spatial references for inputs
     #test? all require except edu
     if addresses is not None:
         addresses = checkSpatialReference(outTbl, addresses) #check spatial ref
+        message("Addresses OK")
     elif popRast is not None: #NOT YET TESTED
         popRast = checkSpatialReference(outTbl, popRast) #check projection
+        message("Population Raster OK")
     else:
         arcpy.AddError("No population inputs specified")
         print("No population inputs specified")
         raise arcpy.ExecuteError
     #benefits using Existing Wetlands
+    message("line1")
+    message(view)
     if flood == True or view == True or edu == true: #benefits requiring existing wetlands
+        message("checking out wetlands...")
         if ExistingWetlands is not None: #if the dataset is specified
             OriWetlands = checkSpatialReference(outTbl, ExistingWetlands) #check spatial ref
+            message("existing wetlands polygons OK")
         else:
             message("Existings wetlands input not specified, some fields will be left blank for selected benefits.")
     #benefits using landuse
+    message("line2")        
     if view == True or rec == True:
         if landuse is not None:
             landuse = checkSpatialReference(outTbl, landuse) #check spatial ref
         else:
             message("Landuse input not specified, some fields will be left blank for selected benefits.")
     #trails
+    message("line3")
     if view == True or bird == True or rec == True:
         if roads is not None:
             roads = checkSpatialReference(outTbl, roads) #check spatial ref
         else:
             message("Roads input not specified, some fields will be left blank for selected benefits.")
     #roads
+        message("line4")
         if trails is not None:
             trails = checkSpatialReference(outTbl, trails) #check spatial ref
         else:
@@ -1122,6 +1135,7 @@ def main(params):
         message("Scenic View Benefits not assessed")
                 
     if edu == True:
+        message("inside edu")
         EDU_PARAMS = [edu_inst, OriWetlands, outTbl]
         Edu_MODULE(EDU_PARAMS)
         start1 = exec_time(start1, "Environmental Education benefit assessment")
@@ -1157,7 +1171,7 @@ def main(params):
         message("Reliability of benefits not assessed")
 
     start = exec_time(start, "Benefts assessment complete.")
-
+    message("end :)")
 ##############################
 ###########TOOLBOX############
 class Toolbox(object):
@@ -1354,4 +1368,4 @@ class Tier_1_Indicator_Tool (object):
         try:
             main(params)
         except:
-          arcpy.GetMessages()
+            arcpy.GetMessages()
