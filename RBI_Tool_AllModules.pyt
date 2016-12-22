@@ -103,21 +103,6 @@ Purpose: disables input fields for a list of parameters"""
 def disableParamLst(lst):
     for field in lst:
         field.enabled = False
-
-"""Param field value enable cascade
-Purpose: enable more field parameters as needed
-"""
-def cascade_on_params(obj, start, stop, filt):
-    rng = range(start, stop+1)
-    for i in rng:
-        obj[i].enabled = True
-        if i>start: #if it isn't the first
-            typ = type(filt[0])
-            filt.remove(typ(obj[i-1].valueAsText))
-        obj[i].filter.list = filt
-        if obj[i].altered:
-            continue
-        break
     
 """Generic message
 Purpose: prints string message in py or pyt"""
@@ -1039,45 +1024,44 @@ def main(params):
     start1 = time.clock() #start the clock
 
     message("Loading Variables...")
-    #params = [sites, addresses, popRast, check_box_list, edu_inst, bus_stp, trails, roads,
-    #              preWetlands, landUse, fieldLULC, SocVul, SoVI_Field, distance, Conservation,
-    #              Conserve_Field, use_list, threat_list, outTbl]
-    #params = [sites, addresses, popRast, check_box_list, edu_inst, bus_stp, trails, roads, preWetlands, landUse, fieldLULC, outTbl]
-    #check boxes
-    ck = params[3]
-    flood, view, edu, rec, bird, socEq, rel = ck[0], ck[1], ck[2], ck[3], ck[4], ck[5], ck[6]
+    #params = [sites, addresses, popRast, flood, view, edu, bird, rec, socEq, rel,
+    #      edu_inst, bus_stp, trails, roads, preWetlands, landUse, fieldLULC, fieldVal, SocVul, SoVI_Field,
+    #      socVal, distance, Conservation, Conserve_Field, useType, outTbl]
 
-    sites = params[0] #in_gdb  + "restoration_Sites"
-    addresses = params[1] #in_gdb + "e911_14_Addresses"
-    popRast = params[2] #None
+    flood, view, edu, rec, bird = params[3], params[4], params[5], params[6], params[7] #valueAsText?
+    socEq, rel = params[8], params[9]
+    
+    sites = params[0].valueAsText #in_gdb  + "restoration_Sites"
+    addresses = params[1].valueAsText #in_gdb + "e911_14_Addresses"
+    popRast = params[2].valueAsText #None
     #flood_zone = params [0] #in_gdb + "FEMA_FloodZones_clp"
-    ExistingWetlands = params[8] #in_gdb + "NWI14"
+    ExistingWetlands = params[14].valueAsText #in_gdb + "NWI14"
     #subs = in_gdb + "dams"
-    roads = params[7] #in_gdb + "e911Roads13q2"
-    trails = params[6] #in_gdb + "bikepath"
-    landuse = params[9] #in_gdb + "rilu0304"
+    roads = params[13].valueAsText #in_gdb + "e911Roads13q2"
+    trails = params[12].valueAsText #in_gdb + "bikepath"
 
-    field = params[10] #"LCLU"
-    fieldLst =[430, 410, 162, 161]
+    landuse = params[15].valueAsText #in_gdb + "rilu0304"
+    field = params[16].valueAsText #"LCLU"
+    fieldLst = params[17].valueAsText #list?
 
-    edu_inst = in_gdb + "schools08"
-    bus_Stp = in_gdb + "RIPTAstops0116"
+    edu_inst = params[10].valueAsText #in_gdb + "schools08"
+    bus_Stp = params[11].valueAsText #in_gdb + "RIPTAstops0116"
 
-    buff_dist = params[13] #"2.5 Miles"
+    buff_dist = params[21].valueAsText #"2.5 Miles"
 
-    sovi = params[11] #in_gdb + "SoVI0610_RI"
-    sovi_field = params[12] #"SoVI0610_1"
-    sovi_High = "High"
+    sovi = params[18].valueAsText #in_gdb + "SoVI0610_RI"
+    sovi_field = params[19].valueAsText #"SoVI0610_1"
+    sovi_High = params[20].valueAsText #"High" #this is now a list...
 
-    conserved = params[14] #in_gdb + "LandUse2025"
-    rel_field = params[15] #"Map_Legend"
-    cons_fieldLst = params[16] #['Conservation/Limited', 'Major Parks & Open Space', 'Narragansett Indian Lands', 'Reserve', 'Water Bodies']
-    threat_fieldLst = params[17] #['Non-urban Developed', 'Prime Farmland', 'Sewered Urban Developed', 'Urban Development']
+    conserved = params[22].valueAsText #in_gdb + "LandUse2025"
+    rel_field = params[23].valueAsText #"Map_Legend"
+    cons_fieldLst = params[24].valueAsText #['Conservation/Limited', 'Major Parks & Open Space', 'Narragansett Indian Lands', 'Reserve', 'Water Bodies']
+    #threat_fieldLst = params[17].valueAsText #['Non-urban Developed', 'Prime Farmland', 'Sewered Urban Developed', 'Urban Development']
 
 
     Catchment = r"C:\ArcGIS\Local_GIS\NHD_Plus\NHDPlusNationalData\NHDPlusV21_National_Seamless.gdb\NHDPlusCatchment\Catchment"
     InputField = "FEATUREID" #field from feature layer
-    outTbl = params[18] #r"L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Test_Results\IntermediatesFinal77.gdb\Results_full"
+    outTbl = params[25].valueAsText #r"L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Test_Results\IntermediatesFinal77.gdb\Results_full"
                 
     message("Checking input variables...")
 
@@ -1235,50 +1219,34 @@ class Tier_1_Indicator_Tool (object):
         roads = setParam("Roads (streets, highways, etc.)", "roads", "", "Optional", "")
         #pre-existing wetlands #ExistingWetlands = in_gdb + "NWI14"
         preWetlands = setParam("Wetland Polygons", "in_wet", "", "Optional", "")#pre-existing wetlands
+
         #landuse = in_gdb + "rilu0304"
         landUse = setParam("Land use or greenspace Polygons", "land_use", "", "Optional", "")
         #field = "LCLU"
         fieldLULC = setParam("Landuse Field", "LULCFld", "Field", "Optional", "")
-        fieldLULC.enabled = False
         #list of fields from table [430, 410, 162, 161]
-        fieldVal1 = setParam("First Field Value", "field_val_1", "GPString", "Optional", "")
-        fieldVal2 = setParam("Second Field Value", "field_val_2", "GPString", "Optional", "")
-        fieldVal3 = setParam("Third Field Value", "field_val_3", "GPString", "Optional", "")
-        fieldVal4 = setParam("Fourth Field Value", "field_val_4", "GPString", "Optional", "")
-        fieldVal5 = setParam("Fifth Field Value", "field_val_5", "GPString", "Optional", "")
+        fieldVal = setParam("Greenspace Field Values", "grn_field_val", "GPString", "Optional", "", True)
 
         #sovi = in_gdb + "SoVI0610_RI"
         SocVul = setParam("SoVI", "sovi_poly", "", "Optional", "")
-        SocVul.enabled = False
         #user must select 1 field to base calculation on #sovi_field = "SoVI0610_1"
         SoVI_Field = setParam("SoVI Score", "SoVI_ScoreFld","Field", "Optional", "")
-        SoVI_Field.enabled = False
         #sovi_High = "High"
-        socVal1 = setParam("SoVI Field Value", "soc_field_val", "GPString", "Optional", "", True)
+        socVal = setParam("Vulnerable Field Values", "soc_field_val", "GPString", "Optional", "", True)
         
         #distance beneficiaries travel #buff_dist = "2.5 Miles"
         distance = setParam("Buffer Distance", "bufferUnits", "GPLinearUnit", "Optional", "")
-        #distance.enabled = False
+
         #conserved = in_gdb + "LandUse2025"
         Conservation = setParam("Conservation lands", "cons_poly", "", "Optional", "")
-        Conservation.enabled = False
         #rel_field = "Map_Legend"
         Conserve_Field = setParam("Conservation Field", "Conservation_Field", "Field", "Optional", "")
-        Conserve_Field.enabled = False
         #user must select 1 field to base calculation on
         #cons_fieldLst = ['Conservation/Limited', 'Major Parks & Open Space', 'Narragansett Indian Lands', 'Reserve', 'Water Bodies']
-        useType1 = setParam("First Conservation Type", "Conservation_Type1", "GPString", "Optional", "")
-        useType2 = setParam("Second Conservation Type", "Conservation_Type2", "GPString", "Optional", "")
-        useType3 = setParam("Third Conservation Type", "Conservation_Type3", "GPString", "Optional", "")
-        useType4 = setParam("Fourth Conservation Type", "Conservation_Type4", "GPString", "Optional", "")
-        useType5 = setParam("Fifth Conservation Type", "Conservation_Type5", "GPString", "Optional", "")
+        useType = setParam("Conservation Types", "Conservation_Type", "GPString", "Optional", "", True)
 
-        #Bad values?
-        #threat_fieldLst = ['Non-urban Developed', 'Prime Farmland', 'Sewered Urban Developed', 'Urban Development']
-        threatType1 = setParam("First Threat Type", "Threat_Type1", "GPString", "Optional", "")
-        #threat_list = [threatType1]
         #distance beneficiaries travel
-        #distance = setParam("Buffer Distance", "bufferUnits", "GPLinearUnit", "", "")
+        #distance2 = setParam("Buffer Distance", "bufferUnits", "GPLinearUnit", "", "")
                 
         #outputs
         #outTbl = r"L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Test_Results\IntermediatesFinal77.gdb\Results_full"
@@ -1289,30 +1257,31 @@ class Tier_1_Indicator_Tool (object):
         #report = setParam("Report (optional)", "report", "DEMapDocument", "Optional", "Output")
 
         #set drop downs to be disabled initially
-        disableParamLst([fieldVal1, fieldVal2, fieldVal3, fieldVal4, fieldVal5,
-                         useType1, useType2, useType3, useType4, useType5,
-                         socVal1])
-        
+        disableParamLst([fieldLULC, fieldVal, SocVul, SoVI_Field, socVal, Conservation, Conserve_Field, useType])
+
         #dependencies
 	#Set the FieldsList to be filtered by the list from the feature dataset
         fieldLULC.parameterDependencies = [landUse.name]
+        fieldVal.parameterDependencies = [fieldLULC.name]
+        fieldVal.filter.type = 'ValueList'
+        
         SoVI_Field.parameterDependencies = [SocVul.name]
-        socVal1.parameterDependencies = [SoVI_Field.name]
-        socVal1.filter.type = 'ValueList'
+        socVal.parameterDependencies = [SoVI_Field.name]
+        socVal.filter.type = 'ValueList'
+        
         Conserve_Field.parameterDependencies = [Conservation.name]
+        useType.parameterDependencies = [Conserve_Field.name]
+        useType.filter.type = 'ValueList'
         
         #defaults
         ###SoVI_Field.defaultEnvironmentName = "SoVI0610_1"
         distance.parameterDependencies = [sites.name] #units based on spRef
         #distance2.parameterDependencies = [RestorationSites.name]
 
-        params = [sites, addresses, popRast, flood, view, edu, bird, rec, socEq, rel, edu_inst,
-                  bus_stp, trails, roads, preWetlands, landUse, fieldLULC, fieldVal1, fieldVal2, fieldVal3, fieldVal4,
-                  fieldVal5, SocVul, SoVI_Field, socVal1, distance, Conservation, Conserve_Field, useType1, useType2, useType3, useType4,
-                  useType5, outTbl]
-        ###params = [sites, addresses, popRast, check_box_list, edu_inst, bus_stp, trails, roads,
-        ###          preWetlands, landUse, fieldLULC, SocVul, SoVI_Field, distance, Conservation,
-        ###          Conserve_Field, use_list, threat_list, outTbl]
+        params = [sites, addresses, popRast, flood, view, edu, bird, rec, socEq, rel,
+                  edu_inst, bus_stp, trails, roads, preWetlands, landUse, fieldLULC, fieldVal, SocVul, SoVI_Field,
+                  socVal, distance, Conservation, Conserve_Field, useType, outTbl]
+
         return params
 
     def isLicensed(self):
@@ -1349,54 +1318,33 @@ class Tier_1_Indicator_Tool (object):
         if params[16].altered:
             in_poly = params[15].valueAsText
             TypeField = params[16].valueAsText
-            result = unique_values(in_poly, TypeField)
-            cascade_on_params(params, 17, 21, result)
-        #social vulnerability inputs
+            params[17].enabled = True
+            params[17].filter.list = unique_values(in_poly, TypeField)
+        #social vulnerability & reliability
         if params[8].value == True or params[9].value ==True: #soc or rel
-            params[25].enabled = True #distance
+            params[21].enabled = True #distance
         else:
-            params[25].enabled = False
+            params[21].enabled = False
+        #social vulnerability inputs    
         if params[8].value == True:
-            params[22].enabled = True
+            params[18].enabled = True #SocVul
+        if params[18].altered:
+            params[19].enabled = True
+        if params[19].altered: #socVul_field
+            in_poly = params[18].valueAsText
+            TypeField = params[19].valueAsText
+            params[20].enabled = True
+            params[20].filter.list = unique_values(in_poly, TypeField)
+        #reliability inputs
+        if params[9].value == True:
+            params[22].enabled = True #Conservation
         if params[22].altered:
-            params[23].enabled = True
-        if params[23].altered:
+            params[23].enabled = True #Conserve_Field
+        if params[23].altered: 
             in_poly = params[22].valueAsText
             TypeField = params[23].valueAsText
             params[24].enabled = True
             params[24].filter.list = unique_values(in_poly, TypeField)
-        #reliability inputs
-        if params[9].value == True:
-            params[26].enabled = True
-        if params[26].altered:
-            params[27].enabled = True
-#functionalize and apply to all field selections
-        #Conserve_Field
-        if params[27].altered:
-            in_poly = params[26].valueAsText
-            TypeField = params[27].valueAsText
-            result = unique_values(in_poly, TypeField)
-            cascade_on_params(params, 28, 32, result)
-            #params[27].enabled = True
-            #params[27].filter.list = result #useType1 
-            #if params[27].altered:
-            #    params[28].enabled = True
-            #    #update result to remove entry
-            #    result.remove(params[27].valueAsText)
-            #    params[28].filter.list = result
-            #    if params[28].altered:
-            #        params[29].enabled = True
-            #        result.remove(params[28].valueAsText)
-            #        params[29].filter.list = result
-            #        if params[29].altered:
-            #            params[30].enabled = True
-            #            result.remove(params[29].valueAsText)
-            #            params[30].filter.list = result
-            #            if params[30].altered:
-            #                params[31].enabled = True
-            #                result.remove(params[30].valueAsText)
-            #                params[31].filter.list = result
-        #fieldLULC [16], fieldVal1, fieldVal2, fieldVal3,
         return
 
     def updateMessages(self, params):
