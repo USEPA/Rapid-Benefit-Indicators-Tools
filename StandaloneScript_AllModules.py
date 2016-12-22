@@ -97,6 +97,12 @@ def setParam(str1, str2, str3, str4, str5):
         parameterType = lst[3],
         direction = lst[4])
 
+"""DisableParameter List
+Purpose: disables input fields for a list of parameters"""
+def disableParamLst(lst):
+    for field in lst:
+        field.enabled = False
+
 """Generic message
 Purpose: prints string message in py or pyt"""
 def message(string):
