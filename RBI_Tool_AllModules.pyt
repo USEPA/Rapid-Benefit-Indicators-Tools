@@ -82,27 +82,43 @@ def view_score(lst_50, lst_100):
 
 """Set Input Parameter
 Purpose: returns arcpy.Parameter for provided string, setting defaults for missing."""
-def setParam(str1, str2, str3, str4, str5):
+def setParam(str1, str2, str3, str4, str5, multiValue=False):
     lst = [str1, str2, str3, str4, str5]
     defLst = ["Input", "name", "GpFeatureLayer", "Required", "Input"]
     i = 0
     for str_ in lst:
         if str_ =="":
             lst[i]=defLst[i]
-        i+=1       
+        i+=1
     return arcpy.Parameter(
         displayName = lst[0],
         name = lst[1],
         datatype = lst[2],
         parameterType = lst[3],
-        direction = lst[4])
+        direction = lst[4],
+        multiValue = multiValue)
 
-"""DisableParameter List
+"""Disable Parameter List
 Purpose: disables input fields for a list of parameters"""
 def disableParamLst(lst):
     for field in lst:
         field.enabled = False
 
+"""Param field value enable cascade
+Purpose: enable more field parameters as needed
+"""
+def cascade_on_params(obj, start, stop, filt):
+    rng = range(start, stop+1)
+    for i in rng:
+        obj[i].enabled = True
+        if i>start: #if it isn't the first
+            typ = type(filt[0])
+            filt.remove(typ(obj[i-1].valueAsText))
+        obj[i].filter.list = filt
+        if obj[i].altered:
+            continue
+        break
+    
 """Generic message
 Purpose: prints string message in py or pyt"""
 def message(string):
@@ -1238,11 +1254,7 @@ class Tier_1_Indicator_Tool (object):
         SoVI_Field = setParam("SoVI Score", "SoVI_ScoreFld","Field", "Optional", "")
         SoVI_Field.enabled = False
         #sovi_High = "High"
-        socVal1 = setParam("First SoVI Field Value", "soc_field_val_1", "GPString", "Optional", "")
-        socVal2 = setParam("Second SoVI Field Value", "soc_field_val_2", "GPString", "Optional", "")
-        #socVal3 = setParam("Third SoVI Field Value", "soc_field_val_3", "GPString", "Optional", "")
-        #socVal4 = setParam("Fourth SoVI Field Value", "soc_field_val_4", "GPString", "Optional", "")
-        #socVal5 = setParam("Fifth SoVI Field Value", "soc_field_val_5", "GPString", "Optional", "")
+        socVal1 = setParam("SoVI Field Value", "soc_field_val", "GPString", "Optional", "", True)
         
         #distance beneficiaries travel #buff_dist = "2.5 Miles"
         distance = setParam("Buffer Distance", "bufferUnits", "GPLinearUnit", "Optional", "")
@@ -1285,17 +1297,19 @@ class Tier_1_Indicator_Tool (object):
 	#Set the FieldsList to be filtered by the list from the feature dataset
         fieldLULC.parameterDependencies = [landUse.name]
         SoVI_Field.parameterDependencies = [SocVul.name]
+        socVal1.parameterDependencies = [SoVI_Field.name]
+        socVal1.filter.type = 'ValueList'
         Conserve_Field.parameterDependencies = [Conservation.name]
         
         #defaults
         ###SoVI_Field.defaultEnvironmentName = "SoVI0610_1"
-        distance.parameterDependencies = [sites.name] #spatRef?
+        distance.parameterDependencies = [sites.name] #units based on spRef
         #distance2.parameterDependencies = [RestorationSites.name]
 
         params = [sites, addresses, popRast, flood, view, edu, bird, rec, socEq, rel, edu_inst,
                   bus_stp, trails, roads, preWetlands, landUse, fieldLULC, fieldVal1, fieldVal2, fieldVal3, fieldVal4,
-                  fieldVal5, SocVul, SoVI_Field, distance, Conservation, Conserve_Field, useType1, useType2, useType3, useType4,
-                  useType5, outTbl] #add socVal1 before distance
+                  fieldVal5, SocVul, SoVI_Field, socVal1, distance, Conservation, Conserve_Field, useType1, useType2, useType3, useType4,
+                  useType5, outTbl]
         ###params = [sites, addresses, popRast, check_box_list, edu_inst, bus_stp, trails, roads,
         ###          preWetlands, landUse, fieldLULC, SocVul, SoVI_Field, distance, Conservation,
         ###          Conserve_Field, use_list, threat_list, outTbl]
@@ -1332,44 +1346,59 @@ class Tier_1_Indicator_Tool (object):
             params[15].enabled = False
         if params[15].altered:
             params[16].enabled = True
+        if params[16].altered:
+            in_poly = params[15].valueAsText
+            TypeField = params[16].valueAsText
+            result = unique_values(in_poly, TypeField)
+            cascade_on_params(params, 17, 21, result)
         #social vulnerability inputs
+        if params[8].value == True or params[9].value ==True: #soc or rel
+            params[25].enabled = True #distance
+        else:
+            params[25].enabled = False
         if params[8].value == True:
             params[22].enabled = True
+        if params[22].altered:
             params[23].enabled = True
-        if params[8].value == True or params[9].value ==True:
+        if params[23].altered:
+            in_poly = params[22].valueAsText
+            TypeField = params[23].valueAsText
             params[24].enabled = True
-        else:
-            params[24].enabled = False
+            params[24].filter.list = unique_values(in_poly, TypeField)
+        #reliability inputs
         if params[9].value == True:
-            params[25].enabled = True
-        if params[25].altered:
             params[26].enabled = True
-#functionalize and apply to all field selections
-        #Conserve_Field
         if params[26].altered:
             params[27].enabled = True
-            in_poly = params[25].valueAsText
-            TypeField = params[26].valueAsText
+#functionalize and apply to all field selections
+        #Conserve_Field
+        if params[27].altered:
+            in_poly = params[26].valueAsText
+            TypeField = params[27].valueAsText
             result = unique_values(in_poly, TypeField)
-            params[27].filter.list = result #useType1 
-            if params[27].altered:
-                params[28].enabled = True
-                #update result to remove entry
-                result.remove(params[27].valueAsText)
-                params[28].filter.list = result
-                if params[28].altered:
-                    params[29].enabled = True
-                    result.remove(params[28].valueAsText)
-                    params[29].filter.list = result
-                    if params[29].altered:
-                        params[30].enabled = True
-                        result.remove(params[29].valueAsText)
-                        params[30].filter.list = result
-                        if params[30].altered:
-                            params[31].enabled = True
-                            result.remove(params[31].valueAsText)
-                            params[31].filter.list = result
+            cascade_on_params(params, 28, 32, result)
+            #params[27].enabled = True
+            #params[27].filter.list = result #useType1 
+            #if params[27].altered:
+            #    params[28].enabled = True
+            #    #update result to remove entry
+            #    result.remove(params[27].valueAsText)
+            #    params[28].filter.list = result
+            #    if params[28].altered:
+            #        params[29].enabled = True
+            #        result.remove(params[28].valueAsText)
+            #        params[29].filter.list = result
+            #        if params[29].altered:
+            #            params[30].enabled = True
+            #            result.remove(params[29].valueAsText)
+            #            params[30].filter.list = result
+            #            if params[30].altered:
+            #                params[31].enabled = True
+            #                result.remove(params[30].valueAsText)
+            #                params[31].filter.list = result
+        #fieldLULC [16], fieldVal1, fieldVal2, fieldVal3,
         return
+
     def updateMessages(self, params):
         return
     
