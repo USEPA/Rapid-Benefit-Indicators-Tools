@@ -629,7 +629,7 @@ def View_MODULE(PARAMS):
 
     #VIEW_MODULE4: complements
     #PARAMS[landUse, fieldLst, field]
-    message("Scenic Views - 3.C Complemenets")
+    message("Scenic Views - 3.C Complements")
 
     if landuse is not None:
         arcpy.MakeFeatureLayer_management(landuse, "lyr")
@@ -1044,8 +1044,8 @@ def main(params):
 
     landuse = params[15].valueAsText #in_gdb + "rilu0304"
     field = params[16].valueAsText #"LCLU"
-    fieldLst = params[17].valueAsText #list?
-
+    fieldLst = params[17].values #[u'161', u'162', u'410', u'430']
+    
     edu_inst = params[10].valueAsText #in_gdb + "schools08"
     bus_Stp = params[11].valueAsText #in_gdb + "RIPTAstops0116"
 
@@ -1053,24 +1053,23 @@ def main(params):
 
     sovi = params[18].valueAsText #in_gdb + "SoVI0610_RI"
     sovi_field = params[19].valueAsText #"SoVI0610_1"
-    sovi_High = params[20].valueAsText #"High" #this is now a list...
+    sovi_High = params[20].values #"High" #this is now a list...
 
     conserved = params[22].valueAsText #in_gdb + "LandUse2025"
     rel_field = params[23].valueAsText #"Map_Legend"
-    cons_fieldLst = params[24].valueAsText #['Conservation/Limited', 'Major Parks & Open Space', 'Narragansett Indian Lands', 'Reserve', 'Water Bodies']
-    #threat_fieldLst = params[17].valueAsText #['Non-urban Developed', 'Prime Farmland', 'Sewered Urban Developed', 'Urban Development']
+    cons_fieldLst = params[24].values #['Conservation/Limited', 'Major Parks & Open Space', 'Narragansett Indian Lands', 'Reserve', 'Water Bodies']
+    #all values from rel_field not in cons_fieldLst #['Non-urban Developed', 'Prime Farmland', 'Sewered Urban Developed', 'Urban Development']
+    threat_fieldLst = [x for x in unique_values(conserved, rel_field) if x not in cons_fieldLst]
 
     Catchment = r"C:\ArcGIS\Local_GIS\NHD_Plus\NHDPlusNationalData\NHDPlusV21_National_Seamless.gdb\NHDPlusCatchment\Catchment"
-    InputField = "FEATUREID" #field from feature layer
+    #NHDField = params[].valueAsText#InputField = "FEATUREID" #field from feature layer
+    
     outTbl = params[25].valueAsText #r"L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Test_Results\IntermediatesFinal77.gdb\Results_full"
     start1 = exec_time(start1, "loading variables")            
     message("Checking input variables...")
 
     #Copy restoration wetlands in for results
     arcpy.CopyFeatures_management(sites, outTbl)
-    if edu == True:
-        message("EDU: " + str(edu))
-    message(str(addresses))
 
     #check spatial references for inputs
     #test? all require except edu
@@ -1085,33 +1084,30 @@ def main(params):
         print("No population inputs specified")
         raise arcpy.ExecuteError
     #benefits using Existing Wetlands
-    message("line1")
-    message(view)
-    if flood == True or view == True or edu == true: #benefits requiring existing wetlands
-        message("checking out wetlands...")
+    if flood == True or view == True or edu == True: #benefits requiring existing wetlands
         if ExistingWetlands is not None: #if the dataset is specified
             OriWetlands = checkSpatialReference(outTbl, ExistingWetlands) #check spatial ref
-            message("existing wetlands polygons OK")
+            message("Existing wetlands OK")
         else:
             message("Existings wetlands input not specified, some fields will be left blank for selected benefits.")
-    #benefits using landuse
-    message("line2")        
+    #benefits using landuse       
     if view == True or rec == True:
         if landuse is not None:
             landuse = checkSpatialReference(outTbl, landuse) #check spatial ref
+            message("Landuse polygons OK")
         else:
             message("Landuse input not specified, some fields will be left blank for selected benefits.")
     #trails
-    message("line3")
     if view == True or bird == True or rec == True:
         if roads is not None:
             roads = checkSpatialReference(outTbl, roads) #check spatial ref
+            message("Roads input OK")
         else:
             message("Roads input not specified, some fields will be left blank for selected benefits.")
     #roads
-        message("line4")
         if trails is not None:
             trails = checkSpatialReference(outTbl, trails) #check spatial ref
+            message("Trails input OK")
         else:
             message("Trails input not specified, some fields will be left blank for selected benefits.")
 
@@ -1135,7 +1131,6 @@ def main(params):
         message("Scenic View Benefits not assessed")
                 
     if edu == True:
-        message("inside edu")
         EDU_PARAMS = [edu_inst, OriWetlands, outTbl]
         Edu_MODULE(EDU_PARAMS)
         start1 = exec_time(start1, "Environmental Education benefit assessment")
@@ -1171,7 +1166,6 @@ def main(params):
         message("Reliability of benefits not assessed")
 
     start = exec_time(start, "Benefts assessment complete.")
-    message("end :)")
 ##############################
 ###########TOOLBOX############
 class Toolbox(object):
@@ -1362,10 +1356,9 @@ class Tier_1_Indicator_Tool (object):
         return
 
     def updateMessages(self, params):
+        """This method is called after internal validation."""
+        #params[].setErrorMessage('') #use to validate inputs
         return
     
     def execute(self, params, messages):
-        try:
-            main(params)
-        except:
-            arcpy.GetMessages()
+        main(params)
