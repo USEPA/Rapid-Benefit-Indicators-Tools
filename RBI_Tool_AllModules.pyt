@@ -239,9 +239,9 @@ Purpose: return a string for a where clause from a list of field values
 def selectStr_by_list(field, lst):
     exp = ''
     for item in lst:
-        if type(item)==str:
+        if type(item)==str or type(item)==unicode:
             exp += '"' + field + '" = ' + "'" + str(item) + "' OR "
-        else:
+        else: #float or int or long or ?complex
             exp += '"' + field + '" = ' + str(item) + " OR " #numeric
     return (exp[:-4])
 
@@ -634,6 +634,7 @@ def View_MODULE(PARAMS):
     if landuse is not None:
         arcpy.MakeFeatureLayer_management(landuse, "lyr")
         whereClause = selectStr_by_list(field, fieldLst) #construct query from field list
+        message(whereClause)
         arcpy.SelectLayerByAttribute_management("lyr", "NEW_SELECTION", whereClause) #reduce to desired LU
         landUse2 = os.path.splitext(outTbl)[0] + "_comp" + ext
         arcpy.Dissolve_management("lyr", landUse2, field) #reduce to unique
@@ -1010,7 +1011,7 @@ def reliability_MODULE(PARAMS):
     start=exec_time(start, "Percent conserved/threatened use types calculated")
 
     #move results to outTbl
-    fields_lst = ["Conserved", "threatene"]
+    fields_lst = ["Conserved", "Threatene"]
     list_lst = [pct_consLst, pct_threatLst]
 
     lst_to_AddField_lst(outTbl, fields_lst, list_lst, ["", ""])
@@ -1121,7 +1122,7 @@ def main(params):
         FR_MODULE(Flood_PARAMS)
         start1 = exec_time(start1, "Flood Risk benefit assessment")
     else: #create and set all fields to none?
-        message("Flood Risk benefits not assessed")
+        message("Flood Risk Benefits not assessed")
         
     if view == True:
         View_PARAMS = [addresses, popRast, trails, roads, OriWetlands, landuse, field, fieldLst, outTbl]
@@ -1156,14 +1157,14 @@ def main(params):
         socEq_MODULE(soc_PARAMS)
         start1 = exec_time(start1, "Social Equity assessment")
     else: #create and set all fields to none?
-        message("Social Equity of benefits not assessed")
+        message("Social Equity of Benefits not assessed")
         
     if rel == True:
         Rel_PARAMS = [conserved, rel_field, cons_fieldLst, threat_fieldLst, buff_dist, outTbl]
         reliability_MODULE(Rel_PARAMS)
         start1 = exec_time(start1, "Reliability assessment")
     else: #create and set all fields to none?
-        message("Reliability of benefits not assessed")
+        message("Reliability of Benefits not assessed")
 
     start = exec_time(start, "Benefts assessment complete.")
 ##############################
@@ -1233,7 +1234,7 @@ class Tier_1_Indicator_Tool (object):
         #field = "LCLU"
         fieldLULC = setParam("Landuse Field", "LULCFld", "Field", "Optional", "")
         #list of fields from table [430, 410, 162, 161]
-        fieldVal = setParam("Greenspace Field Values", "grn_field_val", "GPString", "Optional", "", True)
+        fieldVal = setParam("Greenspace Field Values", "grn_field_val", "GPVariant", "Optional", "", True)
 
         #sovi = in_gdb + "SoVI0610_RI"
         SocVul = setParam("SoVI", "sovi_poly", "", "Optional", "")
