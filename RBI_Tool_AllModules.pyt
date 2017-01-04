@@ -20,6 +20,28 @@ from decimal import *
 arcpy.env.parallelProcessingFactor = "100%" #use all available resources
 
 ###########FUNCTIONS###########
+"""type from field in table
+Purpose: return the data type of a specified field in a specified table 
+"""
+def tbl_fieldType(table, field):
+    fields = arcpy.ListFields(table)
+    for f in fields:
+        if f.name == field:
+            return f.type
+            break
+
+"""list type from field
+Purpose: map python list type based on field.type
+Example: lst = type_fromField(paramas[1].type, params[2].values)
+where (field Obj; list of unicode values)"""
+def ListType_fromField(typ, lst):
+    if typ == "Single" or typ == "Float" or typ == "Double":
+        return map(float, lst)
+    elif typ == "SmallInteger" or typ == "Integer": #"Short" or "Long"
+        return map(int, lst)
+    else: #String
+        return lst
+
 """List Downstream
 Purpose: generates a list of catchments downstream of catchments in layer"""
 #written to alternatively work for upstream
@@ -82,7 +104,7 @@ def view_score(lst_50, lst_100):
 
 """Set Input Parameter
 Purpose: returns arcpy.Parameter for provided string, setting defaults for missing."""
-def setParam(str1, str2, str3, str4, str5, multiValue=False):
+def setParam(str1, str2, str3, str4="", str5="", multiValue=False):
     lst = [str1, str2, str3, str4, str5]
     defLst = ["Input", "name", "GpFeatureLayer", "Required", "Input"]
     i = 0
@@ -279,7 +301,7 @@ Purpose: """
 #Example: lst_to_field(featureClass, "fieldName", lst)
 def lst_to_field(table, field, lst): #handle empty list
     if len(lst) ==0:
-	print("No values to add to '{}'.".format(field))
+        print("No values to add to '{}'.".format(field))
     else:
         i=0
         with arcpy.da.UpdateCursor(table, [field]) as cursor:
@@ -634,7 +656,6 @@ def View_MODULE(PARAMS):
     if landuse is not None:
         arcpy.MakeFeatureLayer_management(landuse, "lyr")
         whereClause = selectStr_by_list(field, fieldLst) #construct query from field list
-        message(whereClause)
         arcpy.SelectLayerByAttribute_management("lyr", "NEW_SELECTION", whereClause) #reduce to desired LU
         landUse2 = os.path.splitext(outTbl)[0] + "_comp" + ext
         arcpy.Dissolve_management("lyr", landUse2, field) #reduce to unique
@@ -1046,6 +1067,9 @@ def main(params):
     landuse = params[15].valueAsText #in_gdb + "rilu0304"
     field = params[16].valueAsText #"LCLU"
     fieldLst = params[17].values #[u'161', u'162', u'410', u'430']
+    if fieldLst != None:
+        #coerce/map unicode list using field in table
+        fieldLst = ListType_fromField(tbl_fieldType(landuse, field), fieldLst)
     
     edu_inst = params[10].valueAsText #in_gdb + "schools08"
     bus_Stp = params[11].valueAsText #in_gdb + "RIPTAstops0116"
@@ -1055,12 +1079,20 @@ def main(params):
     sovi = params[18].valueAsText #in_gdb + "SoVI0610_RI"
     sovi_field = params[19].valueAsText #"SoVI0610_1"
     sovi_High = params[20].values #"High" #this is now a list...
+    if sovi_High != None:
+        #coerce/map unicode list using field in table
+        sovi_High = ListType_fromField(tbl_fieldType(sovi, sovi_field), sovi_High)
 
     conserved = params[22].valueAsText #in_gdb + "LandUse2025"
     rel_field = params[23].valueAsText #"Map_Legend"
     cons_fieldLst = params[24].values #['Conservation/Limited', 'Major Parks & Open Space', 'Narragansett Indian Lands', 'Reserve', 'Water Bodies']
-    #all values from rel_field not in cons_fieldLst #['Non-urban Developed', 'Prime Farmland', 'Sewered Urban Developed', 'Urban Development']
-    threat_fieldLst = [x for x in unique_values(conserved, rel_field) if x not in cons_fieldLst]
+    if cons_fieldLst != None:
+        #all values from rel_field not in cons_fieldLst #['Non-urban Developed', 'Prime Farmland', 'Sewered Urban Developed', 'Urban Development']
+        threat_fieldLst = [x for x in unique_values(conserved, rel_field) if x not in cons_fieldLst]
+        #convert unicode lists to field.type
+        rel_field_type = tbl_fieldType(conserved, rel_field)
+        cons_fieldLst = ListType_fromField(rel_field_type, cons_fieldLst)
+        threat_fieldLst = ListType_fromField(rel_field_type, threat_fieldLst)
 
     Catchment = r"C:\ArcGIS\Local_GIS\NHD_Plus\NHDPlusNationalData\NHDPlusV21_National_Seamless.gdb\NHDPlusCatchment\Catchment"
     #NHDField = params[].valueAsText#InputField = "FEATUREID" #field from feature layer
@@ -1234,7 +1266,7 @@ class Tier_1_Indicator_Tool (object):
         #field = "LCLU"
         fieldLULC = setParam("Landuse Field", "LULCFld", "Field", "Optional", "")
         #list of fields from table [430, 410, 162, 161]
-        fieldVal = setParam("Greenspace Field Values", "grn_field_val", "GPVariant", "Optional", "", True)
+        fieldVal = setParam("Greenspace Field Values", "grn_field_val", "GPString", "Optional", "", True)
 
         #sovi = in_gdb + "SoVI0610_RI"
         SocVul = setParam("SoVI", "sovi_poly", "", "Optional", "")
