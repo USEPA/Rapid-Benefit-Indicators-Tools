@@ -1058,12 +1058,9 @@ def main(params):
     sites = params[0].valueAsText #in_gdb  + "restoration_Sites"
     addresses = params[1].valueAsText #in_gdb + "e911_14_Addresses"
     popRast = params[2].valueAsText #None
-    #flood_zone = params [0] #in_gdb + "FEMA_FloodZones_clp"
     ExistingWetlands = params[14].valueAsText #in_gdb + "NWI14"
-    #subs = in_gdb + "dams"
     roads = params[13].valueAsText #in_gdb + "e911Roads13q2"
     trails = params[12].valueAsText #in_gdb + "bikepath"
-
     landuse = params[15].valueAsText #in_gdb + "rilu0304"
     field = params[16].valueAsText #"LCLU"
     fieldLst = params[17].values #[u'161', u'162', u'410', u'430']
@@ -1093,11 +1090,17 @@ def main(params):
         rel_field_type = tbl_fieldType(conserved, rel_field)
         cons_fieldLst = ListType_fromField(rel_field_type, cons_fieldLst)
         threat_fieldLst = ListType_fromField(rel_field_type, threat_fieldLst)
-
+    #flood_zone = params [0] #in_gdb + "FEMA_FloodZones_clp"
+    flood_zone = params[25].valueAsText
+    #subs = in_gdb + "dams"
+    subs = params[26].valueAsText
+    #Catchment = params[27].valueAsText
     Catchment = r"C:\ArcGIS\Local_GIS\NHD_Plus\NHDPlusNationalData\NHDPlusV21_National_Seamless.gdb\NHDPlusCatchment\Catchment"
-    #NHDField = params[].valueAsText#InputField = "FEATUREID" #field from feature layer
     
-    outTbl = params[25].valueAsText #r"L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Test_Results\IntermediatesFinal77.gdb\Results_full"
+    #InputField = params[28].valueAsText
+    InputField = "FEATUREID" #field from feature layer
+    
+    outTbl = params[29].valueAsText #r"L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Test_Results\IntermediatesFinal77.gdb\Results_full"
     start1 = exec_time(start1, "loading variables")            
     message("Checking input variables...")
 
@@ -1240,20 +1243,21 @@ class Tier_1_Indicator_Tool (object):
 
         #special datasets (disabled initially)
         #flood_zone = in_gdb + "FEMA_FloodZones_clp"
-        #flood_zone
+        flood_zone = setParam("Flood Zone [Polygon]", "flood_zone", "", "Optional", "")
+        flood_zone.enabled = False
         #subs = in_gdb + "dams"
-        #dams
-        #Catchment = r"C:\ArcGIS\Local_GIS\NHD_Plus\NHDPlusNationalData\NHDPlusV21_National_Seamless.gdb\NHDPlusCatchment\Catchment"
+        dams = setParam("Dams & Levees", "flood_sub", "", "Optional", "")
+        #dams.enabled = False
+        #catchment = r"C:\ArcGIS\Local_GIS\NHD_Plus\NHDPlusNationalData\NHDPlusV21_National_Seamless.gdb\NHDPlusCatchment\Catchment"
+        catchment = setParam("NHD+ Catchments", "NHD_catchment" , "", "Optional", "")
         #set default
-        #Catchment =
-        #InputField = "FEATUREID" #field from feature layer
-        #NHD_field = 
+        #FloodField = "FEATUREID"
+        FloodField = setParam("NHD Join Field", "inputField", "Field", "Optional", "")
+
         #edu_inst = in_gdb + "schools08"
-        edu_inst = setParam("Educational Institution Points", "edu_inst", "", "Optional", "")
-        edu_inst.enabled = False
+        edu_inst = setParam("Educational Institutions [Points]", "edu_inst", "", "Optional", "")
         #bus_Stp = in_gdb + "RIPTAstops0116"
         bus_stp = setParam("Bus Stop Points", "bus_stp", "", "Optional", "") #could it accomodate lines too?
-        bus_stp.enabled = False
         #trails = in_gdb + "bikepath"
         trails = setParam("Trails (hiking, biking, etc.)", "trails", "", "Optional", "")
         #roads = in_gdb + "e911Roads13q2"
@@ -1279,7 +1283,7 @@ class Tier_1_Indicator_Tool (object):
         distance = setParam("Buffer Distance", "bufferUnits", "GPLinearUnit", "Optional", "")
 
         #conserved = in_gdb + "LandUse2025"
-        Conservation = setParam("Conservation lands", "cons_poly", "", "Optional", "")
+        conserve = setParam("Conservation lands", "cons_poly", "", "Optional", "")
         #rel_field = "Map_Legend"
         Conserve_Field = setParam("Conservation Field", "Conservation_Field", "Field", "Optional", "")
         #user must select 1 field to base calculation on
@@ -1291,17 +1295,18 @@ class Tier_1_Indicator_Tool (object):
                 
         #outputs
         #outTbl = r"L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Test_Results\IntermediatesFinal77.gdb\Results_full"
-        outTbl = setParam("Output", "outTable", "DETable", "", "Output")
-        #could code this as a folder or updated wetland shp instead, info table?
-        #could be made optional with an over write default
+        outTbl = setParam("Output", "outTable", "DEFeatureClass", "", "Output")
+        #outTbl = setParam("Output", "outTable", "DEWorkspace", "", "Output")
 
         #report = setParam("Report (optional)", "report", "DEMapDocument", "Optional", "Output")
 
         #set drop downs to be disabled initially
-        disableParamLst([fieldLULC, fieldVal, SocVul, SoVI_Field, socVal, Conservation, Conserve_Field, useType])
+        disableParamLst([fieldLULC, fieldVal, SocVul, SoVI_Field, socVal, conserve, Conserve_Field, useType, bus_stp, edu_inst, dams])
 
         #dependencies
 	#Set the FieldsList to be filtered by the list from the feature dataset
+        FloodField.parameterDependencies = [catchment.name]
+        
         fieldLULC.parameterDependencies = [landUse.name]
         fieldVal.parameterDependencies = [fieldLULC.name]
         fieldVal.filter.type = 'ValueList'
@@ -1310,7 +1315,7 @@ class Tier_1_Indicator_Tool (object):
         socVal.parameterDependencies = [SoVI_Field.name]
         socVal.filter.type = 'ValueList'
         
-        Conserve_Field.parameterDependencies = [Conservation.name]
+        Conserve_Field.parameterDependencies = [conserve.name]
         useType.parameterDependencies = [Conserve_Field.name]
         useType.filter.type = 'ValueList'
         
@@ -1321,7 +1326,7 @@ class Tier_1_Indicator_Tool (object):
 
         params = [sites, addresses, popRast, flood, view, edu, bird, rec, socEq, rel,
                   edu_inst, bus_stp, trails, roads, preWetlands, landUse, fieldLULC, fieldVal, SocVul, SoVI_Field,
-                  socVal, distance, Conservation, Conserve_Field, useType, outTbl]
+                  socVal, distance, conserve, Conserve_Field, useType, flood_zone, dams, catchment, FloodField, outTbl]
 
         return params
 
@@ -1386,6 +1391,18 @@ class Tier_1_Indicator_Tool (object):
             TypeField = params[23].valueAsText
             params[24].enabled = True
             params[24].filter.list = unique_values(in_poly, TypeField)
+        #flood inputs
+        if params[3].value == True: #option button
+            params[25].enabled = True #zone
+            params[26].enabled = True #dams
+            params[27].enabled = True #NHD
+        else:
+            params[25].enabled = False
+            params[26].enabled = False
+            params[27].enabled = False
+        if params[27].altered:
+            params[28].enabled = True
+            
         return
 
     def updateMessages(self, params):
