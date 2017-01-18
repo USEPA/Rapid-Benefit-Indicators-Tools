@@ -8,6 +8,7 @@
 # Version Notes:
 # Developed in ArcGIS 10.3
 # v27 Tier 1 Rapid Benefit Indicator Assessment
+# 0.1.0 Tool complete and ran for case study using this version
 """
 ###########IMPORTS###########
 import os, sys, time
