@@ -21,6 +21,104 @@ from decimal import *
 arcpy.env.parallelProcessingFactor = "100%" #use all available resources
 
 ###########FUNCTIONS###########
+def mean(l):
+    return sum(l)/float(len(l))
+"""position text on report
+Author Credit: Mike Charpentier 
+"""
+def textpos(theText,column,indnumber):
+    if column == 1:
+        theText.elementPositionX = 6.25
+    else:
+        theText.elementPositionX = 7.15
+    ypos = 9.025 - ((indnumber - 1) * 0.2)
+    theText.elementPositionY = ypos
+"""position box on report
+Author Credit: Mike Charpentier 
+"""
+def boxpos(theBox,column,indnumber):
+    if column == 1:
+        theBox.elementPositionX = 5.8
+    else:
+        theBox.elementPositionX = 6.7
+    ypos = 9 - ((indnumber - 1) * 0.2)
+    theBox.elementPositionY = ypos
+"""report
+Author Credit: Mike Charpentier 
+"""
+def fldExists(fieldName,colNumber,rowNumber, fieldInfo, blackbox):
+    fldIndex = fieldInfo.findFieldByName(fieldName)
+    if fldIndex > 0:
+        return True
+    else:
+        newBox = blackbox.clone("_clone")
+        boxpos(newBox,colNumber,rowNumber)
+        return False
+"""
+Author Credit: Mike Charpentier
+"""
+def proctext(fieldValue,fieldType,ndigits,ltorgt,aveValue,colNumber,rowNumber,allNos, mxd):
+    #map elements
+    bluebox = arcpy.mapping.ListLayoutElements(mxd, "GRAPHIC_ELEMENT", "bluebox")[0]
+    redbox = arcpy.mapping.ListLayoutElements(mxd, "GRAPHIC_ELEMENT", "redbox")[0]
+    graybox = arcpy.mapping.ListLayoutElements(mxd, "GRAPHIC_ELEMENT", "graybox")[0]
+    blackbox = arcpy.mapping.ListLayoutElements(mxd, "GRAPHIC_ELEMENT", "blackbox")[0]
+    indtext = arcpy.mapping.ListLayoutElements(mxd, "TEXT_ELEMENT", "IndText")[0]
+
+    # Process the box first so that text draws on top of box
+    if fieldValue is None or fieldValue == ' ':
+        newBox = blackbox.clone("_clone")
+    else:
+        if fieldType == "Num":  # Process numeric fields
+            if ltorgt == "lt":
+                if fieldValue < aveValue:
+                    newBox = bluebox.clone("_clone")
+                else:
+                    newBox = redbox.clone("_clone")
+            else:
+                if fieldValue > aveValue:
+                    newBox = bluebox.clone("_clone")
+                else:
+                    newBox = redbox.clone("_clone")
+        else: # Process text fields (booleans)
+            if allNos == 1:
+                newBox = graybox.clone("_clone")
+            else:
+                if fieldValue == aveValue:
+                    newBox = bluebox.clone("_clone")
+                else:
+                    newBox = redbox.clone("_clone")
+    boxpos(newBox,colNumber,rowNumber)
+    # Process the text
+    if not (fieldValue is None or fieldValue == ' '):
+        newText = indtext.clone("_clone")
+        if fieldType == "Num":  # Process numeric fields
+            if fieldValue == 0:
+                newText.text = "0"
+            else:
+                if ndigits == 0:
+                    if fieldValue > 10:
+                        rndnumber = round(fieldValue,0)
+                        intnumber = int(rndnumber)
+                        newnum = format(intnumber, ",d")
+                        #rndnumber = str(round(fieldValue,0))
+                        #decind = str(rndnumber).find(".0")
+                        #newnum = str(rndnumber)[0:decind]
+                        newText.text = newnum
+                    else:
+                        newText.text = str(round(fieldValue,1))
+                else:
+                    newText.text = str(round(fieldValue,ndigits))
+        else: #boolean
+            if allNos == 1:
+                newText.text = "No"
+            else:
+                if fieldValue == "YES":
+                    newText.text = "Yes"
+                else:
+                    newText.text = "No"
+        textpos(newText,colNumber,rowNumber)
+
 """type from field in table
 Purpose: return the data type of a specified field in a specified table 
 """
@@ -1039,7 +1137,156 @@ def reliability_MODULE(PARAMS):
     lst_to_AddField_lst(outTbl, fields_lst, list_lst, ["", ""])
 
     message("Reliability assessment complete.")
+
+##############################
+########Report_MODULE#########
+def Report_MODULE(PARAMS):
+    start = time.clock() #start the clock
+    #Report_PARAMS = [outTbl, mxd, pdf]
+
+    outTbl = PARAMS[0]
+    mxd = arcpy.mapping.MapDocument(PARAMS[1])
+    #mxd = PARAMS[1]
+    #Set file name and remove if it already exists
+    pdf = PARAMS[2]
+    if os.path.exists(pdf):
+        os.remove(pdf)
+    #Set path for intermediates
+    path = os.path.dirname(outTbl) + os.sep
+    ext = arcpy.Describe(outTbl).extension
+    #Set path for intermediate pdfs
+    pdf_path = os.path.dirname(pdf) + os.sep
+    #Create the file and append pages in the cursor loop
+    pdfDoc = arcpy.mapping.PDFDocumentCreate(pdf)
+
+    blackbox = arcpy.mapping.ListLayoutElements(mxd, "GRAPHIC_ELEMENT", "blackbox")[0]
+    graybox = arcpy.mapping.ListLayoutElements(mxd, "GRAPHIC_ELEMENT", "graybox")[0]
     
+    #dictionary for field, type, ltorgt, numDigits, allnos, & average
+    fld_dct = {'field': ['FR_2_cnt', 'FR_3A_acr', 'FR_3A_boo', 'FR_3B_boo', 'FR_3B_sca', 'FR_3D_boo',
+                         'V_2_50', 'V_2_100', 'V_2_score', 'V_2_boo', 'V_3A_boo', 'V_3B_scar', 'V_3C_comp',
+                         'V_3D_boo', 'EE_2_cnt', 'EE_3A_boo', 'EE_3B_sca', 'EE_3C_boo', 'EE_3D_boo',
+                         'R_2_03', 'R_2_03_bo', 'R_2_03_b2', 'R_2_05', 'R_2_6', 'R_3A_acr', 'R_3B_sc06',
+                         'R_3B_sc1', 'R_3B_sc12', 'R_3C_boo', 'R_3D_boo', 'B_2_cnt', 'B_2_boo', 'B_3A_boo',
+                         'B_3C_boo', 'B_3D_boo', 'SoVI_High', 'Conserved']}
+    txt, dbl ='Text', 'Double'
+    fld_dct['type'] = [dbl, dbl, txt, txt, dbl, txt, dbl, dbl, dbl,txt, txt, dbl, dbl, txt, dbl, txt, dbl, txt, txt,
+                       dbl, txt, txt, dbl, dbl, dbl, dbl, dbl, dbl, txt, txt, dbl, txt, txt, txt, txt, dbl, dbl]
+    fld_dct['ltorgt'] = ['lt', 'gt', '', '', 'gt', '', 'gt', 'gt', 'gt', '', '', 'gt', 'gt', '', 'lt', '', 'gt',
+                         '', '', 'lt', '', '', 'gt', 'gt', 'gt', 'gt', 'gt', 'gt', '', '', 'lt', '', '', '', '', 'gt', 'gt']
+    fld_dct['aveBool'] = ['', '', 'YES', 'NO', '', 'YES', '', '', '', 'YES', 'YES', '', '', 'YES', '', 'YES', '', 'YES','YES',
+                          '', 'YES', 'YES', '', '', '', '', '', '', 'YES', 'YES', '', 'YES', 'YES', 'YES', 'YES', '', '']
+    fld_dct['numDigits'] = [0, 2, 0, 0, 2, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 2, 2]
+    fld_dct['rowNum'] = [1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+                         22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 36, 37, 38, 39]
+    fld_dct['allnos'] = [''] * 37
+    fld_dct['average'] = [''] * 37
+
+    #make table layer from results table
+    arcpy.MakeTableView_management(outTbl,"rptbview")
+    desc = arcpy.Describe("rptbview")
+    fieldInfo = desc.fieldInfo
+    cnt_rows = str(arcpy.GetCount_management(outTbl))
+                   
+    for field in fld_dct['field']: #loop through fields
+        idx = fld_dct['field'].index(field)
+        #Check to see if field exists in results
+        fldIndex = fieldInfo.findFieldByName(fld_dct['field'][idx])
+        if fldIndex > 0: #exists
+            if fld_dct['type'][idx] == 'Text': #narrow to yes/no
+                #copy text field to list by field index
+                fld_dct[idx] = field_to_lst(outTbl, field)
+                #check if all 'NO'
+                if fld_dct[idx].count("NO") == int(cnt_rows):
+                    fld_dct['allnos'][idx] = 1
+            else: #type = Double 
+                #get average values
+                fld_dct['average'][idx] = mean(field_to_lst(outTbl, field))
+                    
+    i = 1
+    pg_cnt = 1
+
+    siterows = arcpy.SearchCursor(outTbl,"") #may be slow
+    siterow = siterows.next()
+
+    while siterow:
+
+        oddeven = i % 2
+        if oddeven == 1:
+            column = 1
+            siteText = "SiteLeftText"
+            site_Name = "SiteLeftName"
+        else:
+            column = 2
+            siteText = "SiteRightText"
+            site_Name = "SiteRightName"
+
+        siteText = arcpy.mapping.ListLayoutElements(mxd, "TEXT_ELEMENT", siteText)[0]
+        siteText.text = "Site " + str(i)
+
+        #text element processing
+        siteName = arcpy.mapping.ListLayoutElements(mxd, "TEXT_ELEMENT", site_Name)[0]
+        if fieldInfo.findFieldByName("siteName") > 0:
+            if siterow.siteName == ' ':
+                siteName.text = "No name"
+            else:
+                siteName.text = siterow.siteName
+        else:
+            siteName.text = "No name" 
+
+        #loop through expected fields in fld_dct['field']
+        for field in fld_dct['field']:
+            idx = fld_dct['field'].index(field)
+            #Check to see if field exists in results
+            #if it doesn't color = black
+            if fldExists(field, column, idx, fieldInfo, blackbox):
+                fldValue = "siterow." + field
+                if fld_dct['type'][idx] == 'Double': #narrow to numeric   
+                    proctext(eval(fldValue), "Num", fld_dct['numDigits'][idx], fld_dct['ltorgt'][idx], fld_dct['average'][idx],column,fld_dct['rowNum'][idx],fld_dct['allnos'][idx], mxd)
+                else: #otherwise boolean
+                    proctext(eval(fldValue), "Boolean", 0, "", fld_dct['aveBool'][idx], column, fld_dct['rowNum'][idx], fld_dct['allnos'][idx], mxd)
+
+        if oddeven == 0:
+            if arcpy.Exists(pdf_path + "test" + str(pg_cnt) + ".pdf"):
+                arcpy.Delete_management(pdf_path + "test" + str(pg_cnt) + ".pdf", "")
+            arcpy.mapping.ExportToPDF(mxd, pdf_path + "test" + str(pg_cnt) + ".pdf", "PAGE_LAYOUT")
+            pdfDoc.appendPages(pdf_path + "test" + str(pg_cnt) + ".pdf")
+            pg_cnt += 1
+        i += 1
+        siterow = siterows.next()
+
+    if oddeven == 1:  # If you finish a layer with an odd number of records, last record was not added to the pdf.
+        # Blank out right side
+        siteText = arcpy.mapping.ListLayoutElements(mxd, "TEXT_ELEMENT", "SiteRightText")[0]
+        siteText.text = " "
+        # Fill right side with gray empty boxes
+        for i in range(39):
+            # Not set up to process the Social Equity or Reliability scores
+            newBox = graybox.clone("_clone")
+            boxpos(newBox,2,i + 1)
+        if arcpy.Exists(pdf_path + "test" + str(pg_cnt) + ".pdf"):
+            arcpy.Delete_management(pdf_path + "test" + str(pg_cnt) + ".pdf", "")
+        arcpy.mapping.ExportToPDF(mxd, pdf_path + "test" + str(pg_cnt) + ".pdf", "PAGE_LAYOUT")
+        pdfDoc.appendPages(pdf_path + "test" + str(pg_cnt) + ".pdf")
+
+    del siterow
+    del siterows
+
+    arcpy.Delete_management("rptbview", "")
+
+    pdfDoc.saveAndClose()
+
+    if arcpy.Exists(pdf_path + "result1.mxd"):
+        arcpy.Delete_management(pdf_path + "result1.mxd", "")
+    #mxd.save()
+    mxd.saveACopy(pdf_path + "result1.mxd")
+
+    del mxd
+    del pdfDoc
+
+    #message("Completed reprtpg6.py at " + strftime("%H:%M:%S", localtime()) + "\n")
+    message("Created " + pdf_path + "combine1.pdf and result1.mxd")
+        
 ##############################
 #############MAIN#############
 def main(params):
@@ -1059,31 +1306,40 @@ def main(params):
     sites = params[0].valueAsText #in_gdb  + "restoration_Sites"
     addresses = params[1].valueAsText #in_gdb + "e911_14_Addresses"
     popRast = params[2].valueAsText #None
-    ExistingWetlands = params[14].valueAsText #in_gdb + "NWI14"
-    roads = params[13].valueAsText #in_gdb + "e911Roads13q2"
-    trails = params[12].valueAsText #in_gdb + "bikepath"
-    landuse = params[15].valueAsText #in_gdb + "rilu0304"
-    field = params[16].valueAsText #"LCLU"
-    fieldLst = params[17].values #[u'161', u'162', u'410', u'430']
+    ExistingWetlands = params[15].valueAsText #in_gdb + "NWI14"
+    roads = params[14].valueAsText #in_gdb + "e911Roads13q2"
+    trails = params[13].valueAsText #in_gdb + "bikepath"
+    landuse = params[16].valueAsText #in_gdb + "rilu0304"
+    field = params[17].valueAsText #"LCLU"
+    fieldLst = params[18].values #[u'161', u'162', u'410', u'430']
     if fieldLst != None:
         #coerce/map unicode list using field in table
         fieldLst = ListType_fromField(tbl_fieldType(landuse, field), fieldLst)
+
+    #flood_zone = params [0] #in_gdb + "FEMA_FloodZones_clp"
+    flood_zone = params[10].valueAsText
+    #subs = in_gdb + "dams"
+    subs = params[11].valueAsText
+    #Catchment = params[27].valueAsText
+    Catchment = r"C:\ArcGIS\Local_GIS\NHD_Plus\NHDPlusNationalData\NHDPlusV21_National_Seamless.gdb\NHDPlusCatchment\Catchment"
+    #InputField = params[28].valueAsText
+    InputField = "FEATUREID" #field from feature layer
     
-    edu_inst = params[10].valueAsText #in_gdb + "schools08"
-    bus_Stp = params[11].valueAsText #in_gdb + "RIPTAstops0116"
+    edu_inst = params[11].valueAsText #in_gdb + "schools08"
+    bus_Stp = params[12].valueAsText #in_gdb + "RIPTAstops0116"
 
-    buff_dist = params[21].valueAsText #"2.5 Miles"
+    buff_dist = params[22].valueAsText #"2.5 Miles"
 
-    sovi = params[18].valueAsText #in_gdb + "SoVI0610_RI"
-    sovi_field = params[19].valueAsText #"SoVI0610_1"
-    sovi_High = params[20].values #"High" #this is now a list...
+    sovi = params[19].valueAsText #in_gdb + "SoVI0610_RI"
+    sovi_field = params[20].valueAsText #"SoVI0610_1"
+    sovi_High = params[21].values #"High" #this is now a list...
     if sovi_High != None:
         #coerce/map unicode list using field in table
         sovi_High = ListType_fromField(tbl_fieldType(sovi, sovi_field), sovi_High)
 
-    conserved = params[22].valueAsText #in_gdb + "LandUse2025"
-    rel_field = params[23].valueAsText #"Map_Legend"
-    cons_fieldLst = params[24].values #['Conservation/Limited', 'Major Parks & Open Space', 'Narragansett Indian Lands', 'Reserve', 'Water Bodies']
+    conserved = params[23].valueAsText #in_gdb + "LandUse2025"
+    rel_field = params[24].valueAsText #"Map_Legend"
+    cons_fieldLst = params[25].values #['Conservation/Limited', 'Major Parks & Open Space', 'Narragansett Indian Lands', 'Reserve', 'Water Bodies']
     if cons_fieldLst != None:
         #all values from rel_field not in cons_fieldLst #['Non-urban Developed', 'Prime Farmland', 'Sewered Urban Developed', 'Urban Development']
         threat_fieldLst = [x for x in unique_values(conserved, rel_field) if x not in cons_fieldLst]
@@ -1091,17 +1347,8 @@ def main(params):
         rel_field_type = tbl_fieldType(conserved, rel_field)
         cons_fieldLst = ListType_fromField(rel_field_type, cons_fieldLst)
         threat_fieldLst = ListType_fromField(rel_field_type, threat_fieldLst)
-    #flood_zone = params [0] #in_gdb + "FEMA_FloodZones_clp"
-    flood_zone = params[25].valueAsText
-    #subs = in_gdb + "dams"
-    subs = params[26].valueAsText
-    #Catchment = params[27].valueAsText
-    Catchment = r"C:\ArcGIS\Local_GIS\NHD_Plus\NHDPlusNationalData\NHDPlusV21_National_Seamless.gdb\NHDPlusCatchment\Catchment"
     
-    #InputField = params[28].valueAsText
-    InputField = "FEATUREID" #field from feature layer
-    
-    outTbl = params[29].valueAsText #r"L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Test_Results\IntermediatesFinal77.gdb\Results_full"
+    outTbl = params[27].valueAsText #r"L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Test_Results\IntermediatesFinal77.gdb\Results_full"
     start1 = exec_time(start1, "loading variables")            
     message("Checking input variables...")
 
@@ -1210,21 +1457,266 @@ class Toolbox(object):
         self.label = "Indicator Tools"
         self.alias = "Tier_1"
         # List of tool classes associated with this toolbox
-        self.tools= [Tier_1_Indicator_Tool]
+        self.tools = [Tier_1_Indicator_Tool, FloodTool, ReportGen, reliability, socVul, pres_abs_buff]
 
-############################# 
+#############################
+class pres_abs_buff(object):
+    def __init__(self):
+        self.label = "Part - Presence/Absence to Yes/No"
+        self.description = "Use the presence or absence of some spatial feature within a range of " + \
+                           "the site to determine if that metric is YES or NO"
+    def getParameterInfo(self):
+        sites = setParam("Restoration Site Polygons", "in_poly", "", "", "")#sites
+        field = setParam("Field Name", "siteFld","Field", "", "")
+        FC = setParam("Features", "feat", "", "", "")
+        buff_dist = setParam("Buffer Distance", "bufferUnits", "GPLinearUnit", "Optional", "")
+        outTbl = setParam("Output", "outTable", "DEFeatureClass", "", "Output")
+
+        field.parameterDependencies = [sites.name]
+        
+        params = [sites, field, FC, buff_dist, outTbl]
+        return params
+    
+    def isLicensed(self):
+        return True
+    def updateParameters(self, params):
+        return
+    def updateMessages(self, params):
+        return
+    
+    def execute(self, params, messages):
+        start1 = time.clock() #start the clock
+        sites = params[0].valueAsText
+        outTbl = params[4].valueAsText
+
+        arcpy.CopyFeatures_management(sites, outTbl)
+
+        field = params[1].valueAsText
+        FC = params[2].valueAsText
+        buff_dist = params[3].valueAsText
+        #if buff_dist = None:
+        #    buff_dist = 0
+        abs_test_PARAMS = [field, FC, buff_dist, outTbl]
+        absTest_MODULE(abs_test_PARAMS)
+        start1 = exec_time(start1, "Presence/Absence assessment")
+        
+class socVul (object):
+    def __init__(self):
+        self.label = "Part - Social Equity of Benefits"
+        self.description = "Assess the social vulnerability of those benefitting to identify social equity issues."
+    def getParameterInfo(self):
+        sites = setParam("Restoration Site Polygons", "in_poly", "", "", "")#sites
+        poly = setParam("SoVI", "sovi_poly", "", "", "")
+        poly_field = setParam("SoVI Score", "SoVI_ScoreFld","Field", "", "")
+        field_value = setParam("Vulnerable Field Values", "soc_field_val", "GPString", "Optional", "", True)
+        buff_dist = setParam("Buffer Distance", "bufferUnits", "GPLinearUnit", "", "")
+
+        outTbl = setParam("Output", "outTable", "DEFeatureClass", "", "Output")
+        params = [sites, poly, poly_field, field_value, buff_dist, outTbl] 
+        return params
+
+    def isLicensed(self):
+        return True
+    def updateParameters(self, params):
+        return
+    def updateMessages(self, params):
+        return
+    
+    def execute(self, params, messages):
+        start1 = time.clock() #start the clock
+        
+        sites = params[0].valueAsText
+        outTbl = params[5].valueAsText
+
+        arcpy.CopyFeatures_management(sites, outTbl)
+
+        sovi = params[1].valueAsText
+        sovi_field = params[2].valueAsText 
+        sovi_High = params[3].valueAsText
+        buff_dist = params[4].valueAsText
+
+        soc_PARAMS = [sovi, sovi_field, sovi_High, buff_dist, outTbl]
+        socEq_MODULE(soc_PARAMS)
+        start1 = exec_time(start1, "Social Equity assessment")
+        
 ################################
+###########Reliability##########
+class reliability (object):
+    def __init__(self):
+        self.label = "Part - Benefit Reliability"
+        self.description = "Assess the site's ability to produce services " + \
+                           "and provide benefits into the future."
+    def getParameterInfo(self):
+        sites = setParam("Restoration Site Polygons", "in_poly", "", "", "")#sites
+        poly = setParam("Conservation Lands", "cons_poly", "", "", "")
+        poly_field = setParam("Conservation Field", "Conservation_Field", "Field", "", "")
+        in_lst = setParam("Conservation Types", "Conservation_Type", "GPString", "", "", True)
+        buff_dist = setParam("Buffer Distance", "bufferUnits", "GPLinearUnit", "", "")
+        outTbl = setParam("Output", "outTable", "DEFeatureClass", "", "Output")
+
+        poly_field.parameterDependencies = [poly.name]
+        in_lst.parameterDependencies = [poly_field.name]
+        in_lst.filter.type = 'ValueList'
+
+        params = [sites, poly, poly_field, in_lst, buff_dist, outTbl]
+        return params
+
+    def isLicensed(self):
+        return True
+    def updateParameters(self, params):
+        if params[1].value != None:
+            params[2].enabled = True
+        else:
+            params[2].enabled = False
+        if params[2].value != None:
+            params[3].enabled = True
+        else:
+            params[3].enabled = False
+        return
+    
+    def updateMessages(self, params):
+        return
+    
+    def execute(self, params, messages):
+        start1 = time.clock() #start the clock
+        sites = params[0].valueAsText
+        outTbl = params[5].valueAsText
+
+        arcpy.CopyFeatures_management(sites, outTbl)
+
+        poly = params[1].valueAsText
+        field = params[2].valueAsText 
+        cons_fieldLst = params[3].valueAsText
+        buff_dist = params[4].valueAsText
+
+        if cons_fieldLst != None:
+            #all values from rel_field not in cons_fieldLst
+            threat_fieldLst = [x for x in unique_values(conserved, rel_field) if x not in cons_fieldLst]
+            #convert unicode lists to field.type
+            rel_field_type = tbl_fieldType(conserved, rel_field)
+            cons_fieldLst = ListType_fromField(rel_field_type, cons_fieldLst)
+            threat_fieldLst = ListType_fromField(rel_field_type, threat_fieldLst)
+        
+        Rel_PARAMS = [poly, field, cons_fieldLst, threat_fieldLst, buff_dist, outTbl]
+        reliability_MODULE(Rel_PARAMS)
+        start1 = exec_time(start1, "Reliability assessment")
+        
+########Report Generator########
+class ReportGen (object):
+    def __init__(self):
+        self.label = "Part - Report Generation"
+        self.description = "Tool to create formated summary pdf report of indicator results"
+    def getParameterInfo(self):
+        outTbl = setParam("Results Table", "outTable", "DEFeatureClass", "", "")
+        mxd = setParam("Mapfile with report layout", "mxd", "DEMapDocument", "", "")
+        pdf = setParam("pdf Report", "outReport", "DEFile", "", "Output")
+        params = [outTbl, mxd, pdf]
+        return params
+
+    def isLicensed(self):
+        return True
+    def updateParameters(self, params):
+        return
+    def updateMessages(self, params):
+        return
+    
+    def execute(self, params, messages):
+        #[sites, addresses, popRast, flood_zone, preWetlands, dams, catchment, FloodField, outTbl]
+        start1 = time.clock() #start the clock
+
+        outTbl = params[0].valueAsText
+        mxd = params[1].valueAsText 
+        pdf = params[2].valueAsText
+        
+        Report_PARAMS = [outTbl, mxd, pdf]
+        Report_MODULE(Report_PARAMS)
+        start1 = exec_time(start1, "Compile assessment report")
+        
+###########FLOOD_TOOL###########
+class FloodTool (object):
+    def __init__(self):
+        self.label = "Part - Flood Risk Reduction "
+        self.decription = "This tool assesses the Tier 1 Flood Risk Reduction Benefit"
+
+    def getParameterInfo(self):
+    #Define IN/OUT parameters
+        #sites = in_gdb  + "restoration_Sites"
+        sites = setParam("Restoration Site Polygons", "in_poly", "", "", "")#sites
+        #addresses = in_gdb + "e911_14_Addresses"
+        addresses = setParam("Address Points", "in_pnts", "", "Optional", "")#beneficiaries points
+        #popRast = None
+        popRast = setParam("Population Raster", "popRast", "DERasterDataset", "Optional", "")#beneficiaries raster
+
+        #flood_zone = in_gdb + "FEMA_FloodZones_clp"
+        flood_zone = setParam("Flood Zone [Polygon]", "flood_zone", "", "Optional", "")
+        flood_zone.enabled = False
+        #subs = in_gdb + "dams"
+        dams = setParam("Dams & Levees", "flood_sub", "", "Optional", "")
+        #dams.enabled = False
+        #pre-existing wetlands #ExistingWetlands = in_gdb + "NWI14"
+        preWetlands = setParam("Wetland Polygons", "in_wet", "", "Optional", "")#pre-existing wetlands
+        #catchment = r"C:\ArcGIS\Local_GIS\NHD_Plus\NHDPlusNationalData\NHDPlusV21_National_Seamless.gdb\NHDPlusCatchment\Catchment"
+        catchment = setParam("NHD+ Catchments", "NHD_catchment" , "", "Optional", "")
+        #set default
+        #FloodField = "FEATUREID"
+        FloodField = setParam("NHD Join Field", "inputField", "Field", "Optional", "")
+
+        #outTbl = r"L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Test_Results\IntermediatesFinal77.gdb\Results_full"
+        outTbl = setParam("Output", "outTable", "DEFeatureClass", "", "Output")
+
+        params = [sites, addresses, popRast, flood_zone, preWetlands, dams, catchment, FloodField, outTbl]
+        return params
+
+    def isLicensed(self):
+        return True
+    def updateParameters(self, params):
+        #Take only addresses or raster
+        if params[1].value != None:
+            params[2].enabled = False
+        else:
+            params[2].enabled = True
+        if params[2].value != None:
+            params[1].enabled = False
+        else:
+            params[1].enabled = True
+        return
+    
+    def updateMessages(self, params):
+        return
+    
+    def execute(self, params, messages):
+        #[sites, addresses, popRast, flood_zone, preWetlands, dams, catchment, FloodField, outTbl]
+        start1 = time.clock() #start the clock
+        sites = params[0].valueAsText
+        outTbl = params[8].valueAsText
+        
+        addresses = params[1].valueAsText #in_gdb + "e911_14_Addresses"
+        popRast = params[2].valueAsText #None
+        
+        flood_zone = params[3].valueAsText
+        oriWetlands = params[4].valueAsText #in_gdb + "NWI14"
+        subs = params[5].valueAsText
+        catchment = params[6].valueAsText
+        inputField = params[7].valueAsText
+
+        arcpy.CopyFeatures_management(sites, outTbl)
+        
+        Flood_PARAMS = [addresses, popRast, flood_zone, oriWetlands, subs, catchment, inputField, outTbl]
+        FR_MODULE(Flood_PARAMS)
+        start1 = exec_time(start1, "Flood Risk benefit assessment")
+
+################################        
 #########INDICATOR_TOOL#########       
 class Tier_1_Indicator_Tool (object):
     def __init__(self):
-        self.label = "Tier 1 Indicator Tools" 
+        self.label = "Full Tier 1 Assessment" 
         self.description = "This tool performs the Tier 1 Indicators assessment on a desired" + \
                            "set of wetlands or wetlands restoration sites."
 
     def getParameterInfo(self):
     #Define IN/OUT parameters
         #sites = in_gdb  + "restoration_Sites"
-        sites = setParam("Restoration Site Polygons", "in_poly", "", "", "")#sites
+        sites = setParam("Restoration Site Polygons (Required)", "in_poly", "", "", "")#sites
         #addresses = in_gdb + "e911_14_Addresses"
         addresses = setParam("Address Points", "in_pnts", "", "Optional", "")#beneficiaries points
         #popRast = None
@@ -1242,7 +1734,6 @@ class Tier_1_Indicator_Tool (object):
         socEq = setParam(serviceLst[5], "socEq", "GPBoolean", "Optional", "")
         rel = setParam(serviceLst[6], "rel", "GPBoolean", "Optional", "")
 
-        #special datasets (disabled initially)
         #flood_zone = in_gdb + "FEMA_FloodZones_clp"
         flood_zone = setParam("Flood Zone [Polygon]", "flood_zone", "", "Optional", "")
         flood_zone.enabled = False
@@ -1326,8 +1817,8 @@ class Tier_1_Indicator_Tool (object):
         #distance2.parameterDependencies = [RestorationSites.name]
 
         params = [sites, addresses, popRast, flood, view, edu, bird, rec, socEq, rel,
-                  edu_inst, bus_stp, trails, roads, preWetlands, landUse, fieldLULC, fieldVal, SocVul, SoVI_Field,
-                  socVal, distance, conserve, Conserve_Field, useType, flood_zone, dams, catchment, FloodField, outTbl]
+                  flood_zone, dams, edu_inst, bus_stp, trails, roads, preWetlands, landUse, fieldLULC, fieldVal,
+                  SocVul, SoVI_Field, socVal, distance, conserve, Conserve_Field, useType, outTbl]
 
         return params
 
@@ -1347,62 +1838,62 @@ class Tier_1_Indicator_Tool (object):
             params[1].enabled = True
         #edu only inputs (edu_inst)
         if params[5].value == True:
-            params[10].enabled = True
+            params[12].enabled = True
         else:
-            params[10].enabled = False
+            params[12].enabled = False
         #rec only inputs (bus_stp)
         if params[7].value == True:
-            params[11].enabled = True
+            params[13].enabled = True
         else:
-            params[11].enabled = False
+            params[13].enabled = False
         #landuse required benefits (view & rec)
         if params[4].value == True or params[7].value == True:
-            params[15].enabled = True
-        else:
-            params[15].enabled = False
-        if params[15].altered:
             params[16].enabled = True
+        else:
+            params[16].enabled = False
         if params[16].altered:
-            in_poly = params[15].valueAsText
-            TypeField = params[16].valueAsText
             params[17].enabled = True
-            params[17].filter.list = unique_values(in_poly, TypeField)
+        if params[17].altered:
+            in_poly = params[16].valueAsText
+            TypeField = params[17].valueAsText
+            params[18].enabled = True
+            params[18].filter.list = unique_values(in_poly, TypeField)
         #social vulnerability & reliability
         if params[8].value == True or params[9].value ==True: #soc or rel
-            params[21].enabled = True #distance
+            params[22].enabled = True #distance
         else:
-            params[21].enabled = False
+            params[22].enabled = False
         #social vulnerability inputs    
         if params[8].value == True:
-            params[18].enabled = True #SocVul
-        if params[18].altered:
-            params[19].enabled = True
-        if params[19].altered: #socVul_field
-            in_poly = params[18].valueAsText
-            TypeField = params[19].valueAsText
+            params[19].enabled = True #SocVul
+        if params[19].altered:
             params[20].enabled = True
-            params[20].filter.list = unique_values(in_poly, TypeField)
+        if params[20].altered: #socVul_field
+            in_poly = params[19].valueAsText
+            TypeField = params[20].valueAsText
+            params[21].enabled = True
+            params[21].filter.list = unique_values(in_poly, TypeField)
         #reliability inputs
         if params[9].value == True:
-            params[22].enabled = True #Conservation
-        if params[22].altered:
-            params[23].enabled = True #Conserve_Field
-        if params[23].altered: 
-            in_poly = params[22].valueAsText
-            TypeField = params[23].valueAsText
-            params[24].enabled = True
-            params[24].filter.list = unique_values(in_poly, TypeField)
+            params[23].enabled = True #Conservation
+        if params[23].altered:
+            params[24].enabled = True #Conserve_Field
+        if params[24].altered: 
+            in_poly = params[23].valueAsText
+            TypeField = params[24].valueAsText
+            params[25].enabled = True
+            params[25].filter.list = unique_values(in_poly, TypeField)
         #flood inputs
         if params[3].value == True: #option button
-            params[25].enabled = True #zone
-            params[26].enabled = True #dams
-            params[27].enabled = True #NHD
+            params[26].enabled = True #zone
+            params[27].enabled = True #dams
+            params[28].enabled = True #NHD
         else:
-            params[25].enabled = False
             params[26].enabled = False
             params[27].enabled = False
-        if params[27].altered:
-            params[28].enabled = True
+            params[28].enabled = False
+        if params[28].altered:
+            params[29].enabled = True
             
         return
 
