@@ -3,6 +3,7 @@
 # Purpose: Calculate values for benefit indicators using wetland restoration site polygons
 #          and a variety of other input data
 # Author: Justin Bousquin
+# Additional Author Credits: Michael Charpentier (Report generation)
 # Additional Author Credits: Marc Weber and Tad Larsen (StreamCat)
 
 # Version Notes:
@@ -1142,13 +1143,13 @@ def reliability_MODULE(PARAMS):
 ########Report_MODULE#########
 def Report_MODULE(PARAMS):
     start = time.clock() #start the clock
-    #Report_PARAMS = [outTbl, mxd, pdf]
+    #Report_PARAMS = [outTbl, siteName, mxd, pdf]
 
     outTbl = PARAMS[0]
-    mxd = arcpy.mapping.MapDocument(PARAMS[1])
-    #mxd = PARAMS[1]
+    siteNameFld = PARAMS[1]
+    mxd = arcpy.mapping.MapDocument(PARAMS[2])
     #Set file name and remove if it already exists
-    pdf = PARAMS[2]
+    pdf = PARAMS[3]
     if os.path.exists(pdf):
         os.remove(pdf)
     #Set path for intermediates
@@ -1608,27 +1609,36 @@ class ReportGen (object):
         self.description = "Tool to create formated summary pdf report of indicator results"
     def getParameterInfo(self):
         outTbl = setParam("Results Table", "outTable", "DEFeatureClass", "", "")
+        siteName = setParam("Site Names Field", "siteNameField", "Field", "", "")
+        siteName.enabled = False
         mxd = setParam("Mapfile with report layout", "mxd", "DEMapDocument", "", "")
         pdf = setParam("pdf Report", "outReport", "DEFile", "", "Output")
-        params = [outTbl, mxd, pdf]
+
+        siteName.parameterDependencies = [outTbl.name]
+        
+        params = [outTbl, siteName, mxd, pdf]
         return params
 
     def isLicensed(self):
         return True
     def updateParameters(self, params):
+        if params[0].value != None:
+            params[1].enabled = True
+        else:
+            params[1].enabled = False
         return
     def updateMessages(self, params):
         return
     
     def execute(self, params, messages):
-        #[sites, addresses, popRast, flood_zone, preWetlands, dams, catchment, FloodField, outTbl]
         start1 = time.clock() #start the clock
 
         outTbl = params[0].valueAsText
-        mxd = params[1].valueAsText 
-        pdf = params[2].valueAsText
+        siteName = params[1].valueAsText
+        mxd = params[2].valueAsText 
+        pdf = params[3].valueAsText
         
-        Report_PARAMS = [outTbl, mxd, pdf]
+        Report_PARAMS = [outTbl, siteName, mxd, pdf]
         Report_MODULE(Report_PARAMS)
         start1 = exec_time(start1, "Compile assessment report")
         
