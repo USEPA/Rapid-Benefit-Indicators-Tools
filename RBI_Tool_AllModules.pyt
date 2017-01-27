@@ -1172,8 +1172,8 @@ def Report_MODULE(PARAMS):
     txt, dbl ='Text', 'Double'
     fld_dct['type'] = [dbl, dbl, txt, txt, dbl, txt, dbl, dbl, dbl,txt, txt, dbl, dbl, txt, dbl, txt, dbl, txt, txt,
                        dbl, txt, txt, dbl, dbl, dbl, dbl, dbl, dbl, txt, txt, dbl, txt, txt, txt, txt, dbl, dbl]
-    fld_dct['ltorgt'] = ['lt', 'gt', '', '', 'gt', '', 'gt', 'gt', 'gt', '', '', 'gt', 'gt', '', 'lt', '', 'gt',
-                         '', '', 'lt', '', '', 'gt', 'gt', 'gt', 'gt', 'gt', 'gt', '', '', 'lt', '', '', '', '', 'gt', 'gt']
+    fld_dct['ltorgt'] = ['gt', 'gt', '', '', 'lt', '', 'gt', 'gt', 'gt', '', '', 'lt', 'gt', '', 'gt', '', 'lt',
+                         '', '', 'gt', '', '', 'gt', 'gt', 'gt', 'lt', 'lt', 'lt', '', '', 'gt', '', '', '', '', 'gt', 'gt']
     fld_dct['aveBool'] = ['', '', 'YES', 'NO', '', 'YES', '', '', '', 'YES', 'YES', '', '', 'YES', '', 'YES', '', 'YES','YES',
                           '', 'YES', 'YES', '', '', '', '', '', '', 'YES', 'YES', '', 'YES', 'YES', 'YES', 'YES', '', '']
     fld_dct['numDigits'] = [0, 2, 0, 0, 2, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 2, 2]
@@ -1239,7 +1239,7 @@ def Report_MODULE(PARAMS):
             idx = fld_dct['field'].index(field)
             #Check to see if field exists in results
             #if it doesn't color = black
-            if fldExists(field, column, idx, fieldInfo, blackbox):
+            if fldExists(field, column, fld_dct['rowNum'][idx], fieldInfo, blackbox):
                 fldValue = "siterow." + field
                 if fld_dct['type'][idx] == 'Double': #narrow to numeric   
                     proctext(eval(fldValue), "Num", fld_dct['numDigits'][idx], fld_dct['ltorgt'][idx], fld_dct['average'][idx],column,fld_dct['rowNum'][idx],fld_dct['allnos'][idx], mxd)
