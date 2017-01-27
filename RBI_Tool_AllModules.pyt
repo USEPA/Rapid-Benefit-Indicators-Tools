@@ -24,6 +24,16 @@ arcpy.env.parallelProcessingFactor = "100%" #use all available resources
 ###########FUNCTIONS###########
 def mean(l):
     return sum(l)/float(len(l))
+
+"""pdf from mxd
+"""
+def exportReport(pdfDoc, pdf_path, pg_cnt, mxd):
+    if arcpy.Exists(pdf_path + "report_page_" + str(pg_cnt) + ".pdf"):
+        arcpy.Delete_management(pdf_path + "report_page_" + str(pg_cnt) + ".pdf", "")
+    arcpy.mapping.ExportToPDF(mxd, pdf_path + "report_page_" + str(pg_cnt) + ".pdf", "PAGE_LAYOUT")
+    pdfDoc.appendPages(pdf_path + "report_page_" + str(pg_cnt) + ".pdf")
+    arcpy.Delete_management(pdf_path + "report_page_" + str(pg_cnt) + ".pdf", "")
+    
 """position text on report
 Author Credit: Mike Charpentier 
 """
@@ -102,15 +112,12 @@ def proctext(fieldValue,fieldType,ndigits,ltorgt,aveValue,colNumber,rowNumber,al
                         rndnumber = round(fieldValue,0)
                         intnumber = int(rndnumber)
                         newnum = format(intnumber, ",d")
-                        #rndnumber = str(round(fieldValue,0))
-                        #decind = str(rndnumber).find(".0")
-                        #newnum = str(rndnumber)[0:decind]
                         newText.text = newnum
                     else:
                         newText.text = str(round(fieldValue,1))
                 else:
                     newText.text = str(round(fieldValue,ndigits))
-        else: #boolean
+        else: #boolean fields
             if allNos == 1:
                 newText.text = "No"
             else:
@@ -1146,7 +1153,7 @@ def Report_MODULE(PARAMS):
     #Report_PARAMS = [outTbl, siteName, mxd, pdf]
 
     outTbl = PARAMS[0]
-    siteNameFld = PARAMS[1]
+    siteNameFld = str(PARAMS[1])
     mxd = arcpy.mapping.MapDocument(PARAMS[2])
     #Set file name and remove if it already exists
     pdf = PARAMS[3]
@@ -1227,11 +1234,12 @@ def Report_MODULE(PARAMS):
 
         #text element processing
         siteName = arcpy.mapping.ListLayoutElements(mxd, "TEXT_ELEMENT", site_Name)[0]
-        if fieldInfo.findFieldByName("siteName") > 0:
-            if siterow.siteName == ' ':
+        fldNameValue = "siterow." + siteNameFld
+        if fieldInfo.findFieldByName(siteNameFld) > 0:
+            if eval(fldNameValue) == ' ':
                 siteName.text = "No name"
             else:
-                siteName.text = siterow.siteName
+                siteName.text = eval(fldNameValue)
         else:
             siteName.text = "No name" 
 
@@ -1248,10 +1256,8 @@ def Report_MODULE(PARAMS):
                     proctext(eval(fldValue), "Boolean", 0, "", fld_dct['aveBool'][idx], column, fld_dct['rowNum'][idx], fld_dct['allnos'][idx], mxd)
 
         if oddeven == 0:
-            if arcpy.Exists(pdf_path + "test" + str(pg_cnt) + ".pdf"):
-                arcpy.Delete_management(pdf_path + "test" + str(pg_cnt) + ".pdf", "")
-            arcpy.mapping.ExportToPDF(mxd, pdf_path + "test" + str(pg_cnt) + ".pdf", "PAGE_LAYOUT")
-            pdfDoc.appendPages(pdf_path + "test" + str(pg_cnt) + ".pdf")
+            exportReport(pdfDoc, pdf_path, pg_cnt, mxd)
+
             pg_cnt += 1
         i += 1
         siterow = siterows.next()
@@ -1265,10 +1271,7 @@ def Report_MODULE(PARAMS):
             # Not set up to process the Social Equity or Reliability scores
             newBox = graybox.clone("_clone")
             boxpos(newBox,2,i + 1)
-        if arcpy.Exists(pdf_path + "test" + str(pg_cnt) + ".pdf"):
-            arcpy.Delete_management(pdf_path + "test" + str(pg_cnt) + ".pdf", "")
-        arcpy.mapping.ExportToPDF(mxd, pdf_path + "test" + str(pg_cnt) + ".pdf", "PAGE_LAYOUT")
-        pdfDoc.appendPages(pdf_path + "test" + str(pg_cnt) + ".pdf")
+        exportReport(pdfDoc, pdf_path, pg_cnt, mxd)
 
     del siterow
     del siterows
