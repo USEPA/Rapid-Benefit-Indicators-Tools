@@ -6,10 +6,10 @@
 This code repository contains tools and files related to the Rapid Benefit Indicators (RBI) assessment approach.
 
 ###Overview
-The Rapid Benefit Indicators (RBI) Approach is an easy-to-use process for assessing restoration sites using non-monetary benefit indicators. The RBI Approach uses readily-available data to estimate and quantify benefits to people around an ecological restoration site. Whether you are a federal, state, or local manager, or a member of an interest group or funding organization, this simple yet powerful site analysis will allow you and your stakeholders to systematically and equitably incorporate social benefits in restoration decisions.
+The RBI approach is an easy-to-use process for assessing restoration sites using non-monetary benefit indicators. It uses readily-available data to estimate and quantify benefits to people around an ecological restoration site. Whether you are a federal, state, or local manager, or a member of an interest group or funding organization, this simple yet powerful site analysis will allow you and your stakeholders to systematically and equitably incorporate social benefits in restoration decisions.
 
-###One Page RBI Approach Description
-This downloadable pdf briefly describes the RBI Approach and how it might be used.
+###RBI Approach Fact Sheet
+This downloadable one page pdf briefly describes the RBI Approach and how it might be used.
 
 ###Assessing the Benefits of Wetland Restoration - A Rapid Benefits Indicators Approach for Decision Markers
 Downloadable PDF of the full EPA Report, also accessible from [US EPA](https://cfpub.epa.gov/si/si_public_record_report.cfm?dirEntryId=325010 "EPA Science Inventory").
