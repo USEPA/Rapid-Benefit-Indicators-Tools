@@ -1766,7 +1766,6 @@ class Tier_1_Indicator_Tool (object):
 
         #flood_zone = in_gdb + "FEMA_FloodZones_clp"
         flood_zone = setParam("Flood Zone [Polygon]", "flood_zone", "", "Optional", "")
-        flood_zone.enabled = False
         #subs = in_gdb + "dams"
         dams = setParam("Dams & Levees", "flood_sub", "", "Optional", "")
         #dams.enabled = False
@@ -1790,9 +1789,9 @@ class Tier_1_Indicator_Tool (object):
         #landuse = in_gdb + "rilu0304"
         landUse = setParam("Land use or greenspace Polygons", "land_use", "", "Optional", "")
         #field = "LCLU"
-        fieldLULC = setParam("Landuse Field", "LULCFld", "Field", "Optional", "")
+        LULC_field = setParam("Landuse Field", "LULCFld", "Field", "Optional", "")
         #list of fields from table [430, 410, 162, 161]
-        fieldVal = setParam("Greenspace Field Values", "grn_field_val", "GPString", "Optional", "", True)
+        landVal = setParam("Greenspace Field Values", "grn_field_val", "GPString", "Optional", "", True)
 
         #sovi = in_gdb + "SoVI0610_RI"
         SocVul = setParam("SoVI", "sovi_poly", "", "Optional", "")
@@ -1800,55 +1799,43 @@ class Tier_1_Indicator_Tool (object):
         SoVI_Field = setParam("SoVI Score", "SoVI_ScoreFld","Field", "Optional", "")
         #sovi_High = "High"
         socVal = setParam("Vulnerable Field Values", "soc_field_val", "GPString", "Optional", "", True)
-        
-        #distance beneficiaries travel #buff_dist = "2.5 Miles"
-        distance = setParam("Buffer Distance", "bufferUnits", "GPLinearUnit", "Optional", "")
 
         #conserved = in_gdb + "LandUse2025"
         conserve = setParam("Conservation lands", "cons_poly", "", "Optional", "")
         #rel_field = "Map_Legend"
-        Conserve_Field = setParam("Conservation Field", "Conservation_Field", "Field", "Optional", "")
+        conserve_Field = setParam("Conservation Field", "Conservation_Field", "Field", "Optional", "")
         #user must select 1 field to base calculation on
         #cons_fieldLst = ['Conservation/Limited', 'Major Parks & Open Space', 'Narragansett Indian Lands', 'Reserve', 'Water Bodies']
-        useType = setParam("Conservation Types", "Conservation_Type", "GPString", "Optional", "", True)
-
-        #distance beneficiaries travel
-        #distance2 = setParam("Buffer Distance", "bufferUnits", "GPLinearUnit", "", "")
+        useVal = setParam("Conservation Types", "Conservation_Type", "GPString", "Optional", "", True)
                 
         #outputs
         #outTbl = r"L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Test_Results\IntermediatesFinal77.gdb\Results_full"
         outTbl = setParam("Output", "outTable", "DEFeatureClass", "", "Output")
         #outTbl = setParam("Output", "outTable", "DEWorkspace", "", "Output")
 
-        #report = setParam("Report (optional)", "report", "DEMapDocument", "Optional", "Output")
+        pdf = setParam("PDF Report", "outReport", "DEFile", "", "Output")
 
         #set drop downs to be disabled initially
-        disableParamLst([fieldLULC, fieldVal, SocVul, SoVI_Field, socVal, conserve, Conserve_Field, useType, bus_stp, edu_inst, dams])
+        disableParamLst([flood_zone, LULC_field, landVal, SocVul, SoVI_Field, socVal, conserve, conserve_Field, useVal, bus_stp,
+                         edu_inst, dams])
 
         #dependencies
-	#Set the FieldsList to be filtered by the list from the feature dataset
-        FloodField.parameterDependencies = [catchment.name]
-        
-        fieldLULC.parameterDependencies = [landUse.name]
-        fieldVal.parameterDependencies = [fieldLULC.name]
-        fieldVal.filter.type = 'ValueList'
+	#Set the FieldsList to be filtered by the list from the feature dataset     
+        LULC_field.parameterDependencies = [landUse.name]
+        landVal.parameterDependencies = [LULC_field.name]
+        landVal.filter.type = 'ValueList'
         
         SoVI_Field.parameterDependencies = [SocVul.name]
         socVal.parameterDependencies = [SoVI_Field.name]
         socVal.filter.type = 'ValueList'
         
-        Conserve_Field.parameterDependencies = [conserve.name]
-        useType.parameterDependencies = [Conserve_Field.name]
-        useType.filter.type = 'ValueList'
-        
-        #defaults
-        ###SoVI_Field.defaultEnvironmentName = "SoVI0610_1"
-        distance.parameterDependencies = [sites.name] #units based on spRef
-        #distance2.parameterDependencies = [RestorationSites.name]
+        conserve_Field.parameterDependencies = [conserve.name]
+        useVal.parameterDependencies = [conserve_Field.name]
+        useVal.filter.type = 'ValueList'
 
         params = [sites, addresses, popRast, flood, view, edu, bird, rec, socEq, rel,
-                  flood_zone, dams, edu_inst, bus_stp, trails, roads, preWetlands, landUse, fieldLULC, fieldVal,
-                  SocVul, SoVI_Field, socVal, distance, conserve, Conserve_Field, useType, outTbl]
+                  flood_zone, dams, edu_inst, bus_stp, trails, roads, preWetlands, landUse, LULC_field, landVal,
+                  SocVul, SoVI_Field, socVal, conserve, conserve_Field, useVal, outTbl, pdf]
 
         return params
 
