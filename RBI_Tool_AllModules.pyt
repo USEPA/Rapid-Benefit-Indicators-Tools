@@ -27,7 +27,7 @@ def mean(l):
 
 """Buffer Distance for Social equity based on lst of checked benefits
 Purpose: Returns a distance to use for the buffer based on which benefits are checked and how far those benefits are delivered"""
-SocEqu_BuffDist(lst):
+def SocEqu_BuffDist(lst):
 #ck[0, 4] = [flood, view, edu, rec, bird]
     if lst[0] != None:
 	buff_dist = "2.5 Miles"
@@ -1794,9 +1794,9 @@ class Tier_1_Indicator_Tool (object):
         landVal = setParam("Greenspace Field Values", "grn_field_val", "GPString", "Optional", "", True)
 
         #sovi = in_gdb + "SoVI0610_RI"
-        SocVul = setParam("SoVI", "sovi_poly", "", "Optional", "")
+        socVul = setParam("SoVI", "sovi_poly", "", "Optional", "")
         #user must select 1 field to base calculation on #sovi_field = "SoVI0610_1"
-        SoVI_Field = setParam("SoVI Score", "SoVI_ScoreFld","Field", "Optional", "")
+        soc_Field = setParam("SoVI Score", "SoVI_ScoreFld","Field", "Optional", "")
         #sovi_High = "High"
         socVal = setParam("Vulnerable Field Values", "soc_field_val", "GPString", "Optional", "", True)
 
@@ -1813,29 +1813,28 @@ class Tier_1_Indicator_Tool (object):
         outTbl = setParam("Output", "outTable", "DEFeatureClass", "", "Output")
         #outTbl = setParam("Output", "outTable", "DEWorkspace", "", "Output")
 
-        pdf = setParam("PDF Report", "outReport", "DEFile", "", "Output")
+        pdf = setParam("PDF Report", "outReport", "DEFile", "Optional", "Output")
 
         #set drop downs to be disabled initially
-        disableParamLst([flood_zone, LULC_field, landVal, SocVul, SoVI_Field, socVal, conserve, conserve_Field, useVal, bus_stp,
-                         edu_inst, dams])
+        disableParamLst([flood_zone, dams, edu_inst, bus_stp, trails, roads, preWetlands, landUse, LULC_field, landVal,
+                         socVul, soc_Field, socVal, conserve, conserve_Field, useVal])
 
-        #dependencies
-	#Set the FieldsList to be filtered by the list from the feature dataset     
+	#Set FieldsLists to be filtered by the list from the feature dataset field
         LULC_field.parameterDependencies = [landUse.name]
         landVal.parameterDependencies = [LULC_field.name]
         landVal.filter.type = 'ValueList'
         
-        SoVI_Field.parameterDependencies = [SocVul.name]
-        socVal.parameterDependencies = [SoVI_Field.name]
+        soc_Field.parameterDependencies = [socVul.name]
+        socVal.parameterDependencies = [soc_Field.name]
         socVal.filter.type = 'ValueList'
         
         conserve_Field.parameterDependencies = [conserve.name]
         useVal.parameterDependencies = [conserve_Field.name]
         useVal.filter.type = 'ValueList'
 
-        params = [sites, addresses, popRast, flood, view, edu, bird, rec, socEq, rel,
+        params = [sites, addresses, popRast, flood, view, edu, rec, bird, socEq, rel,
                   flood_zone, dams, edu_inst, bus_stp, trails, roads, preWetlands, landUse, LULC_field, landVal,
-                  SocVul, SoVI_Field, socVal, conserve, conserve_Field, useVal, outTbl, pdf]
+                  socVul, soc_Field, socVal, conserve, conserve_Field, useVal, outTbl, pdf]
 
         return params
 
@@ -1853,46 +1852,67 @@ class Tier_1_Indicator_Tool (object):
             params[1].enabled = False
         else:
             params[1].enabled = True
+        #flood only inputs (flood zone & dams)
+        if params[3].value == True: #option button
+            params[10].enabled = True #zone
+            params[11].enabled = True #dams
+        else:
+            params[10].enabled = False
+            params[11].enabled = False
         #edu only inputs (edu_inst)
         if params[5].value == True:
             params[12].enabled = True
         else:
             params[12].enabled = False
         #rec only inputs (bus_stp)
-        if params[7].value == True:
+        if params[6].value == True:
             params[13].enabled = True
         else:
             params[13].enabled = False
-        #landuse required benefits (view & rec)
-        if params[4].value == True or params[7].value == True:
+        #trails required benefits (view, rec, bird)
+        if params[4].value == True or params[6].value == True or params[7].value == True :
+            params[14].enabled = True
+        else:
+            params[14].enabled = False 
+        #roads required benefits (view, bird)
+        if params[4].value == True or params[7].value == True :
+            params[15].enabled = True
+        else:
+            params[15].enabled = False
+        #wetlands required benefits (flood, view, edu, rec)
+        if params[3].value == True or params[4].value == True or params[5].value == True or params[6].value == True:
             params[16].enabled = True
         else:
-            params[16].enabled = False
-        if params[16].altered:
+            params[16].enabled = False 
+        #landuse required benefits (view & rec)
+        if params[4].value == True or params[6].value == True:
             params[17].enabled = True
-        if params[17].altered:
-            in_poly = params[16].valueAsText
-            TypeField = params[17].valueAsText
-            params[18].enabled = True
-            params[18].filter.list = unique_values(in_poly, TypeField)
-        #social vulnerability & reliability
-        if params[8].value == True or params[9].value ==True: #soc or rel
-            params[22].enabled = True #distance
         else:
-            params[22].enabled = False
+            params[17].enabled = False
+        if params[17].altered:
+            params[18].enabled = True
+        if params[18].altered:
+            in_poly = params[17].valueAsText
+            TypeField = params[18].valueAsText
+            params[19].enabled = True
+            params[19].filter.list = unique_values(in_poly, TypeField)
         #social vulnerability inputs    
         if params[8].value == True:
-            params[19].enabled = True #SocVul
-        if params[19].altered:
-            params[20].enabled = True
-        if params[20].altered: #socVul_field
-            in_poly = params[19].valueAsText
-            TypeField = params[20].valueAsText
+            params[20].enabled = True #SocVul
+        else:
+            params[20].enabled = False
+        if params[20].altered:
             params[21].enabled = True
-            params[21].filter.list = unique_values(in_poly, TypeField)
+        if params[21].altered: #socVul_field
+            in_poly = params[20].valueAsText
+            TypeField = params[21].valueAsText
+            params[22].enabled = True
+            params[22].filter.list = unique_values(in_poly, TypeField)
         #reliability inputs
         if params[9].value == True:
             params[23].enabled = True #Conservation
+        else:
+            params[23].enabled = False
         if params[23].altered:
             params[24].enabled = True #Conserve_Field
         if params[24].altered: 
@@ -1900,18 +1920,7 @@ class Tier_1_Indicator_Tool (object):
             TypeField = params[24].valueAsText
             params[25].enabled = True
             params[25].filter.list = unique_values(in_poly, TypeField)
-        #flood inputs
-        if params[3].value == True: #option button
-            params[26].enabled = True #zone
-            params[27].enabled = True #dams
-            params[28].enabled = True #NHD
-        else:
-            params[26].enabled = False
-            params[27].enabled = False
-            params[28].enabled = False
-        if params[28].altered:
-            params[29].enabled = True
-            
+
         return
 
     def updateMessages(self, params):
