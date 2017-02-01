@@ -1754,12 +1754,12 @@ class Tier_1_Indicator_Tool (object):
         #check boxes for services the user wants to assess
         #flood, view, edu, rec, bird, socEq, rel = True, True, True, True, True, True, True
         serviceLst=["Reduced Flood Risk", "Scenic Views", "Environmental Education",
-                    "Bird Watching", "Recreation", "Social Equity", "Reliability"]
+                    "Recreation", "Bird Watching", "Social Equity", "Reliability"]
         flood = setParam(serviceLst[0], "flood", "GPBoolean", "Optional", "")
         view = setParam(serviceLst[1], "view", "GPBoolean", "Optional", "")
         edu = setParam(serviceLst[2], "edu", "GPBoolean", "Optional", "")
-        bird = setParam(serviceLst[3], "bird", "GPBoolean", "Optional", "")
-        rec = setParam(serviceLst[4], "rec", "GPBoolean", "Optional", "")
+        rec = setParam(serviceLst[3], "rec", "GPBoolean", "Optional", "")
+        bird = setParam(serviceLst[4], "bird", "GPBoolean", "Optional", "")
         #other check boxes
         socEq = setParam(serviceLst[5], "socEq", "GPBoolean", "Optional", "")
         rel = setParam(serviceLst[6], "rel", "GPBoolean", "Optional", "")
@@ -1768,13 +1768,6 @@ class Tier_1_Indicator_Tool (object):
         flood_zone = setParam("Flood Zone [Polygon]", "flood_zone", "", "Optional", "")
         #subs = in_gdb + "dams"
         dams = setParam("Dams & Levees", "flood_sub", "", "Optional", "")
-        #dams.enabled = False
-        #catchment = r"C:\ArcGIS\Local_GIS\NHD_Plus\NHDPlusNationalData\NHDPlusV21_National_Seamless.gdb\NHDPlusCatchment\Catchment"
-        catchment = setParam("NHD+ Catchments", "NHD_catchment" , "", "Optional", "")
-        #set default
-        #FloodField = "FEATUREID"
-        FloodField = setParam("NHD Join Field", "inputField", "Field", "Optional", "")
-
         #edu_inst = in_gdb + "schools08"
         edu_inst = setParam("Educational Institutions [Points]", "edu_inst", "", "Optional", "")
         #bus_Stp = in_gdb + "RIPTAstops0116"
