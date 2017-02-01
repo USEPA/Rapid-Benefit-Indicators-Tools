@@ -26,19 +26,23 @@ def mean(l):
     return sum(l)/float(len(l))
 
 """Buffer Distance for Social equity based on lst of checked benefits
-Purpose: Returns a distance to use for the buffer based on which benefits are checked and how far those benefits are delivered"""
+Purpose: Returns a distance to use for the buffer based on which benefits
+are checked and how far those benefits are delivered"""
 def SocEqu_BuffDist(lst):
 #ck[0, 4] = [flood, view, edu, rec, bird]
     if lst[0] != None:
-	buff_dist = "2.5 Miles"
+        buff_dist = "2.5 Miles"
     elif lst[3] != None:
-	buff_dist = "0.33 Miles"
+        buff_dist = "0.33 Miles"
     elif lst[2] != None:
-	buff_dist = "0.25 Miles"
+        buff_dist = "0.25 Miles"
     elif lst[4] != None:
-	buff_dist = "0.2 Miles"
+        buff_dist = "0.2 Miles"
     elif lst[1] != None:
-	buff_dist = "100 Meters"
+        buff_dist = "100 Meters"
+    else:
+        message("No benefits selected, default distance for Social Equity will be 2.5 Miles")
+        buff_dist = "2.5 Miles"
     return buff_dist
 
 """pdf from mxd
@@ -991,8 +995,10 @@ def Rec_MODULE(PARAMS):
     start=exec_time(start, "Recreation analysis: 3.3B Scarcity")
 
     #Add results from lists
-    fields_lst = ["R_2_03", "R_2_03_tb", "R_2_03_bb", "R_2_05", "R_2_6", "R_3A_acr", "R_3B_sc06", "R_3B_sc1", "R_3B_sc12", "R_3C_boo", "R_3D_boo"]
-    list_lst = [lst_rec_cnt_03, rteLst_rec_trails, rteLst_rec_bus, lst_rec_cnt_05, lst_rec_cnt_6, lst_green_neighbor, lst_rec_06_Density, lst_rec_1_Density, lst_rec_12_Density, [], []]
+    fields_lst = ["R_2_03", "R_2_03_tb", "R_2_03_bb", "R_2_05", "R_2_6", "R_3A_acr",
+                  "R_3B_sc06", "R_3B_sc1", "R_3B_sc12", "R_3C_boo", "R_3D_boo"]
+    list_lst = [lst_rec_cnt_03, rteLst_rec_trails, rteLst_rec_bus, lst_rec_cnt_05, lst_rec_cnt_6,
+                lst_green_neighbor, lst_rec_06_Density, lst_rec_1_Density, lst_rec_12_Density, [], []]
     type_lst = ["", "Text", "Text", "", "", "", "", "", "", "Text", "Text"]
 
     lst_to_AddField_lst(outTbl, fields_lst, list_lst, type_lst)
@@ -1314,9 +1320,9 @@ def main(params):
     start1 = time.clock() #start the clock
 
     message("Loading Variables...")
-    #params = [sites, addresses, popRast, flood, view, edu, bird, rec, socEq, rel,
-    #      edu_inst, bus_stp, trails, roads, preWetlands, landUse, fieldLULC, fieldVal, SocVul, SoVI_Field,
-    #      socVal, distance, Conservation, Conserve_Field, useType, outTbl]
+    #params = [sites, addresses, popRast, flood, view, edu, rec, bird, socEq, rel,
+    #          flood_zone, dams, edu_inst, bus_stp, trails, roads, preWetlands, landUse, LULC_field, landVal,
+    #          socVul, soc_Field, socVal, conserve, conserve_Field, useVal, outTbl, pdf]
     ck=[]
     for i in range(3, 10):
         ck.append(params[i].value)
@@ -1326,34 +1332,26 @@ def main(params):
     sites = params[0].valueAsText #in_gdb  + "restoration_Sites"
     addresses = params[1].valueAsText #in_gdb + "e911_14_Addresses"
     popRast = params[2].valueAsText #None
-    ExistingWetlands = params[15].valueAsText #in_gdb + "NWI14"
-    roads = params[14].valueAsText #in_gdb + "e911Roads13q2"
-    trails = params[13].valueAsText #in_gdb + "bikepath"
-    landuse = params[16].valueAsText #in_gdb + "rilu0304"
-    field = params[17].valueAsText #"LCLU"
-    fieldLst = params[18].values #[u'161', u'162', u'410', u'430']
-    if fieldLst != None:
-        #coerce/map unicode list using field in table
-        fieldLst = ListType_fromField(tbl_fieldType(landuse, field), fieldLst)
-
     #flood_zone = params [0] #in_gdb + "FEMA_FloodZones_clp"
     flood_zone = params[10].valueAsText
     #subs = in_gdb + "dams"
     subs = params[11].valueAsText
-    #Catchment = params[27].valueAsText
-    Catchment = r"C:\ArcGIS\Local_GIS\NHD_Plus\NHDPlusNationalData\NHDPlusV21_National_Seamless.gdb\NHDPlusCatchment\Catchment"
-    #InputField = params[28].valueAsText
-    InputField = "FEATUREID" #field from feature layer
-    
-    edu_inst = params[11].valueAsText #in_gdb + "schools08"
-    bus_Stp = params[12].valueAsText #in_gdb + "RIPTAstops0116"
+    edu_inst = params[12].valueAsText #in_gdb + "schools08"
+    bus_Stp = params[13].valueAsText #in_gdb + "RIPTAstops0116"
+    trails = params[14].valueAsText #in_gdb + "bikepath"
+    roads = params[15].valueAsText #in_gdb + "e911Roads13q2"
+    ExistingWetlands = params[16].valueAsText #in_gdb + "NWI14"
 
-    #buff_dist = params[22].valueAsText #"2.5 Miles"
-    buff_dist = SocEqu_BuffDist(ck[0:5])
+    landuse = params[17].valueAsText #in_gdb + "rilu0304"
+    field = params[18].valueAsText #"LCLU"
+    fieldLst = params[19].values #[u'161', u'162', u'410', u'430']
+    if fieldLst != None:
+        #coerce/map unicode list using field in table
+        fieldLst = ListType_fromField(tbl_fieldType(landuse, field), fieldLst)
 
-    sovi = params[19].valueAsText #in_gdb + "SoVI0610_RI"
-    sovi_field = params[20].valueAsText #"SoVI0610_1"
-    sovi_High = params[21].values #"High" #this is now a list...
+    sovi = params[20].valueAsText #in_gdb + "SoVI0610_RI"
+    sovi_field = params[21].valueAsText #"SoVI0610_1"
+    sovi_High = params[22].values #"High" #this is now a list...
     if sovi_High != None:
         #coerce/map unicode list using field in table
         sovi_High = ListType_fromField(tbl_fieldType(sovi, sovi_field), sovi_High)
@@ -1368,9 +1366,28 @@ def main(params):
         rel_field_type = tbl_fieldType(conserved, rel_field)
         cons_fieldLst = ListType_fromField(rel_field_type, cons_fieldLst)
         threat_fieldLst = ListType_fromField(rel_field_type, threat_fieldLst)
+        
+    #r"L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Test_Results\IntermediatesFinal77.gdb\Results_full"
+    outTbl = params[26].valueAsText
+    pdf = params[27].valueAsText
     
-    outTbl = params[27].valueAsText #r"L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Test_Results\IntermediatesFinal77.gdb\Results_full"
-    start1 = exec_time(start1, "loading variables")            
+    #find associated files/information based on location/inputs
+    if socEq != None:
+        #buff_dist = params[22].valueAsText #"2.5 Miles"
+        buff_dist = SocEqu_BuffDist(ck[0:5])
+    #else:
+    #    message("Could not determine a buffer distance to use for Social Vulnerability")
+    if flood != None:
+        #Catchment = params[27].valueAsText
+        Catchment = r"C:\ArcGIS\Local_GIS\NHD_Plus\NHDPlusNationalData\NHDPlusV21_National_Seamless.gdb\NHDPlusCatchment\Catchment"
+        #InputField = params[28].valueAsText
+        InputField = "FEATUREID" #field from feature layer
+    if pdf != None:
+        script_dir = os.path.dirname(os.path.realpath(__file__))
+        mxd_name = "report_layout.mxd"
+        mxd = script_dir + os.sep + mxd_name
+    
+    start1 = exec_time(start1, "loading variables")       
     message("Checking input variables...")
 
     #Copy restoration wetlands in for results
