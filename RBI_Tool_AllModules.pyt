@@ -25,6 +25,22 @@ arcpy.env.parallelProcessingFactor = "100%" #use all available resources
 def mean(l):
     return sum(l)/float(len(l))
 
+"""Buffer Distance for Social equity based on lst of checked benefits
+Purpose: Returns a distance to use for the buffer based on which benefits are checked and how far those benefits are delivered"""
+SocEqu_BuffDist(lst):
+#ck[0, 4] = [flood, view, edu, rec, bird]
+    if lst[0] != None:
+	buff_dist = "2.5 Miles"
+    elif lst[3] != None:
+	buff_dist = "0.33 Miles"
+    elif lst[2] != None:
+	buff_dist = "0.25 Miles"
+    elif lst[4] != None:
+	buff_dist = "0.2 Miles"
+    elif lst[1] != None:
+	buff_dist = "100 Meters"
+    return buff_dist
+
 """pdf from mxd
 """
 def exportReport(pdfDoc, pdf_path, pg_cnt, mxd):
@@ -1332,7 +1348,8 @@ def main(params):
     edu_inst = params[11].valueAsText #in_gdb + "schools08"
     bus_Stp = params[12].valueAsText #in_gdb + "RIPTAstops0116"
 
-    buff_dist = params[22].valueAsText #"2.5 Miles"
+    #buff_dist = params[22].valueAsText #"2.5 Miles"
+    buff_dist = SocEqu_BuffDist(ck[0:5])
 
     sovi = params[19].valueAsText #in_gdb + "SoVI0610_RI"
     sovi_field = params[20].valueAsText #"SoVI0610_1"
