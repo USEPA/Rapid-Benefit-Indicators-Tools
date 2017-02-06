@@ -1486,7 +1486,13 @@ def main(params):
         start1 = exec_time(start1, "Reliability assessment")
     else: #create and set all fields to none?
         message("Reliability of Benefits not assessed")
-
+    if pdf != None:
+        #siteName = params[1].valueAsText
+        Report_PARAMS = [outTbl, siteName, mxd, pdf]
+        Report_MODULE(Report_PARAMS)
+        start1 = exec_time(start1, "Compile assessment report")
+    else:
+        message("pdf Report not generated")
     start = exec_time(start, "Benefts assessment complete.")
 ##############################
 ###########TOOLBOX############
