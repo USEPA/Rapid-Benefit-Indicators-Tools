@@ -481,13 +481,11 @@ def FR_MODULE(PARAMS):
     addresses, popRast = PARAMS[0], PARAMS[1]
     flood_zone = PARAMS[2]
     ExistingWetlands, subs = PARAMS[3], PARAMS[4]
-    Catchment, InputField = PARAMS[5], PARAMS[6]
-    outTbl = PARAMS[7]
+    Catchment, InputField, Flow = PARAMS[5], PARAMS[6] PARAMS[7]
+    outTbl = PARAMS[8]
 
     path = os.path.dirname(outTbl) + os.sep
     ext = arcpy.Describe(outTbl).extension
-    NHD_path = arcpy.Describe(Catchment).Path
-    Flow = NHD_path.replace('\\NHDPlusCatchment','\\PlusFlow')
 
     #set variables
     FA = path + "int_FloodArea" #naming convention for flood intermediates
