@@ -1368,6 +1368,9 @@ def main(params):
     #r"L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Test_Results\IntermediatesFinal77.gdb\Results_full"
     outTbl = params[26].valueAsText
     pdf = params[27].valueAsText
+
+    #package dir path (based on where this file is)
+    script_dir = os.path.dirname(os.path.realpath(__file__)) + os.sep
     
     #find associated files/information based on location/inputs
     if socEq != None:
@@ -1377,13 +1380,13 @@ def main(params):
     #    message("Could not determine a buffer distance to use for Social Vulnerability")
     if flood != None:
         #Catchment = params[27].valueAsText
-        Catchment = r"C:\ArcGIS\Local_GIS\NHD_Plus\NHDPlusNationalData\NHDPlusV21_National_Seamless.gdb\NHDPlusCatchment\Catchment"
+        Catchment = script_dir + "Catchment.shp"
         #InputField = params[28].valueAsText
         InputField = "FEATUREID" #field from feature layer
+        relTbl = script_dir + "PlusFlow.dbf"
     if pdf != None:
-        script_dir = os.path.dirname(os.path.realpath(__file__))
         mxd_name = "report_layout.mxd"
-        mxd = script_dir + os.sep + mxd_name
+        mxd = script_dir + mxd_name
     
     start1 = exec_time(start1, "loading variables")       
     message("Checking input variables...")
