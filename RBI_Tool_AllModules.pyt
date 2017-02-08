@@ -1369,15 +1369,17 @@ def main(params):
     outTbl = params[26].valueAsText
     pdf = params[27].valueAsText
 
+    #DEFAULTS#
     #package dir path (based on where this file is)
-    script_dir = os.path.dirname(os.path.realpath(__file__)) + os.sep
-    
+    script_dir = os.path.dirname(os.path.realpath(__file__)) + os.sep    
     #find associated files/information based on location/inputs
-    if socEq != None:
+    if socEq == True:
         #buff_dist = params[22].valueAsText #"2.5 Miles"
         buff_dist = SocEqu_BuffDist(ck[0:5])
-    #else:
-    #    message("Could not determine a buffer distance to use for Social Vulnerability")
+        message("Default buffer distance of " + buff_dist + " used for Social Equity")
+    if rel == True:
+        rel_buff_dist = "500 Feet"
+        message("Default buffer distance of " + rel_buff_dist + " used for Benefit Reliability")
     if flood != None:
         #Catchment = params[27].valueAsText
         Catchment = script_dir + "Catchment.shp"
@@ -1482,7 +1484,7 @@ def main(params):
         message("Social Equity of Benefits not assessed")
         
     if rel == True:
-        Rel_PARAMS = [conserved, rel_field, cons_fieldLst, threat_fieldLst, buff_dist, outTbl]
+        Rel_PARAMS = [conserved, rel_field, cons_fieldLst, threat_fieldLst, rel_buff_dist, outTbl]
         reliability_MODULE(Rel_PARAMS)
         start1 = exec_time(start1, "Reliability assessment")
     else: #create and set all fields to none?
