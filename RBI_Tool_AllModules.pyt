@@ -481,7 +481,7 @@ def FR_MODULE(PARAMS):
     addresses, popRast = PARAMS[0], PARAMS[1]
     flood_zone = PARAMS[2]
     ExistingWetlands, subs = PARAMS[3], PARAMS[4]
-    Catchment, InputField, Flow = PARAMS[5], PARAMS[6] PARAMS[7]
+    Catchment, InputField, Flow = PARAMS[5], PARAMS[6], PARAMS[7]
     outTbl = PARAMS[8]
 
     path = os.path.dirname(outTbl) + os.sep
@@ -1692,7 +1692,7 @@ class ReportGen (object):
 class FloodTool (object):
     def __init__(self):
         self.label = "Part - Flood Risk Reduction "
-        self.decription = "This tool assesses the Tier 1 Flood Risk Reduction Benefit"
+        self.description = "This tool assesses the Tier 1 Flood Risk Reduction Benefit"
 
     def getParameterInfo(self):
     #Define IN/OUT parameters
@@ -1704,10 +1704,9 @@ class FloodTool (object):
         popRast = setParam("Population Raster", "popRast", "DERasterDataset", "Optional", "")#beneficiaries raster
 
         #flood_zone = in_gdb + "FEMA_FloodZones_clp"
-        flood_zone = setParam("Flood Zone [Polygon]", "flood_zone", "", "", "")
-        flood_zone.enabled = False
+        flood_zone = setParam("Flood Zone Polygons", "flood_zone", "", "", "")
         #subs = in_gdb + "dams"
-        dams = setParam("Dams & Levees", "flood_sub", "", "", "")
+        dams = setParam("Dams/Levee", "flood_sub", "", "", "")
         #pre-existing wetlands #ExistingWetlands = in_gdb + "NWI14"
         preWetlands = setParam("Wetland Polygons", "in_wet", "", "", "")#pre-existing wetlands
         #catchment = r"C:\ArcGIS\Local_GIS\NHD_Plus\NHDPlusNationalData\NHDPlusV21_National_Seamless.gdb\NHDPlusCatchment\Catchment"
@@ -1720,7 +1719,7 @@ class FloodTool (object):
         #outTbl = r"L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Test_Results\IntermediatesFinal77.gdb\Results_full"
         outTbl = setParam("Output", "outTable", "DEFeatureClass", "", "Output")
 
-        params = [sites, addresses, popRast, flood_zone, preWetlands, dams, catchment, FloodField, outTbl]
+        params = [sites, addresses, popRast, flood_zone, preWetlands, dams, catchment, FloodField, relateTable, outTbl]
         return params
 
     def isLicensed(self):
@@ -1794,7 +1793,7 @@ class Tier_1_Indicator_Tool (object):
         #flood_zone = in_gdb + "FEMA_FloodZones_clp"
         flood_zone = setParam("Flood Zone [Polygon]", "flood_zone", "", "Optional", "")
         #subs = in_gdb + "dams"
-        dams = setParam("Dams & Levees", "flood_sub", "", "Optional", "")
+        dams = setParam("Dams/Levees", "flood_sub", "", "Optional", "")
         #edu_inst = in_gdb + "schools08"
         edu_inst = setParam("Educational Institutions [Points]", "edu_inst", "", "Optional", "")
         #bus_Stp = in_gdb + "RIPTAstops0116"
