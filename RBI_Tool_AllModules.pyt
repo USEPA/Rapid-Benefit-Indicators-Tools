@@ -1440,7 +1440,7 @@ def main(params):
 
     #run modules based on checkboxes
     if flood == True:
-        Flood_PARAMS = [addresses, popRast, flood_zone, OriWetlands, subs, Catchment, InputField, outTbl]
+        Flood_PARAMS = [addresses, popRast, flood_zone, OriWetlands, subs, Catchment, InputField, relTbl, outTbl]
         FR_MODULE(Flood_PARAMS)
         start1 = exec_time(start1, "Flood Risk benefit assessment")
     else: #create and set all fields to none?
@@ -1702,19 +1702,19 @@ class FloodTool (object):
         popRast = setParam("Population Raster", "popRast", "DERasterDataset", "Optional", "")#beneficiaries raster
 
         #flood_zone = in_gdb + "FEMA_FloodZones_clp"
-        flood_zone = setParam("Flood Zone [Polygon]", "flood_zone", "", "Optional", "")
+        flood_zone = setParam("Flood Zone [Polygon]", "flood_zone", "", "", "")
         flood_zone.enabled = False
         #subs = in_gdb + "dams"
-        dams = setParam("Dams & Levees", "flood_sub", "", "Optional", "")
-        #dams.enabled = False
+        dams = setParam("Dams & Levees", "flood_sub", "", "", "")
         #pre-existing wetlands #ExistingWetlands = in_gdb + "NWI14"
-        preWetlands = setParam("Wetland Polygons", "in_wet", "", "Optional", "")#pre-existing wetlands
+        preWetlands = setParam("Wetland Polygons", "in_wet", "", "", "")#pre-existing wetlands
         #catchment = r"C:\ArcGIS\Local_GIS\NHD_Plus\NHDPlusNationalData\NHDPlusV21_National_Seamless.gdb\NHDPlusCatchment\Catchment"
         catchment = setParam("NHD+ Catchments", "NHD_catchment" , "", "Optional", "")
         #set default
         #FloodField = "FEATUREID"
         FloodField = setParam("NHD Join Field", "inputField", "Field", "Optional", "")
-
+        #relationship table = PlusFlow.dbf
+        relateTable = setParam("Relationship Table", "Flow", "DEDbaseTable", "Optional","")
         #outTbl = r"L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Test_Results\IntermediatesFinal77.gdb\Results_full"
         outTbl = setParam("Output", "outTable", "DEFeatureClass", "", "Output")
 
@@ -1742,7 +1742,7 @@ class FloodTool (object):
         #[sites, addresses, popRast, flood_zone, preWetlands, dams, catchment, FloodField, outTbl]
         start1 = time.clock() #start the clock
         sites = params[0].valueAsText
-        outTbl = params[8].valueAsText
+        outTbl = params[9].valueAsText
         
         addresses = params[1].valueAsText #in_gdb + "e911_14_Addresses"
         popRast = params[2].valueAsText #None
@@ -1752,10 +1752,11 @@ class FloodTool (object):
         subs = params[5].valueAsText
         catchment = params[6].valueAsText
         inputField = params[7].valueAsText
+        rel_Tbl = params[8].valueAsText
 
         arcpy.CopyFeatures_management(sites, outTbl)
         
-        Flood_PARAMS = [addresses, popRast, flood_zone, oriWetlands, subs, catchment, inputField, outTbl]
+        Flood_PARAMS = [addresses, popRast, flood_zone, oriWetlands, subs, catchment, inputField, rel_Tbl, outTbl]
         FR_MODULE(Flood_PARAMS)
         start1 = exec_time(start1, "Flood Risk benefit assessment")
 
