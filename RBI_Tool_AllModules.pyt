@@ -1409,7 +1409,7 @@ def main(params):
         print("No population inputs specified")
         raise arcpy.ExecuteError
     #benefits using Existing Wetlands
-    if flood == True or view == True or edu == True: #benefits requiring existing wetlands
+    if flood == True or view == True or edu == True or rec == True: #benefits requiring existing wetlands
         if ExistingWetlands is not None: #if the dataset is specified
             OriWetlands = checkSpatialReference(outTbl, ExistingWetlands) #check spatial ref
             message("Existing wetlands OK")
