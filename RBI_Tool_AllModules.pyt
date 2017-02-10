@@ -620,7 +620,7 @@ def FR_MODULE(PARAMS):
     elif popRast is not None: #not yet tested
         lst_flood_cnt = buffer_population(flood_areaD, popRast) #population in buffer/flood zone/downstream 
         
-    start=exec_time(start, "Flood Risk 3.2 How Many Benefit analysis")
+    start=exec_time(start, "Flood Risk Reduction analysis: 3.2 How Many Benefit")
 
     #3.3.A: SERVICE QUALITY
     message("Measuring area of each restoration site...")
@@ -631,7 +631,7 @@ def FR_MODULE(PARAMS):
         for row in cursor:
             siteAreaLst.append(row[0].getArea("GEODESIC", "ACRES"))
 
-    start = exec_time (start, "Flood Risk 3.3.A Service Quality analysis")
+    start = exec_time (start, "Flood Risk Reduction analysis: 3.3.A Service Quality")
 
     #3.3.B: SUBSTITUTES
     if subs is not None:
@@ -643,7 +643,7 @@ def FR_MODULE(PARAMS):
         #convert lst to binary list
         lst_subs_cnt_boolean = quant_to_qual_lst(lst_subs_cnt)
 
-        start = exec_time (start, "Flood Risk 3.3.B Scarcity (substitutes - 'FR_3B_boo') analysis")
+        start = exec_time (start, "Flood Risk Reduction analysis: 3.3.B Scarcity (substitutes - 'FR_3B_boo')")
     else:
         message("Substitutes (dams and levees) input not specified, 'FR_sub' will all be '0' and 'FR_3B_boo' will be left blank.")
         lst_subs_cnt, lst_subs_cnt_boolean = [], []
@@ -656,7 +656,7 @@ def FR_MODULE(PARAMS):
     #Should this be restricted to upstream/downstream?
         lst_floodRet_Density = percent_cover(ExistingWetlands, flood_areaB) #analysis for scarcity
     #CONCERN: THIS IS WICKED SLOW
-        start = exec_time (start, "Flood Risk 3.3.B Scarcity (scarcity - 'FR_3B_sca') analysis")
+        start = exec_time (start, "Flood Risk Reduction analysis: Scarcity (scarcity - 'FR_3B_sca')")
     else:
         message("Substitutes (existing wetlands) input not specified, 'FR_3B_sca' will all be '0'.")
         lst_floodRet_Density = []
@@ -718,7 +718,7 @@ def View_MODULE(PARAMS):
     if addresses is not None: #address based method
         lst_view_50 = buffer_contains(view_50, addresses)
         lst_view_100 = buffer_contains(view_100, addresses)
-        start=exec_time(start, "scenic views analysis: 3.2 How Many Benefit? -analysis using addresses")
+        start=exec_time(start, "Scenic Views analysis - 3.2 How Many Benefit? -analysis using addresses")
         #cleanup
         arcpy.Delete_management(view_50)
         arcpy.Delete_management(view_100)
@@ -726,7 +726,7 @@ def View_MODULE(PARAMS):
     elif popRaster is not None: #population based method
         lst_view_50 = buffer_population(view_50, popRaster)
         lst_view_100 = buffer_population(view_100, popRaster)
-        start=exec_time(start, "scenic views analysis: 3.2 How Many Benefit? - analysis using a population Raster")
+        start=exec_time(start, "Scenic Views analysis - 3.2 How Many Benefit? - analysis using a population Raster")
         
     lst_view_score = view_score(lst_view_50, lst_view_100) #calculate weighted scores
 
@@ -756,7 +756,7 @@ def View_MODULE(PARAMS):
         rteLst = quant_to_qual_lst(lst_view_roads_100)
     else:
         message("No roads or trails specified")
-    start=exec_time(start, "scenic views analysis: 3.2 How many benefit")
+    start=exec_time(start, "Scenic Views analysis - 3.2 How many benefit")
 
     #VIEW_MODULE3: Substitutes/Scarcity
     message("Scenic Views - 3.B Scarcity")
@@ -933,7 +933,7 @@ def Rec_MODULE(PARAMS):
         lst_rec_bus = []
         rteLst_rec_bus = []
 
-    start=exec_time(start, "Recreation Benefits analysis - 3.2 How Many benefit")
+    start=exec_time(start, "Recreation Benefits analysis: 3.2 How Many Benefit?")
 
     #3.3.A SERVICE QUALITY - Total area of green space around site ("R_3A_acr")
     lst_green_neighbor = []
@@ -965,7 +965,7 @@ def Rec_MODULE(PARAMS):
     else:
         message("No landuse specified for determining area of green space around site (R_3A_acr)")
         
-    start=exec_time(start, "Recreation benefits analysis: 3.3.A Service Quality")
+    start=exec_time(start, "Recreation Benefits analysis: 3.3.A Service Quality")
 
     #3.3.B SCARCITY - green space within 2/3 mi, 1 mi and 12 mi of site
     if landuse is not None or wetlandsOri is not None:
@@ -1004,7 +1004,7 @@ def Rec_MODULE(PARAMS):
     #cleanup FC, then lyrs
     #arcpy.Delete_management(eduArea
 
-    message("Recreation benefits analysis complete.")
+    message("Recreation Benefits analysis complete.")
     
 ##############################
 #############BIRD#############
@@ -1025,10 +1025,10 @@ def Bird_MODULE(PARAMS):
     arcpy.Buffer_analysis(outTbl , birdArea, "0.2 Miles") #buffer each site by 0.2 miles
     if addresses is not None:
         lst_bird_cnt = buffer_contains(birdArea, addresses)
-        start=exec_time(start, "bird watching analysis: 3.2 How Many Benefit? - analysis using addresses")
+        start=exec_time(start, "Bird Watching analysis: 3.2 How Many Benefit? - analysis using addresses")
     elif popRaster is not None:
         lst_bird_cnt = buffer_population(birdArea, popRaster)
-        start=exec_time(start, "bird watching analysis: 3.2 How Many Benefit? - analysis using a population Raster")
+        start=exec_time(start, "Bird Watching analysis: 3.2 How Many Benefit? - analysis using a population Raster")
 
     #3.2 - are there roads or trails that could see birds on the site?
     rteLstBird = []
