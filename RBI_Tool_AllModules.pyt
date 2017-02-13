@@ -889,8 +889,9 @@ def Rec_MODULE(PARAMS):
     #3.2 - NUMBER WHO BENEFIT     
     #3.2 - A: buffer each site by 500m, 1km, and 10km
     arcpy.Buffer_analysis(outTbl , rec_500m, "0.333333 Miles")
-    buffer_donut(rec_500m, rec_1000m, [0.166667], "Miles")
-    buffer_donut(rec_1000m , rec_10000m, [5.666667], "Miles")
+    #buffer_donut(rec_500m, rec_1000m, [0.166667], "Miles")
+    arcpy.Buffer_analysis(outTbl , rec_1000m, [0.5], "Miles")
+    buffer_donut(rec_1000m , rec_10000m, [5.5], "Miles")
 
     #3.2 - B: overlay population
     if addresses is not None: #address based method
