@@ -1491,7 +1491,12 @@ def main(params):
     else: #create and set all fields to none?
         message("Reliability of Benefits not assessed")
     if pdf != None:
-        #siteName = params[1].valueAsText
+        #siteName defaults to OID unless there is a field named "siteName"
+        lstFields = arcpy.ListFields(outTbl)
+        siteName = arcpy.Describe(outTbl).OIDFieldName
+        for fld in lstFields:
+            if field.name == "siteName":
+                siteName = field.Name
         Report_PARAMS = [outTbl, siteName, mxd, pdf]
         Report_MODULE(Report_PARAMS)
         start1 = exec_time(start1, "Compile assessment report")
