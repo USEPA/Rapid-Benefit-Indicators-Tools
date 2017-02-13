@@ -815,7 +815,8 @@ def View_MODULE(PARAMS):
 def Edu_MODULE(PARAMS):
     start = time.clock() #start the clock
     start1 = time.clock() #start the clock
-
+    message("Environmental Education Benefits analysis...")
+    
     edu_inst = PARAMS[0]
     wetlandsOri = PARAMS[1]
     outTbl = PARAMS[2]
@@ -859,14 +860,15 @@ def Edu_MODULE(PARAMS):
     #arcpy.Delete_management(edu_2
     #arcpy.Delete_management("")
 
-    message("Environmental Education Module Complete")
+    message("Environmental Education Benefits analysis Complete")
     start1=exec_time(start1, "full Environmental Education module")
     
 ##############################
 ##############REC#############
 def Rec_MODULE(PARAMS):
     start = time.clock() #start the clock
-
+    message("Recreation Benefits analysis...")
+    
     addresses, popRast = PARAMS[0], PARAMS[1]
     trails, bus_Stp = PARAMS[2], PARAMS[3]
     wetlandsOri = PARAMS[4]
@@ -1495,8 +1497,8 @@ def main(params):
         lstFields = arcpy.ListFields(outTbl)
         siteName = arcpy.Describe(outTbl).OIDFieldName
         for fld in lstFields:
-            if field.name == "siteName":
-                siteName = field.Name
+            if fld.name == "siteName":
+                siteName = fld.name
         Report_PARAMS = [outTbl, siteName, mxd, pdf]
         Report_MODULE(Report_PARAMS)
         start1 = exec_time(start1, "Compile assessment report")
