@@ -1233,9 +1233,11 @@ def Report_MODULE(PARAMS):
                 #check if all 'NO'
                 if fld_dct[idx].count("NO") == int(cnt_rows):
                     fld_dct['allnos'][idx] = 1
-            else: #type = Double 
-                #get average values
-                fld_dct['average'][idx] = mean(field_to_lst(outTbl, field))
+            else: #type = Double
+                l = [x for x in field_to_lst(outTbl, field) if x is not None]
+                if l != []: #if not all null
+                    #get average values
+                    fld_dct['average'][idx] = mean(l)
                     
     i = 1
     pg_cnt = 1
