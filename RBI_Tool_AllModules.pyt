@@ -942,10 +942,11 @@ def Rec_MODULE(PARAMS):
     lst_green_neighbor = []
     if landuse is not None:
         #reduce to desired LU
-        arcpy.MakeFeatureLayer_management(landuse, "lyr")
+        #arcpy.MakeFeatureLayer_management(landuse, "lyr")
         whereClause = selectStr_by_list(field, fieldLst)
-        arcpy.SelectLayerByAttribute_management("lyr", "NEW_SELECTION", whereClause)
-        arcpy.Dissolve_management("lyr", landuseTEMP, "", "", "SINGLE_PART")
+        #arcpy.SelectLayerByAttribute_management("lyr", "NEW_SELECTION", whereClause)
+        #arcpy.Dissolve_management("lyr", landuseTEMP, "", "", "SINGLE_PART")
+        arcpy.FeatureClassToFeatureClass_conversion(landuse, path, os.path.basename(landuseTEMP), whereClause)
         #make into selectable layer    
         arcpy.MakeFeatureLayer_management(landuseTEMP, "greenSpace_lyr")
 
