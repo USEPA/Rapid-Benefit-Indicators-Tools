@@ -1179,8 +1179,10 @@ def Report_MODULE(PARAMS):
     outTbl = PARAMS[0]
     siteNameFld = str(PARAMS[1])
     mxd = arcpy.mapping.MapDocument(PARAMS[2])
-    #Set file name and remove if it already exists
+    #Set file name, ext, and remove file if it already exists
     pdf = PARAMS[3]
+    if os.path.splitext(pdf)[-1].lower() == "":
+        pdf += ".pdf"
     if os.path.exists(pdf):
         os.remove(pdf)
     #Set path for intermediates
