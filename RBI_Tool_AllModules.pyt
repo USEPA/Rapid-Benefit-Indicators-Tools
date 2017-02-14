@@ -1322,7 +1322,7 @@ def Report_MODULE(PARAMS):
     del mxd
     del pdfDoc
 
-    message("Created PDF report: " + pdf + " and " os.parth.basename(mxd_result))
+    message("Created PDF report: " + pdf + " and " + os.path.basename(mxd_result))
         
 ##############################
 #############MAIN#############
@@ -1519,7 +1519,7 @@ def main(params):
 ###########TOOLBOX############
 class Toolbox(object):
     def __init__(self):
-        self.label = "Indicator Tools"
+        self.label = "RBI Spatial Analysis Tools"
         self.alias = "Tier_1"
         # List of tool classes associated with this toolbox
         self.tools = [Tier_1_Indicator_Tool, FloodTool, Report, reliability, socialVulnerability, presence_absence]
@@ -1809,11 +1809,11 @@ class Tier_1_Indicator_Tool (object):
         rel = setParam(serviceLst[6], "rel", "GPBoolean", "Optional", "")
 
         #flood_zone = in_gdb + "FEMA_FloodZones_clp"
-        flood_zone = setParam("Flood Zone [Polygon]", "flood_zone", "", "Optional", "")
+        flood_zone = setParam("Flood Zone Polygons", "flood_zone", "", "Optional", "")
         #subs = in_gdb + "dams"
         dams = setParam("Dams/Levees", "flood_sub", "", "Optional", "")
         #edu_inst = in_gdb + "schools08"
-        edu_inst = setParam("Educational Institutions [Points]", "edu_inst", "", "Optional", "")
+        edu_inst = setParam("Educational Institution Points", "edu_inst", "", "Optional", "")
         #bus_Stp = in_gdb + "RIPTAstops0116"
         bus_stp = setParam("Bus Stop Points", "bus_stp", "", "Optional", "") #could it accomodate lines too?
         #trails = in_gdb + "bikepath"
