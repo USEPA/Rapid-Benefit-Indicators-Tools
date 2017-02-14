@@ -1184,21 +1184,21 @@ def Report_MODULE(PARAMS):
     mxd = arcpy.mapping.MapDocument(PARAMS[2])
     #Set file name, ext, and remove file if it already exists
     pdf = PARAMS[3]
-    if os.path.splitext(pdf)[-1].lower() == "":
+    if os.path.splitext(pdf)[1] == "":
         pdf += ".pdf"
     if os.path.exists(pdf):
         os.remove(pdf)
+    #Set path for intermediate pdfs
+    pdf_path = os.path.dirname(pdf) + os.sep
     #Set path for intermediates
     path = os.path.dirname(outTbl) + os.sep
     ext = arcpy.Describe(outTbl).extension
-    #Set path for intermediate pdfs
-    pdf_path = os.path.dirname(pdf) + os.sep
     #Create the file and append pages in the cursor loop
     pdfDoc = arcpy.mapping.PDFDocumentCreate(pdf)
 
     blackbox = arcpy.mapping.ListLayoutElements(mxd, "GRAPHIC_ELEMENT", "blackbox")[0]
     graybox = arcpy.mapping.ListLayoutElements(mxd, "GRAPHIC_ELEMENT", "graybox")[0]
-    
+
     #dictionary for field, type, ltorgt, numDigits, allnos, & average
     fld_dct = {'field': ['FR_2_cnt', 'FR_3A_acr', 'FR_3A_boo', 'FR_3B_boo', 'FR_3B_sca', 'FR_3D_boo',
                          'V_2_50', 'V_2_100', 'V_2_score', 'V_2_boo', 'V_3A_boo', 'V_3B_scar', 'V_3C_comp',
@@ -1224,7 +1224,7 @@ def Report_MODULE(PARAMS):
     desc = arcpy.Describe("rptbview")
     fieldInfo = desc.fieldInfo
     cnt_rows = str(arcpy.GetCount_management(outTbl))
-                   
+
     for field in fld_dct['field']: #loop through fields
         idx = fld_dct['field'].index(field)
         #Check to see if field exists in results
@@ -1313,16 +1313,16 @@ def Report_MODULE(PARAMS):
 
     pdfDoc.saveAndClose()
 
-    if arcpy.Exists(pdf_path + "result1.mxd"):
-        arcpy.Delete_management(pdf_path + "result1.mxd", "")
+    mxd_result = os.path.splitext(pdf)[0] + ".mxd"
+    if arcpy.Exists(mxd_result):
+        arcpy.Delete_management(mxd_result)
     #mxd.save()
-    mxd.saveACopy(pdf_path + "result1.mxd")
+    mxd.saveACopy(mxd_result)
 
     del mxd
     del pdfDoc
 
-    #message("Completed reprtpg6.py at " + strftime("%H:%M:%S", localtime()) + "\n")
-    message("Created " + pdf_path + "combine1.pdf and result1.mxd")
+    message("Created PDF report: " + pdf + " and " os.parth.basename(mxd_result))
         
 ##############################
 #############MAIN#############
