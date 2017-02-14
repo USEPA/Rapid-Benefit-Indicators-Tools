@@ -1014,6 +1014,7 @@ def Rec_MODULE(PARAMS):
 #############BIRD#############
 def Bird_MODULE(PARAMS):
     start = time.clock() #start the clock
+    message("Bird Watching Benefits analysis...")
 
     addresses, popRast = PARAMS[0], PARAMS[1]
     trails, roads = PARAMS[2], PARAMS[3]
@@ -1072,7 +1073,7 @@ def Bird_MODULE(PARAMS):
 ##########SOC_EQUITY##########
 def socEq_MODULE(PARAMS):
     #start = time.clock() #start the clock
-
+    message("Social Equity of Benefits analysis...")
     sovi = PARAMS[0]
     field, SoVI_High = PARAMS[1], PARAMS[2]
     bufferDist = PARAMS[3]
@@ -1125,6 +1126,7 @@ def socEq_MODULE(PARAMS):
 #########RELIABILITY##########
 def reliability_MODULE(PARAMS):
     start = time.clock() #start the clock
+    message("Reliability of Benefits analysis...")
 
     cons_poly = PARAMS[0]
     field = PARAMS[1]
@@ -1174,6 +1176,7 @@ def reliability_MODULE(PARAMS):
 ########Report_MODULE#########
 def Report_MODULE(PARAMS):
     start = time.clock() #start the clock
+    message("Generating report...")
     #Report_PARAMS = [outTbl, siteName, mxd, pdf]
 
     outTbl = PARAMS[0]
@@ -1517,10 +1520,10 @@ class Toolbox(object):
         self.label = "Indicator Tools"
         self.alias = "Tier_1"
         # List of tool classes associated with this toolbox
-        self.tools = [Tier_1_Indicator_Tool, FloodTool, ReportGen, reliability, socVul, pres_abs_buff]
+        self.tools = [Tier_1_Indicator_Tool, FloodTool, Report, reliability, socialVulnerability, presence_absence]
 
 #############################
-class pres_abs_buff(object):
+class presence_absence(object):
     def __init__(self):
         self.label = "Part - Presence/Absence to Yes/No"
         self.description = "Use the presence or absence of some spatial feature within a range of " + \
@@ -1560,7 +1563,7 @@ class pres_abs_buff(object):
         absTest_MODULE(abs_test_PARAMS)
         start1 = exec_time(start1, "Presence/Absence assessment")
         
-class socVul (object):
+class socialVulnerability (object):
     def __init__(self):
         self.label = "Part - Social Equity of Benefits"
         self.description = "Assess the social vulnerability of those benefitting to identify social equity issues."
@@ -1662,7 +1665,7 @@ class reliability (object):
         start1 = exec_time(start1, "Reliability assessment")
         
 ########Report Generator########
-class ReportGen (object):
+class Report (object):
     def __init__(self):
         self.label = "Part - Report Generation"
         self.description = "Tool to create formated summary pdf report of indicator results"
