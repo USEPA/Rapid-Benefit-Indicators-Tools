@@ -1242,9 +1242,10 @@ def Report_MODULE(PARAMS):
                     #get average values
                     fld_dct['average'][idx] = mean(l)
                     
+    start = exec_time(start, "loading data for report")
+    
     i = 1
     pg_cnt = 1
-
     siterows = arcpy.SearchCursor(outTbl,"") #may be slow
     siterow = siterows.next()
 
@@ -1280,16 +1281,17 @@ def Report_MODULE(PARAMS):
             #Check to see if field exists in results
             #if it doesn't color = black
             if fldExists(field, column, fld_dct['rowNum'][idx], fieldInfo, blackbox):
-                fldValue = "siterow." + field
-                if fld_dct['type'][idx] == 'Double': #narrow to numeric   
-                    proctext(eval(fldValue), "Num", fld_dct['numDigits'][idx], fld_dct['ltorgt'][idx], fld_dct['average'][idx],column,fld_dct['rowNum'][idx],fld_dct['allnos'][idx], mxd)
-                else: #otherwise boolean
-                    proctext(eval(fldValue), "Boolean", 0, "", fld_dct['aveBool'][idx], column, fld_dct['rowNum'][idx], fld_dct['allnos'][idx], mxd)
+                fldVal = "siterow." + field
+                if fld_dct['type'][idx] == 'Double': #is numeric   
+                    proctext(eval(fldVal), "Num", fld_dct['numDigits'][idx], fld_dct['ltorgt'][idx], fld_dct['average'][idx],column,fld_dct['rowNum'][idx],fld_dct['allnos'][idx], mxd)
+                else: #is boolean
+                    proctext(eval(fldVal), "Boolean", 0, "", fld_dct['aveBool'][idx], column, fld_dct['rowNum'][idx], fld_dct['allnos'][idx], mxd)
 
         if oddeven == 0:
             exportReport(pdfDoc, pdf_path, pg_cnt, mxd)
-
+            message("Page " + str(pg_cnt) + " complete")
             pg_cnt += 1
+            
         i += 1
         siterow = siterows.next()
 
