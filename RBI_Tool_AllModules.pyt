@@ -702,8 +702,8 @@ def FR_MODULE(PARAMS):
 ##############################
 #############VIEWS############
 def View_MODULE(PARAMS):
-    start = time.clock() #start the clock
     start1 = time.clock() #start the clock
+    message("Scenic View Benefits analysis...")
 
     addresses, popRast = PARAMS[0], PARAMS[1]
     trails, roads = PARAMS[2], PARAMS[3]
@@ -723,6 +723,8 @@ def View_MODULE(PARAMS):
 
     wetlands_dis = path + "wetland_dis" + ext #wetlands dissolved
 
+    start = time.clock() #start the clock
+    message("Scenic Views - 3.2 How Many Benefit")
     #create buffers 
     arcpy.Buffer_analysis(outTbl, view_50, "50 Meters") #buffer each site by 50-m
     buffer_donut(view_50, view_100, [50], "Meters") #distance past original buffer
@@ -731,7 +733,7 @@ def View_MODULE(PARAMS):
     if addresses is not None: #address based method
         lst_view_50 = buffer_contains(view_50, addresses)
         lst_view_100 = buffer_contains(view_100, addresses)
-        start=exec_time(start, "Scenic Views analysis - 3.2 How Many Benefit? -analysis using addresses")
+        start=exec_time(start, "Scenic Views analysis - 3.2 How Many Benefit? (from addresses)")
         #cleanup
         arcpy.Delete_management(view_50)
         arcpy.Delete_management(view_100)
@@ -739,7 +741,7 @@ def View_MODULE(PARAMS):
     elif popRaster is not None: #population based method
         lst_view_50 = buffer_population(view_50, popRaster)
         lst_view_100 = buffer_population(view_100, popRaster)
-        start=exec_time(start, "Scenic Views analysis - 3.2 How Many Benefit? - analysis using a population Raster")
+        start=exec_time(start, "Scenic Views analysis - 3.2 How Many Benefit? (from population raster)")
         
     lst_view_score = view_score(lst_view_50, lst_view_100) #calculate weighted scores
 
@@ -766,9 +768,10 @@ def View_MODULE(PARAMS):
         rteLst = quant_to_qual_lst(lst_view_roads_100)
     else:
         message("No roads or trails specified")
-    start=exec_time(start, "Scenic Views analysis - 3.2 How many benefit")
+    start=exec_time(start, "Scenic Views analysis - 3.2 How many benefit? (from trails or roads)")
+    start1= exec_time(start1, "Scenic Views analysis - 3.2 How many benefit? Total")
 
-    #VIEW_MODULE3: Substitutes/Scarcity
+    #Part3: Substitutes/Scarcity
     message("Scenic Views - 3.B Scarcity")
     if wetlandsOri is not None: 
     #make a 200m buffer that doesn't include the site
@@ -782,11 +785,10 @@ def View_MODULE(PARAMS):
     else:
         message("No existing wetlands input specified")
         lst_view_Density = []
-    start=exec_time(start, "scenic views analysis: 3.3B Scarcity")
+    start=exec_time(start, "Scenic Views analysis: 3.3B Scarcity")
 
-    #VIEW_MODULE4: complements
-    #PARAMS[landUse, fieldLst, field]
-    message("Scenic Views - 3.C Complements")
+    #Part4: complements
+    message("Scenic Views - 3.C Complements") #PARAMS[landUse, fieldLst, field]
 
     if landuse is not None:
         arcpy.MakeFeatureLayer_management(landuse, "lyr")
@@ -797,11 +799,12 @@ def View_MODULE(PARAMS):
 
         #number of unique LU in LU list which intersect each buffer
         lst_comp = buffer_contains(view_200, landUse2)
-        start=exec_time(start, "scenic views analysis: 3.3C Complements")
+        start=exec_time(start, "Scenic Views analysis: 3.3C Complements")
     else:
         message("No land use input specified")
         lst_comp = []
 
+    message("Saving Scenic View Benefits results to Output...")
     #FINAL STEP: move results to results file
     fields_lst = ["V_2_50", "V_2_100", "V_2_score", "V_2_boo",
                   "V_3A_boo", "V_3B_scar", "V_3C_comp", "V_3D_boo"]
@@ -813,15 +816,12 @@ def View_MODULE(PARAMS):
 
     #cleanup FC, then lyrs
     #deleteFC_Lst([100int, 200sp, wetland_dis?])
-
+    
     message("Scenic View Module Complete")
-    start1=exec_time(start1, "full view module")
-    #return?
+
 ##############################
 ############ENV EDU###########
 def Edu_MODULE(PARAMS):
-    start = time.clock() #start the clock
-    start1 = time.clock() #start the clock
     message("Environmental Education Benefits analysis...")
     
     edu_inst = PARAMS[0]
@@ -836,6 +836,8 @@ def Edu_MODULE(PARAMS):
     edu_2 = path + "edu_2" + ext #buffer 1/2 mile
 
     #3.2 - NUMBER WHO BENEFIT 
+    start = time.clock() #start the clock
+    message("Environmental Education analysis - 3.2 How Many benefit?") 
     if edu_inst is not None:
         edu_inst = checkSpatialReference(outTbl, edu_inst) #check spatial ref
         arcpy.Buffer_analysis(outTbl , eduArea, "0.25 Miles") #buffer each site by 0.25 miles
@@ -846,6 +848,7 @@ def Edu_MODULE(PARAMS):
     start=exec_time(start, "Environmental Education analysis - 3.2 How Many benefit (educational institutions)")
 
     #3.3.B - Scarcity
+    message("Environmental Education analysis - 3.3B Scarcity")
     if wetlandsOri is not None:
         arcpy.Buffer_analysis(outTbl, edu_2, "0.5 Miles") #not a circle
         lst_edu_Density = percent_cover(wetlandsOri, edu_2) #analysis for scarcity
@@ -854,7 +857,8 @@ def Edu_MODULE(PARAMS):
         lst_edu_Density = []
     start=exec_time(start, "Environmental Education analysis - 3.3B Scarcity (existing wetlands in 0.5 miles)")
 
-    #Double fields to results table
+    #FINAL STEP: move results to results file
+    message("Saving Environmental Education Benefits results to Output...")
     fields_lst = ["EE_2_cnt", "EE_3A_boo", "EE_3B_sca", "EE_3C_boo", "EE_3D_boo"]
     list_lst = [lst_edu_cnt, [], lst_edu_Density, [], []]
     type_lst = ["", "Text", "", "Text", "Text"]
@@ -865,12 +869,11 @@ def Edu_MODULE(PARAMS):
     #deleteFC_Lst([eduArea, eduArea_2?, edu_2])
 
     message("Environmental Education Benefits analysis Complete")
-    start1=exec_time(start1, "full Environmental Education module")
     
 ##############################
 ##############REC#############
 def Rec_MODULE(PARAMS):
-    start = time.clock() #start the clock
+    start1 = time.clock() #start the clock
     message("Recreation Benefits analysis...")
     
     addresses, popRast = PARAMS[0], PARAMS[1]
@@ -892,7 +895,9 @@ def Rec_MODULE(PARAMS):
     #dissolved landuse
     landuseTEMP = path + "landuse_temp" + ext
 
-    #3.2 - NUMBER WHO BENEFIT     
+    #3.2 - NUMBER WHO BENEFIT
+    message("Recreation Benefits analysis - 3.2 How Many Benefit")
+    start = time.clock() #start the clock
     #3.2 - A: buffer each site by 500m, 1km, and 10km
     arcpy.Buffer_analysis(outTbl , rec_500m, "0.333333 Miles")
     #buffer_donut(rec_500m, rec_1000m, [0.166667], "Miles")
@@ -905,14 +910,14 @@ def Rec_MODULE(PARAMS):
         lst_rec_cnt_05 = buffer_contains(rec_1000m, addresses)
         lst_rec_cnt_6 = buffer_contains(rec_10000m, addresses)
 
-        start=exec_time(start, "calculating number of addresses receiving recreation benefits (addresses in buffers)")
+        start=exec_time(start, "Recreation Benefits analysis - 3.2 How Many Benefit? (from addresses)")
 
     elif popRast is not None: #check for population raster
         lst_rec_cnt_03 = buffer_population(rec_500m, popRast)
         lst_rec_cnt_05 = buffer_population(rec_1000m, popRast)
         lst_rec_cnt_6 = buffer_population(rec_10000m, popRast)
 
-        start=exec_time(start, "calculating population receiving recreation benefits (raster population in buffer)")
+        start=exec_time(start, "Recreation Benefits analysis - 3.2 How Many Benefit? (raster population)")
     else: #this should never happen
         message("THIS SHOULDN'T HAPPEN...")
         lst_rec_cnt_03 = []
@@ -939,10 +944,11 @@ def Rec_MODULE(PARAMS):
         message("No bus stops specified for determining if there are bus stops within 1/3 mi of site (R_2_03_bb)")
         lst_rec_bus = []
         rteLst_rec_bus = []
-
-    start=exec_time(start, "Recreation Benefits analysis: 3.2 How Many Benefit?")
+    start=exec_time(start, "Recreation Benefits analysis: 3.2 How Many Benefit? (from trails or bus)")
+    start1=exec_time(start1, "Recreation Benefits analysis: 3.2 How Many Benefit?")
 
     #3.3.A SERVICE QUALITY - Total area of green space around site ("R_3A_acr")
+    message("Recreation Benefits analysis - 3.3.A Service Quality")
     lst_green_neighbor = []
     if landuse is not None:
         #reduce to desired LU
@@ -972,10 +978,10 @@ def Rec_MODULE(PARAMS):
                 lst_green_neighbor.append(var)
     else:
         message("No landuse specified for determining area of green space around site (R_3A_acr)")
-        
     start=exec_time(start, "Recreation Benefits analysis: 3.3.A Service Quality")
 
     #3.3.B SCARCITY - green space within 2/3 mi, 1 mi and 12 mi of site
+    message("Recreation Benefits analysis - 3.3.B Scarcity")
     if landuse is not None or wetlandsOri is not None:
         #sub are greenspace or wetlands?
         if landuse is not None:
@@ -998,9 +1004,10 @@ def Rec_MODULE(PARAMS):
         lst_rec_06_Density = []
         lst_rec_1_Density = []
         lst_rec_12_Density = []
-    start=exec_time(start, "Recreation analysis: 3.3B Scarcity")
+    start=exec_time(start, "Recreation Benefits analysis - 3.3B Scarcity")
 
     #Add results from lists
+    message("Saving Recreation Benefits results to Output...")    
     fields_lst = ["R_2_03", "R_2_03_tb", "R_2_03_bb", "R_2_05", "R_2_6", "R_3A_acr",
                   "R_3B_sc06", "R_3B_sc1", "R_3B_sc12", "R_3C_boo", "R_3D_boo"]
     list_lst = [lst_rec_cnt_03, rteLst_rec_trails, rteLst_rec_bus, lst_rec_cnt_05, lst_rec_cnt_6,
@@ -1017,7 +1024,7 @@ def Rec_MODULE(PARAMS):
 ##############################
 #############BIRD#############
 def Bird_MODULE(PARAMS):
-    start = time.clock() #start the clock
+    start1 = time.clock() #start the clock
     message("Bird Watching Benefits analysis...")
 
     addresses, popRast = PARAMS[0], PARAMS[1]
@@ -1031,13 +1038,15 @@ def Bird_MODULE(PARAMS):
     birdArea = path + "birdArea" + ext
 
     #3.2 - NUMBER WHO BENEFIT
+    start = time.clock()
+    message("Bird Watching analysis: 3.2 How Many Benefit?")
     arcpy.Buffer_analysis(outTbl , birdArea, "0.2 Miles") #buffer each site by 0.2 miles
     if addresses is not None:
         lst_bird_cnt = buffer_contains(birdArea, addresses)
-        start=exec_time(start, "Bird Watching analysis: 3.2 How Many Benefit? - analysis using addresses")
+        start=exec_time(start, "Bird Watching analysis: 3.2 How Many Benefit? (from addresses)")
     elif popRaster is not None:
         lst_bird_cnt = buffer_population(birdArea, popRaster)
-        start=exec_time(start, "Bird Watching analysis: 3.2 How Many Benefit? - analysis using a population Raster")
+        start=exec_time(start, "Bird Watching analysis: 3.2 How Many Benefit? (from population Raster)")
 
     #3.2 - are there roads or trails that could see birds on the site?
     rteLstBird = []
@@ -1060,8 +1069,11 @@ def Bird_MODULE(PARAMS):
         rteLstBird = quant_to_qual_lst(lst_bird_roads)
     else:
         message("No trails or roads specified to determine if birds at the site will be visible from these")
-
+    start = exec_time(start, "Bird Watching analysis: 3.2 How Many Benefit? (from trails or roads)")
+    start1 = exec_time(start1, "Bird Watching analysis: 3.2 How Many Benefit? Total")
+                       
     #Add results from lists
+    message("Saving Bird Watching Benefits results to Output...")
     fields_lst = ["B_2_cnt", "B_2_boo", "B_3A_boo", "B_3C_boo", "B_3D_boo"]
     list_lst = [lst_bird_cnt, rteLstBird, [], [], []]
     type_lst = ["", "Text", "Text", "Text", "Text"]
@@ -1129,7 +1141,7 @@ def socEq_MODULE(PARAMS):
 ##############################
 #########RELIABILITY##########
 def reliability_MODULE(PARAMS):
-    start = time.clock() #start the clock
+    #start = time.clock() #start the clock
     message("Reliability of Benefits analysis...")
 
     cons_poly = PARAMS[0]
@@ -1165,8 +1177,7 @@ def reliability_MODULE(PARAMS):
     whereClause = selectStr_by_list(field, threatLst)
     arcpy.SelectLayerByAttribute_management("consLyr", "NEW_SELECTION", whereClause)
     pct_threatLst = percent_cover("consLyr", buf)
-
-    start=exec_time(start, "Percent conserved/threatened use types calculated")
+    #start=exec_time(start, "Percent conserved/threatened use types calculated")
 
     #move results to outTbl
     fields_lst = ["Conserved", "Threatene"]
@@ -1174,7 +1185,7 @@ def reliability_MODULE(PARAMS):
 
     lst_to_AddField_lst(outTbl, fields_lst, list_lst, ["", ""])
 
-    message("Reliability assessment complete.")
+    message("Reliability assessment complete")
 
 ##############################
 ########Report_MODULE#########
@@ -1293,7 +1304,7 @@ def Report_MODULE(PARAMS):
 
         if oddeven == 0:
             exportReport(pdfDoc, pdf_path, pg_cnt, mxd)
-            message("Page " + str(pg_cnt) + " complete")
+            start = exec_time(start, "Page " + str(pg_cnt) + " generation")
             pg_cnt += 1
             
         i += 1
@@ -1320,8 +1331,8 @@ def Report_MODULE(PARAMS):
     mxd_result = os.path.splitext(pdf)[0] + ".mxd"
     if arcpy.Exists(mxd_result):
         arcpy.Delete_management(mxd_result)
-    #mxd.save()
-    mxd.saveACopy(mxd_result)
+
+    mxd.saveACopy(mxd_result) #save last page just in case
 
     del mxd
     del pdfDoc
@@ -1372,9 +1383,11 @@ def main(params):
 
     conserved = params[23].valueAsText #in_gdb + "LandUse2025"
     rel_field = params[24].valueAsText #"Map_Legend"
-    cons_fieldLst = params[25].values #['Conservation/Limited', 'Major Parks & Open Space', 'Narragansett Indian Lands', 'Reserve', 'Water Bodies']
+    cons_fieldLst = params[25].values
+    #['Conservation/Limited', 'Major Parks & Open Space', 'Narragansett Indian Lands', 'Reserve', 'Water Bodies']
     if cons_fieldLst != None:
-        #all values from rel_field not in cons_fieldLst #['Non-urban Developed', 'Prime Farmland', 'Sewered Urban Developed', 'Urban Development']
+        #all values from rel_field not in cons_fieldLst
+        #['Non-urban Developed', 'Prime Farmland', 'Sewered Urban Developed', 'Urban Development']
         threat_fieldLst = [x for x in unique_values(conserved, rel_field) if x not in cons_fieldLst]
         #convert unicode lists to field.type
         rel_field_type = tbl_fieldType(conserved, rel_field)
@@ -1386,9 +1399,7 @@ def main(params):
     pdf = params[27].valueAsText
 
     #DEFAULTS#
-    #package dir path (based on where this file is)
-    script_dir = os.path.dirname(os.path.realpath(__file__)) + os.sep    
-    #find associated files/information based on location/inputs
+    #set buffers based on inputs
     if socEq == True:
         #buff_dist = params[22].valueAsText #"2.5 Miles"
         buff_dist = SocEqu_BuffDist(ck[0:5])
@@ -1396,25 +1407,33 @@ def main(params):
     if rel == True:
         rel_buff_dist = "500 Feet"
         message("Default buffer distance of " + rel_buff_dist + " used for Benefit Reliability")
+    #package dir path (based on where this file is)
+    script_dir = os.path.dirname(os.path.realpath(__file__)) + os.sep 
+    #check for NHD+ files
     if flood != None:
-        #Catchment = params[27].valueAsText
         Catchment = script_dir + "Catchment.shp"
         if arcpy.Exists(Catchment):
             message("Using " + Catchment + " catchment file for upstream/downstream")
-            #InputField = params[28].valueAsText
             InputField = "FEATUREID" #field from feature layer
             relTbl = script_dir + "PlusFlow.dbf"
+            if arcpy.Exists(relTbl):
+                message("Using " + relTbl + " for upstream/downstream relationships")
+            else:
+                message("Default relationship file not available in expected location: " + relTbl)
+                message("Flood benefits will not be assessed")
+                flood = None
         else:
             message("Default catchment file not available in expected location: " + Catchment)
             message("Flood benefits will not be assessed")
             flood = None
+    #check for report layout file
     if pdf != None:
         mxd_name = "report_layout.mxd"
         mxd = script_dir + mxd_name
         if arcpy.Exists(mxd):
             message("Using " + mxd + " report layout file")
         else:
-            message("Default report layout file not available in expected location: " mxd)
+            message("Default report layout file not available in expected location: " + mxd)
             message("A PDF report will not be generated from results")
             pdf = None
 
@@ -1427,70 +1446,70 @@ def main(params):
     #all require pop except edu
     if flood == True or view == True or rec == True or bird == True:
         addresses, popRast = check_vars(outTbl, addresses, popRast)
+    #trails
+    if view == True or bird == True or rec == True:
+        if trails is not None:
+            trails = checkSpatialReference(outTbl, trails) #check spatial ref
+            message("Trails input OK")
+        else:
+            message("Trails input not specified, some fields may be left blank for selected benefits.")
+    #roads
+        if roads is not None:
+            roads = checkSpatialReference(outTbl, roads) #check spatial ref
+            message("Roads input OK")
+        else:
+            message("Roads input not specified, some fields may be left blank for selected benefits.")
     #benefits using Existing Wetlands
     if flood == True or view == True or edu == True or rec == True: #benefits requiring existing wetlands
         if ExistingWetlands is not None: #if the dataset is specified
             OriWetlands = checkSpatialReference(outTbl, ExistingWetlands) #check spatial ref
             message("Existing wetlands OK")
         else:
-            message("Existings wetlands input not specified, some fields will be left blank for selected benefits.")
+            message("Existings wetlands input not specified, some fields may be left blank for selected benefits.")
     #benefits using landuse       
     if view == True or rec == True:
         if landuse is not None:
             landuse = checkSpatialReference(outTbl, landuse) #check spatial ref
             message("Landuse polygons OK")
         else:
-            message("Landuse input not specified, some fields will be left blank for selected benefits.")
-    #roads
-    if view == True or bird == True or rec == True:
-        if roads is not None:
-            roads = checkSpatialReference(outTbl, roads) #check spatial ref
-            message("Roads input OK")
-        else:
-            message("Roads input not specified, some fields will be left blank for selected benefits.")
-    #trails
-        if trails is not None:
-            trails = checkSpatialReference(outTbl, trails) #check spatial ref
-            message("Trails input OK")
-        else:
-            message("Trails input not specified, some fields will be left blank for selected benefits.")
+            message("Landuse input not specified, some fields may be left blank for selected benefits.")
     #message/time:
     start1 = exec_time(start1, "verify inputs")
     message("Running selected benefit modules...")
 
-    #run modules based on checkboxes
+    #run modules based on inputs
     if flood == True:
         Flood_PARAMS = [addresses, popRast, flood_zone, OriWetlands, subs, Catchment, InputField, relTbl, outTbl]
         FR_MODULE(Flood_PARAMS)
-        start1 = exec_time(start1, "Flood Risk benefit assessment")
+        start1 = exec_time(start1, "Flood Risk Benefit assessment")
     else: #create and set all fields to none?
         message("Flood Risk Benefits not assessed")
         
     if view == True:
         View_PARAMS = [addresses, popRast, trails, roads, OriWetlands, landuse, field, fieldLst, outTbl]
         View_MODULE(View_PARAMS)
-        start1 = exec_time(start1, "Scenic View benefit assessment")
+        start1 = exec_time(start1, "Scenic View Benefit assessment")
     else: #create and set all fields to none?
         message("Scenic View Benefits not assessed")
                 
     if edu == True:
         EDU_PARAMS = [edu_inst, OriWetlands, outTbl]
         Edu_MODULE(EDU_PARAMS)
-        start1 = exec_time(start1, "Environmental Education benefit assessment")
+        start1 = exec_time(start1, "Environmental Education Benefit assessment")
     else: #create and set all fields to none?
         message("Environmental Education Benefits not assessed")
 
     if rec == True:
         REC_PARAMS = [addresses, popRast, trails, bus_Stp, OriWetlands, landuse, field, fieldLst, outTbl]
         Rec_MODULE(REC_PARAMS)
-        start1 = exec_time(start1, "Recreation benefit assessment")
+        start1 = exec_time(start1, "Recreation Benefit assessment")
     else: #create and set all fields to none?
         message("Recreation Benefits not assessed")
                 
     if bird == True:
         Bird_PARAMS = [addresses, popRast, trails, roads, outTbl]
         Bird_MODULE(Bird_PARAMS)
-        start1 = exec_time(start1, "Bird Watching benefit assessment")
+        start1 = exec_time(start1, "Bird Watching Benefit assessment")
     else: #create and set all fields to none?
         message("Bird Watching Benefits not assessed")
 
@@ -1507,6 +1526,7 @@ def main(params):
         start1 = exec_time(start1, "Reliability assessment")
     else: #create and set all fields to none?
         message("Reliability of Benefits not assessed")
+
     if pdf != None:
         #siteName defaults to OID unless there is a field named "siteName"
         lstFields = arcpy.ListFields(outTbl)
@@ -1516,10 +1536,12 @@ def main(params):
                 siteName = fld.name
         Report_PARAMS = [outTbl, siteName, mxd, pdf]
         Report_MODULE(Report_PARAMS)
-        start1 = exec_time(start1, "Compile assessment report")
+        start1 = exec_time(start1, "Compiling assessment report")
     else:
         message("pdf Report not generated")
-    start = exec_time(start, "Benefts assessment complete.")
+        
+    start = exec_time(start, "complete Benefts assessment")
+    
 ##############################
 ###########TOOLBOX############
 class Toolbox(object):
