@@ -25,6 +25,12 @@ arcpy.env.parallelProcessingFactor = "100%" #use all available resources
 def mean(l):
     return sum(l)/float(len(l))
 
+"""delete listed feature classes or layers
+Purpose: delete feature classes or layers using a list"""
+def deleteFC_Lst(lst):
+    for l in lst:
+        arcpy.Delete_management(l)
+        
 """Buffer Distance for Social equity based on lst of checked benefits
 Purpose: Returns a distance to use for the buffer based on which benefits
 are checked and how far those benefits are delivered"""
@@ -278,6 +284,22 @@ def del_exists(item):
         arcpy.AddMessage(str(item) + " already exists, it was deleted and will be replaced.")
         print(str(item) + " already exists, it was deleted and will be replaced.")
         
+"""Check variables
+Prupose: make sure population var has correct spatial reference"""
+def check_vars(outTbl, addresses, popRast):
+    if addresses is not None:
+        addresses = checkSpatialReference(outTbl, addresses) #check spatial ref
+        message("Addresses OK")
+        return addresses, None
+    elif popRast is not None: #NOT YET TESTED
+        popRast = checkSpatialReference(outTbl, popRast) #check projection
+        message("Population Raster OK")
+        return None, popRast
+    else:
+        arcpy.AddError("No population inputs specified")
+        print("No population inputs specified")
+        raise arcpy.ExecuteError
+    
 """Check Spatial Reference
 Purpose: checks that a second spatial reference matches the first and re-projects if not."""
 #Function Notes: Either the original FC or the re-projected one is returned
@@ -671,17 +693,8 @@ def FR_MODULE(PARAMS):
     lst_to_AddField_lst(outTbl, fields_lst, list_lst, type_lst)
 
     #cleanup
-    #arcpy.Delete_management(flood_areaD_clip_single)
-    #arcpy.Delete_management(flood_areaD_clip)
-    #arcpy.Delete_management(str(flood_areaD))
-    #arcpy.Delete_management(flood_areaC)
-    #arcpy.Delete_management(flood_areaB)
-    #arcpy.Delete_management(assets)
-    arcpy.Delete_management("flood_zone_lyr")
-    arcpy.Delete_management("flood_zone_down_lyr")
-    arcpy.Delete_management("catchment_lyr")
-    arcpy.Delete_management("polyLyr")
-    arcpy.Delete_management("buffer_lyr")
+    deleteFC_Lst([flood_areaD_clip_single, flood_areaD_clip, str(flood_areaD), flood_areaC, flood_areaB, assets])
+    deleteFC_Lst(["flood_zone_lyr", "flood_zone_down_lyr", "catchment_lyr", "polyLyr", "buffer_lyr"])
                                        
     message("Flood Module Complete")
     start1=exec_time(start1, "full flood module")
@@ -735,10 +748,8 @@ def View_MODULE(PARAMS):
     rteLst = []
 
     if trails is not None:
-        trails = checkSpatialReference(outTbl, trails) #check projections
         lst_view_trails_100 = buffer_contains(view_100_int, trails) #trails in buffer?
         if roads is not None:
-            roads = checkSpatialReference(outTbl, roads) #check projections
             lst_view_roads_100 = buffer_contains(view_100_int, roads) #roads in buffer?
             i=0
             for item in lst_view_trails_100:
@@ -751,7 +762,6 @@ def View_MODULE(PARAMS):
         else:
             rteLst = quant_to_qual_lst(lst_view_trails_100)   
     elif roads is not None:
-        roads = checkSpatialReference(outTbl, roads) #check projections
         lst_view_roads_100 = buffer_contains(view_100_int, roads) #roads in buffer?
         rteLst = quant_to_qual_lst(lst_view_roads_100)
     else:
@@ -802,10 +812,7 @@ def View_MODULE(PARAMS):
     lst_to_AddField_lst(outTbl, fields_lst, list_lst, type_lst)
 
     #cleanup FC, then lyrs
-    #arcpy.Delete_management(100int
-    #arcpy.Delete_management(200sp
-    #arcpy.Delete_management(wetland_dis?
-    #arcpy.Delete_management("")
+    #deleteFC_Lst([100int, 200sp, wetland_dis?])
 
     message("Scenic View Module Complete")
     start1=exec_time(start1, "full view module")
@@ -855,10 +862,7 @@ def Edu_MODULE(PARAMS):
     lst_to_AddField_lst(outTbl, fields_lst, list_lst, type_lst)
 
     #cleanup FC, then lyrs
-    #arcpy.Delete_management(eduArea
-    #arcpy.Delete_management(eduArea_2?
-    #arcpy.Delete_management(edu_2
-    #arcpy.Delete_management("")
+    #deleteFC_Lst([eduArea, eduArea_2?, edu_2])
 
     message("Environmental Education Benefits analysis Complete")
     start1=exec_time(start1, "full Environmental Education module")
@@ -1006,7 +1010,7 @@ def Rec_MODULE(PARAMS):
     lst_to_AddField_lst(outTbl, fields_lst, list_lst, type_lst)
 
     #cleanup FC, then lyrs
-    #arcpy.Delete_management(eduArea
+    #deleteFC_Lst([#arcpy.Delete_management(eduArea
 
     message("Recreation Benefits analysis complete.")
     
@@ -1065,7 +1069,7 @@ def Bird_MODULE(PARAMS):
     lst_to_AddField_lst(outTbl, fields_lst, list_lst, type_lst)
 
     #cleanup FC, then lyrs
-    #arcpy.Delete_management(eduArea
+    #deleteFC_Lst([#arcpy.Delete_management(eduArea
 
     message("Bird Watching benefit assessment complete.")
 
@@ -1323,7 +1327,7 @@ def Report_MODULE(PARAMS):
     del pdfDoc
 
     message("Created PDF report: " + pdf + " and " + os.path.basename(mxd_result))
-        
+
 ##############################
 #############MAIN#############
 def main(params):
@@ -1343,8 +1347,8 @@ def main(params):
     sites = params[0].valueAsText #in_gdb  + "restoration_Sites"
     addresses = params[1].valueAsText #in_gdb + "e911_14_Addresses"
     popRast = params[2].valueAsText #None
-    #flood_zone = params [0] #in_gdb + "FEMA_FloodZones_clp"
-    flood_zone = params[10].valueAsText
+
+    flood_zone = params[10].valueAsText #in_gdb + "FEMA_FloodZones_clp"
     subs = params[11].valueAsText #subs = in_gdb + "dams"
     edu_inst = params[12].valueAsText #in_gdb + "schools08"
     bus_Stp = params[13].valueAsText #in_gdb + "RIPTAstops0116"
@@ -1396,36 +1400,33 @@ def main(params):
         #Catchment = params[27].valueAsText
         Catchment = script_dir + "Catchment.shp"
         if arcpy.Exists(Catchment):
-            message("Using " + Catchment + " catchment file for upstream/downstream.")
+            message("Using " + Catchment + " catchment file for upstream/downstream")
             #InputField = params[28].valueAsText
             InputField = "FEATUREID" #field from feature layer
             relTbl = script_dir + "PlusFlow.dbf"
         else:
             message("Default catchment file not available in expected location: " + Catchment)
-            message("Flood benefits will not be assessed.")
+            message("Flood benefits will not be assessed")
             flood = None
     if pdf != None:
         mxd_name = "report_layout.mxd"
         mxd = script_dir + mxd_name
-    
-    start1 = exec_time(start1, "loading variables")       
-    message("Checking input variables...")
+        if arcpy.Exists(mxd):
+            message("Using " + mxd + " report layout file")
+        else:
+            message("Default report layout file not available in expected location: " mxd)
+            message("A PDF report will not be generated from results")
+            pdf = None
 
     #Copy restoration wetlands in for results
     arcpy.CopyFeatures_management(sites, outTbl)
 
+    start1 = exec_time(start1, "loading variables")       
+    message("Checking input variables...")
     #check spatial references for inputs
-    #test? all require except edu
-    if addresses is not None:
-        addresses = checkSpatialReference(outTbl, addresses) #check spatial ref
-        message("Addresses OK")
-    elif popRast is not None: #NOT YET TESTED
-        popRast = checkSpatialReference(outTbl, popRast) #check projection
-        message("Population Raster OK")
-    else:
-        arcpy.AddError("No population inputs specified")
-        print("No population inputs specified")
-        raise arcpy.ExecuteError
+    #all require pop except edu
+    if flood == True or view == True or rec == True or bird == True:
+        addresses, popRast = check_vars(outTbl, addresses, popRast)
     #benefits using Existing Wetlands
     if flood == True or view == True or edu == True or rec == True: #benefits requiring existing wetlands
         if ExistingWetlands is not None: #if the dataset is specified
@@ -1453,7 +1454,6 @@ def main(params):
             message("Trails input OK")
         else:
             message("Trails input not specified, some fields will be left blank for selected benefits.")
-
     #message/time:
     start1 = exec_time(start1, "verify inputs")
     message("Running selected benefit modules...")
@@ -1779,6 +1779,8 @@ class FloodTool (object):
         rel_Tbl = params[8].valueAsText
 
         arcpy.CopyFeatures_management(sites, outTbl)
+        #check sp ref
+        addresses, popRast = check_vars(outTbl, addresses, popRast)
         
         Flood_PARAMS = [addresses, popRast, flood_zone, oriWetlands, subs, catchment, inputField, rel_Tbl, outTbl]
         FR_MODULE(Flood_PARAMS)
