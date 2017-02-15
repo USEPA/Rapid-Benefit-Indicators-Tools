@@ -1345,8 +1345,7 @@ def main(params):
     popRast = params[2].valueAsText #None
     #flood_zone = params [0] #in_gdb + "FEMA_FloodZones_clp"
     flood_zone = params[10].valueAsText
-    #subs = in_gdb + "dams"
-    subs = params[11].valueAsText
+    subs = params[11].valueAsText #subs = in_gdb + "dams"
     edu_inst = params[12].valueAsText #in_gdb + "schools08"
     bus_Stp = params[13].valueAsText #in_gdb + "RIPTAstops0116"
     trails = params[14].valueAsText #in_gdb + "bikepath"
@@ -1396,9 +1395,15 @@ def main(params):
     if flood != None:
         #Catchment = params[27].valueAsText
         Catchment = script_dir + "Catchment.shp"
-        #InputField = params[28].valueAsText
-        InputField = "FEATUREID" #field from feature layer
-        relTbl = script_dir + "PlusFlow.dbf"
+        if arcpy.Exists(Catchment):
+            message("Using " + Catchment + " catchment file for upstream/downstream.")
+            #InputField = params[28].valueAsText
+            InputField = "FEATUREID" #field from feature layer
+            relTbl = script_dir + "PlusFlow.dbf"
+        else:
+            message("Default catchment file not available in expected location: " + Catchment)
+            message("Flood benefits will not be assessed.")
+            flood = None
     if pdf != None:
         mxd_name = "report_layout.mxd"
         mxd = script_dir + mxd_name
@@ -1435,14 +1440,14 @@ def main(params):
             message("Landuse polygons OK")
         else:
             message("Landuse input not specified, some fields will be left blank for selected benefits.")
-    #trails
+    #roads
     if view == True or bird == True or rec == True:
         if roads is not None:
             roads = checkSpatialReference(outTbl, roads) #check spatial ref
             message("Roads input OK")
         else:
             message("Roads input not specified, some fields will be left blank for selected benefits.")
-    #roads
+    #trails
         if trails is not None:
             trails = checkSpatialReference(outTbl, trails) #check spatial ref
             message("Trails input OK")
