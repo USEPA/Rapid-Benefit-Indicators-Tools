@@ -1539,7 +1539,7 @@ class presence_absence(object):
         sites = setParam("Restoration Site Polygons", "in_poly", "", "", "")#sites
         field = setParam("Field Name", "siteFld","Field", "", "")
         FC = setParam("Features", "feat", "", "", "")
-        buff_dist = setParam("Buffer Distance", "bufferUnits", "GPLinearUnit", "Optional", "")
+        buff_dist = setParam("Buffer Distance", "bufferUnits", "GPLinearUnit", "", "")
         outTbl = setParam("Output", "outTable", "DEFeatureClass", "", "Output")
 
         field.parameterDependencies = [sites.name]
@@ -1564,8 +1564,7 @@ class presence_absence(object):
         field = params[1].valueAsText
         FC = params[2].valueAsText
         buff_dist = params[3].valueAsText
-        #if buff_dist = None:
-        #    buff_dist = 0
+
         abs_test_PARAMS = [field, FC, buff_dist, outTbl]
         absTest_MODULE(abs_test_PARAMS)
         start1 = exec_time(start1, "Presence/Absence assessment")
@@ -1734,7 +1733,6 @@ class FloodTool (object):
         preWetlands = setParam("Wetland Polygons", "in_wet", "", "", "")#pre-existing wetlands
         #catchment = r"C:\ArcGIS\Local_GIS\NHD_Plus\NHDPlusNationalData\NHDPlusV21_National_Seamless.gdb\NHDPlusCatchment\Catchment"
         catchment = setParam("NHD+ Catchments", "NHD_catchment" , "", "Optional", "")
-        #set default
         #FloodField = "FEATUREID"
         FloodField = setParam("NHD Join Field", "inputField", "Field", "Optional", "")
         #relationship table = PlusFlow.dbf
@@ -1779,8 +1777,7 @@ class FloodTool (object):
         rel_Tbl = params[8].valueAsText
 
         arcpy.CopyFeatures_management(sites, outTbl)
-        #check sp ref
-        addresses, popRast = check_vars(outTbl, addresses, popRast)
+        addresses, popRast = check_vars(outTbl, addresses, popRast) #check sp ref
         
         Flood_PARAMS = [addresses, popRast, flood_zone, oriWetlands, subs, catchment, inputField, rel_Tbl, outTbl]
         FR_MODULE(Flood_PARAMS)
@@ -1811,7 +1808,6 @@ class Tier_1_Indicator_Tool (object):
         edu = setParam(serviceLst[2], "edu", "GPBoolean", "Optional", "")
         rec = setParam(serviceLst[3], "rec", "GPBoolean", "Optional", "")
         bird = setParam(serviceLst[4], "bird", "GPBoolean", "Optional", "")
-        #other check boxes
         socEq = setParam(serviceLst[5], "socEq", "GPBoolean", "Optional", "")
         rel = setParam(serviceLst[6], "rel", "GPBoolean", "Optional", "")
 
@@ -1838,7 +1834,7 @@ class Tier_1_Indicator_Tool (object):
         landVal = setParam("Greenspace Field Values", "grn_field_val", "GPString", "Optional", "", True)
 
         #sovi = in_gdb + "SoVI0610_RI"
-        socVul = setParam("Socially Vulnerable", "sovi_poly", "", "Optional", "")
+        socVul = setParam("Social Vulnerability", "sovi_poly", "", "Optional", "")
         #user must select 1 field to base calculation on #sovi_field = "SoVI0610_1"
         soc_Field = setParam("Vulnerability Field", "SoVI_ScoreFld","Field", "Optional", "")
         #sovi_High = "High"
@@ -1859,7 +1855,7 @@ class Tier_1_Indicator_Tool (object):
 
         pdf = setParam("PDF Report", "outReport", "DEFile", "Optional", "Output")
 
-        #set drop downs to be disabled initially
+        #set inputs to be disabled until benefits are selected
         disableParamLst([flood_zone, dams, edu_inst, bus_stp, trails, roads, preWetlands, landUse, LULC_field, landVal,
                          socVul, soc_Field, socVal, conserve, conserve_Field, useVal])
 
