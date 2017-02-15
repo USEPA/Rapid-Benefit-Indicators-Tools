@@ -1218,7 +1218,7 @@ def Report_MODULE(PARAMS):
     fld_dct = {'field': ['FR_2_cnt', 'FR_3A_acr', 'FR_3A_boo', 'FR_3B_boo', 'FR_3B_sca', 'FR_3D_boo',
                          'V_2_50', 'V_2_100', 'V_2_score', 'V_2_boo', 'V_3A_boo', 'V_3B_scar', 'V_3C_comp',
                          'V_3D_boo', 'EE_2_cnt', 'EE_3A_boo', 'EE_3B_sca', 'EE_3C_boo', 'EE_3D_boo',
-                         'R_2_03', 'R_2_03_bo', 'R_2_03_b2', 'R_2_05', 'R_2_6', 'R_3A_acr', 'R_3B_sc06',
+                         'R_2_03', 'R_2_03_tb', 'R_2_03_bb', 'R_2_05', 'R_2_6', 'R_3A_acr', 'R_3B_sc06',
                          'R_3B_sc1', 'R_3B_sc12', 'R_3C_boo', 'R_3D_boo', 'B_2_cnt', 'B_2_boo', 'B_3A_boo',
                          'B_3C_boo', 'B_3D_boo', 'SoVI_High', 'Conserved']}
     txt, dbl ='Text', 'Double'
@@ -1261,7 +1261,7 @@ def Report_MODULE(PARAMS):
     
     i = 1
     pg_cnt = 1
-    siterows = arcpy.SearchCursor(outTbl,"") #may be slow
+    siterows = arcpy.SearchCursor(outTbl,"") #may be slow #use "rptbview"?
     siterow = siterows.next()
 
     while siterow:
@@ -1298,9 +1298,11 @@ def Report_MODULE(PARAMS):
             if fldExists(field, column, fld_dct['rowNum'][idx], fieldInfo, blackbox):
                 fldVal = "siterow." + field
                 if fld_dct['type'][idx] == 'Double': #is numeric   
-                    proctext(eval(fldVal), "Num", fld_dct['numDigits'][idx], fld_dct['ltorgt'][idx], fld_dct['average'][idx],column,fld_dct['rowNum'][idx],fld_dct['allnos'][idx], mxd)
+                    proctext(eval(fldVal), "Num", fld_dct['numDigits'][idx], fld_dct['ltorgt'][idx], fld_dct['average'][idx],
+                             column,fld_dct['rowNum'][idx],fld_dct['allnos'][idx], mxd)
                 else: #is boolean
-                    proctext(eval(fldVal), "Boolean", 0, "", fld_dct['aveBool'][idx], column, fld_dct['rowNum'][idx], fld_dct['allnos'][idx], mxd)
+                    proctext(eval(fldVal), "Boolean", 0, "", fld_dct['aveBool'][idx],
+                             column, fld_dct['rowNum'][idx], fld_dct['allnos'][idx], mxd)
 
         if oddeven == 0:
             exportReport(pdfDoc, pdf_path, pg_cnt, mxd)
