@@ -1831,9 +1831,9 @@ class Tier_1_Indicator_Tool (object):
         landVal = setParam("Greenspace Field Values", "grn_field_val", "GPString", "Optional", "", True)
 
         #sovi = in_gdb + "SoVI0610_RI"
-        socVul = setParam("SoVI", "sovi_poly", "", "Optional", "")
+        socVul = setParam("Socially Vulnerable", "sovi_poly", "", "Optional", "")
         #user must select 1 field to base calculation on #sovi_field = "SoVI0610_1"
-        soc_Field = setParam("SoVI Score", "SoVI_ScoreFld","Field", "Optional", "")
+        soc_Field = setParam("Vulnerability Field", "SoVI_ScoreFld","Field", "Optional", "")
         #sovi_High = "High"
         socVal = setParam("Vulnerable Field Values", "soc_field_val", "GPString", "Optional", "", True)
 
