@@ -9,25 +9,25 @@ This code repository contains tools and files related to the Rapid Benefit Indic
 The RBI approach is an easy-to-use process for assessing restoration sites using non-monetary benefit indicators. It uses readily-available data to estimate and quantify benefits to people around an ecological restoration site. Whether you are a federal, state, or local manager, or a member of an interest group or funding organization, this simple yet powerful site analysis will allow you and your stakeholders to systematically and equitably incorporate social benefits in restoration decisions.
 
 ###RBI Approach Fact Sheet
-This downloadable one page pdf briefly describes the RBI Approach and how it might be used.
+This downloadable one-page document briefly describes the RBI approach and how it might be used. Accessible from [US EPA](https://nepis.epa.gov/Exe/ZyNET.exe/P100PMSW.TXT?ZyActionD=ZyDocument&Client=EPA&Index=2011+Thru+2015&Docs=&Query=&Time=&EndTime=&SearchMethod=1&TocRestrict=n&Toc=&TocEntry=&QField=&QFieldYear=&QFieldMonth=&QFieldDay=&IntQFieldOp=0&ExtQFieldOp=0&XmlQuery=&File=D%3A%5Czyfiles%5CIndex%20Data%5C11thru15%5CTxt%5C00000022%5CP100PMSW.txt&User=ANONYMOUS&Password=anonymous&SortMethod=h%7C-&MaximumDocuments=1&FuzzyDegree=0&ImageQuality=r75g8/r75g8/x150y150g16/i425&Display=hpfr&DefSeekPage=x&SearchBack=ZyActionL&Back=ZyActionS&BackDesc=Results%20page&MaximumPages=1&ZyEntry=1&SeekPage=x&ZyPURL).
 
 ###Assessing the Benefits of Wetland Restoration - A Rapid Benefits Indicators Approach for Decision Markers
 Downloadable PDF of the full EPA Report, also accessible from [US EPA](https://cfpub.epa.gov/si/si_public_record_report.cfm?dirEntryId=325010 "EPA Science Inventory").
 
 **Description:**
-This EPA report presents the RBI Approach using an example application to wetland restoration. In this guide, each step of the RBI Approach is introduced by an overview section that summarizes the step and explains how to apply it. Following the full walkthrough of each step, you will find “Step in Action” pages that demonstrate how the step is applied in a real-world scenario, using an example application to freshwater wetland restoration in the Woonasquatucket River Watershed in Rhode Island, USA.
+This EPA report presents the RBI approach using an example application to wetland restoration. In this guide, each step of the RBI Approach is introduced by an overview section that summarizes the step and explains how to apply it. Following the full walkthrough of each step, you will find “Step in Action” pages that demonstrate how the step is applied in a real-world scenario, using an example application to freshwater wetland restoration in the Woonasquatucket River Watershed in Rhode Island, USA.
 
 ###Rapid Benefit Indicator (RBI) Checklist Tool
 Interatcive, Macro-Enabled Excel workbook (.xlsm). Also accessible from [US EPA](https://cfpub.epa.gov/si/si_public_record_report.cfm?dirEntryId=331110 "EPA Science Inventory").
 
 **Description:**
-This tool accompanies the guidebook and provides a way to record information and compare sites using the RBI Approach. This spreadsheet-based tool includes prompts to guide you through the assessment process, and automatically summarizes your entries.
+This tool accompanies the guidebook and provides a way to record information and compare sites using the RBI approach. The spreadsheet-based tool includes prompts to guide you through the assessment process, and automatically summarizes entries.
 
-###Rapid Benefit Indicator (RBI) Checklist Tool - Quick Start Manual
+###Rapid Benefit Indicators (RBI) Checklist Tool - Quick Start Manual
 Downloadable PDF manual that provides guidance on using the Checklist Tool. Also accessible from [US EPA](https://cfpub.epa.gov/si/si_public_record_report.cfm?dirEntryId=331110 "EPA Science Inventory").
 
-###Rapid Benefit Indicator (RBI) Checklist Tool - Fillable Forms
-Downloadable fillable PDF version of the Checklist Tool. For an alternative to the spreadsheet-based RBI Approach Checklist Tool, these fillable, formatted sheets are available. They do not have all the functionality of the spreadsheet and only allow for comparison of two sites at a time, but they will work on systems that may not be able to run the checklist tool. Also accessible from [US EPA](https://cfpub.epa.gov/si/si_public_record_report.cfm?dirEntryId=331110 "EPA Science Inventory").
+###Rapid Benefit Indicators (RBI) Checklist Tool - Fillable Forms
+Downloadable fillable PDF version of the Checklist Tool. For an alternative to the spreadsheet-based RBI Approach Checklist Tool, these fillable, formatted sheets are available. The PDF does not have all the functionality of the spreadsheet and will only allow for the comparison of two sites at a time, but will work on systems that may not be able to run the spreadsheet-based checklist tool. Also accessible from [US EPA](https://cfpub.epa.gov/si/si_public_record_report.cfm?dirEntryId=331110 "EPA Science Inventory").
 
 ##Related Research
 The RBI Approach was developed as part of a research effort within EPA’s Office of Research and Development’s Safe and Sustainable Water Resources Research Program. Other components of this research are available elsewhere:
