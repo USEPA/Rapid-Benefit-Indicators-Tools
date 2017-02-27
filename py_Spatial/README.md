@@ -5,7 +5,7 @@ Rapid Benefit Indicators (RBI) Spatial Analysis Tools for ArcGIS.
 These tools allow the user to apply the Rapid Benefit Indicators (RBI) assessment methods to existing data for a specified site. It requires arcpy libraries included with arcgis desktop.
 
 #PlusFlow.dbf
-This dbf file contains a COMID field which stores the networked relationships between catchments of the NHD Plus V21. This seamless dataset includes the contiguous United States. This and NHD Plus data for other states and territories can be obtained from:
+This dbf file contains a COMID field which stores the networked relationships between catchments of the NHD Plus V21. This seamless dataset includes the contiguous United States. This and NHD Plus data for other states and territories can be obtained from [Horizon-Systems](http://www.horizon-systems.com/NHDPlus/index.php).
 
 #py_standaloneScripts Directory
 This directory contains individual python (.py) scripts for running each of the tools within the RBI Spatial Analysis Tools. These can be run from python without an instance of ArcGIS open, but still require arcpy libraries. To use these scripts the user must manually type in the input file locations specified in the USER INPUTS section of the script.
