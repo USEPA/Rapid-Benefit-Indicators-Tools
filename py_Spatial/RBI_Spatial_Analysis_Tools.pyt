@@ -1599,8 +1599,8 @@ class socialVulnerability (object):
         self.description = "Assess the social vulnerability of those benefitting to identify social equity issues."
     def getParameterInfo(self):
         sites = setParam("Restoration Site Polygons", "in_poly", "", "", "")#sites
-        poly = setParam("SoVI", "sovi_poly", "", "", "")
-        poly_field = setParam("SoVI Score", "SoVI_ScoreFld","Field", "", "")
+        poly = setParam("Social Vulnerability", "sovi_poly", "", "", "")
+        poly_field = setParam("Vulnerability Field", "SoVI_ScoreFld","Field", "", "")
         field_value = setParam("Vulnerable Field Values", "soc_field_val", "GPString", "Optional", "", True)
         buff_dist = setParam("Buffer Distance", "bufferUnits", "GPLinearUnit", "", "")
 
@@ -1851,9 +1851,9 @@ class Tier_1_Indicator_Tool (object):
         preWetlands = setParam("Wetland Polygons", "in_wet", "", "Optional", "")#pre-existing wetlands
 
         #landuse = in_gdb + "rilu0304"
-        landUse = setParam("Land use or greenspace Polygons", "land_use", "", "Optional", "")
+        landUse = setParam("Landuse/Greenspace Polygons", "land_use", "", "Optional", "")
         #field = "LCLU"
-        LULC_field = setParam("Landuse Field", "LULCFld", "Field", "Optional", "")
+        LULC_field = setParam("Greenspace Field", "LULCFld", "Field", "Optional", "")
         #list of fields from table [430, 410, 162, 161]
         landVal = setParam("Greenspace Field Values", "grn_field_val", "GPString", "Optional", "", True)
 
@@ -1865,7 +1865,7 @@ class Tier_1_Indicator_Tool (object):
         socVal = setParam("Vulnerable Field Values", "soc_field_val", "GPString", "Optional", "", True)
 
         #conserved = in_gdb + "LandUse2025"
-        conserve = setParam("Conservation lands", "cons_poly", "", "Optional", "")
+        conserve = setParam("Conservation Lands", "cons_poly", "", "Optional", "")
         #rel_field = "Map_Legend"
         conserve_Field = setParam("Conservation Field", "Conservation_Field", "Field", "Optional", "")
         #user must select 1 field to base calculation on
