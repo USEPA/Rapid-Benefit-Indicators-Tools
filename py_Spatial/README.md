@@ -13,6 +13,9 @@ This directory contains individual python (.py) scripts for running each of the 
 #RBI Spatial Analysis Tools.pyt
 Downloadable python toolbox for ArcGIS. Also accessible from US EPA.
 
+#XML Files
+These .xml files each corresspond to the tool in the RBI Spatial Analysis Tools that shares the same name. These files are not required for operation of the tools, but supply extra help guidance in the tool interface.
+
 #RBI Spatial Analysis Tools Manual
 Downloadable pdf documentation for the RBI Spatial Analysis Tools. Also accessible from the US EPA.
 
