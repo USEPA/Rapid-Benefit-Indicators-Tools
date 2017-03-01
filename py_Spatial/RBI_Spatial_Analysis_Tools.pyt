@@ -1333,7 +1333,36 @@ def Report_MODULE(PARAMS):
     del pdfDoc
 
     message("Created PDF report: " + pdf + " and " + os.path.basename(mxd_result))
+##############################
+######PRESENCE/ABSENCE########
+def absTest_MODULE(PARAMS):
+    outTbl, field = PARAMS[0], PARAMS[1]
+    FC = PARAMS[2]
+    buff_dist = PARAMS[3]
+    
+    path = os.path.dirname(outTbl) + os.sep
+    ext = arcpy.Describe(outTbl).extension
 
+    #set variables
+    buff_temp = path + "feature_buffer" + ext
+    FC = checkSpatialReference(outTbl, FC) #check spatial ref
+
+    #create buffers 
+    arcpy.Buffer_analysis(outTbl, buff_temp, buff_dist) #buffer each site by buff_dist
+
+    #check if feature is present
+    lst_present = buffer_contains(buff_temp, FC)
+    booleanLst = []
+    for item in lst_present:
+        if item == 0:
+            booleanLst.append("NO")
+        else:
+            booleanLst.append("YES")
+
+    #move results to outTbl.field
+    lst_to_AddField_lst(outTbl, [field], [booleanLst], ["Text"])
+    arcpy.Delete_management(buff_temp)
+    
 ##############################
 #############MAIN#############
 def main(params):
@@ -1553,15 +1582,14 @@ class presence_absence(object):
         self.description = "Use the presence or absence of some spatial feature within a range of " + \
                            "the site to determine if that metric is YES or NO"
     def getParameterInfo(self):
-        sites = setParam("Restoration Site Polygons", "in_poly", "", "", "")#sites
-        field = setParam("Field Name", "siteFld","Field", "", "")
+        outTbl = setParam("Output", "outTable", "DEFeatureClass", "", "") #sites
+        field = setParam("Field Name", "siteFld","Field", "", "") #field in outTbl
         FC = setParam("Features", "feat", "", "", "")
         buff_dist = setParam("Buffer Distance", "bufferUnits", "GPLinearUnit", "", "")
-        outTbl = setParam("Output", "outTable", "DEFeatureClass", "", "Output")
 
-        field.parameterDependencies = [sites.name]
+        field.parameterDependencies = [outTbl.name]
         
-        params = [sites, field, FC, buff_dist, outTbl]
+        params = [outTbl, field, FC, buff_dist]
         return params
     
     def isLicensed(self):
@@ -1573,16 +1601,13 @@ class presence_absence(object):
     
     def execute(self, params, messages):
         start1 = time.clock() #start the clock
-        sites = params[0].valueAsText
-        outTbl = params[4].valueAsText
 
-        arcpy.CopyFeatures_management(sites, outTbl)
-
+        outTbl = params[0].valueAsText
         field = params[1].valueAsText
         FC = params[2].valueAsText
         buff_dist = params[3].valueAsText
 
-        abs_test_PARAMS = [field, FC, buff_dist, outTbl]
+        abs_test_PARAMS = [outTbl, field, FC, buff_dist]
         absTest_MODULE(abs_test_PARAMS)
         start1 = exec_time(start1, "Presence/Absence assessment")
         
