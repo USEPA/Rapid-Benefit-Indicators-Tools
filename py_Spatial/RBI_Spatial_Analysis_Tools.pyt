@@ -434,7 +434,6 @@ def field_to_lst(table, field):
                     lst.append(row[1])
             orderLst, lst = (list(x) for x in zip(*sorted(zip(orderLst, lst))))
     else:
-        arcpy.AddMessage("Something went wrong with the field to list function")
         message("Something went wrong with the field to list function")
     return lst
 
