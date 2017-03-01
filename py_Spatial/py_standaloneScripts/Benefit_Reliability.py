@@ -17,15 +17,14 @@ from decimal import *
 
 arcpy.env.parallelProcessingFactor = "100%" #use all available resources
 
-
 ##########USER INPUTS##########
-conserved = #conservation Feature dataset
-rel_field = #field in feature dataset e.g. "Landuse"
-cons_fieldLst = #list of values from field to consider conservation e.g. ["Conserved", "Protected"]
-threat_fieldLst = #DETERMINE FROM cons_fieldLst?
-rel_buff_dist = #Buffer Distance e.g. "1 Miles"
-outTbl = #output file
-##############################
+conserved = ""#conservation Feature dataset
+rel_field = ""#field in feature dataset e.g. "Landuse"
+cons_fieldLst = ""#list of values from field to consider conservation e.g. ["Conserved", "Protected"]
+threat_fieldLst = ""#DETERMINE FROM cons_fieldLst?
+rel_buff_dist = ""#Buffer Distance e.g. "1 Miles"
+outTbl = ""#output file
+###############################
 ###########FUNCTIONS###########
 """Global Timer
 Purpose: returns the message and calc time since the last time the function was used."""
@@ -183,5 +182,6 @@ try:
     start = time.clock()
     reliability_MODULE([conserved, rel_field, cons_fieldLst, threat_fieldLst, rel_buff_dist, outTbl])
     start = exec_time(start1, "Reliability assessment")
-else: #create and set all fields to none?
+except:
     print("Reliability of Benefits not assessed")
+    arcpy.GetMessages()
