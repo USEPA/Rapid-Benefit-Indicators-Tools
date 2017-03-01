@@ -209,8 +209,7 @@ Purpose: read the upstream/downstream table to memory"""
 def setNHD_dict(Flow):
     UpCOMs = defaultdict(list)
     DownCOMs = defaultdict(list)
-    arcpy.AddMessage("Gathering info on upstream / downstream relationships")
-    print("Gathering info on upstream / downstream relationships")
+    message("Gathering info on upstream / downstream relationships")
     with arcpy.da.SearchCursor(Flow, ["FROMCOMID", "TOCOMID"]) as cursor:
         for row in cursor:
             FROMCOMID = row[0]
@@ -271,8 +270,7 @@ Purpose: returns the message and calc time since the last time the function was 
 def exec_time(start, message):
     end = time.clock()
     comp_time = time.strftime("%H:%M:%S", time.gmtime(end-start))
-    arcpy.AddMessage("Run time for " + message + ": " + str(comp_time))
-    print("Run time for " + message + ": " + str(comp_time))
+    message("Run time for " + message + ": " + str(comp_time))
     start = time.clock()
     return start
 
@@ -281,8 +279,7 @@ Purpose: if a file exists it is deleted and noted in a message message"""
 def del_exists(item):
     if arcpy.Exists(item):
         arcpy.Delete_management(item)
-        arcpy.AddMessage(str(item) + " already exists, it was deleted and will be replaced.")
-        print(str(item) + " already exists, it was deleted and will be replaced.")
+        message(str(item) + " already exists, it was deleted and will be replaced.")
         
 """Check variables
 Prupose: make sure population var has correct spatial reference"""
@@ -308,8 +305,7 @@ def checkSpatialReference(alphaFC, otherFC):
     otherSR = arcpy.Describe(otherFC).spatialReference
     if alphaSR.name != otherSR.name:
         #e.g. .name = u'WGS_1984_UTM_Zone_19N' for Projected Coordinate System = WGS_1984_UTM_Zone_19N
-        arcpy.AddMessage("Spatial reference for " + otherFC + " does not match.")
-        print("Spatial reference for " + otherFC + " does not match.")
+        message("Spatial reference for " + otherFC + " does not match.")
         try:
             path = os.path.dirname(alphaFC)
             ext = arcpy.Describe(alphaFC).extension
@@ -317,11 +313,9 @@ def checkSpatialReference(alphaFC, otherFC):
             output = path + os.sep + os.path.splitext(newName)[0] + "_prj" + ext
             arcpy.Project_management(otherFC, output, alphaSR)
             fc = output
-            arcpy.AddMessage("File was re-projected and saved as " + fc)
-            print("File was re-projected and saved as " + fc)
+            message("File was re-projected and saved as " + fc)
         except:
-            arcpy.AddMessage("Warning: spatial reference could not be updated.")
-            print("Warning: spatial reference could not be updated.")
+            message("Warning: spatial reference could not be updated.")
             fc = otherFC
     else:
         fc = otherFC
@@ -441,7 +435,7 @@ def field_to_lst(table, field):
             orderLst, lst = (list(x) for x in zip(*sorted(zip(orderLst, lst))))
     else:
         arcpy.AddMessage("Something went wrong with the field to list function")
-        print("Something went wrong with the field to list function")
+        message("Something went wrong with the field to list function")
     return lst
 
 """Add List to Field
@@ -450,7 +444,7 @@ Purpose: """
 #Example: lst_to_field(featureClass, "fieldName", lst)
 def lst_to_field(table, field, lst): #handle empty list
     if len(lst) ==0:
-        print("No values to add to '{}'.".format(field))
+        message("No values to add to '{}'.".format(field))
     else:
         i=0
         with arcpy.da.UpdateCursor(table, [field]) as cursor:
@@ -1121,7 +1115,7 @@ def socEq_MODULE(PARAMS):
                 name = "SoVI_High"
             else:
                 name = val.replace(" ", "_")[0:9]
-            print name
+            message(name)
             arcpy.AddField_management(outTbl, name, "DOUBLE", "", "", "", val, "", "", "")
             whereClause = field + " = '" + val + "'"
             arcpy.SelectLayerByAttribute_management("soviLyr", "NEW_SELECTION", whereClause)
