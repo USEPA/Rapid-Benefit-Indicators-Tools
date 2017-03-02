@@ -22,6 +22,14 @@ from decimal import *
 arcpy.env.parallelProcessingFactor = "100%" #use all available resources
 
 ###########FUNCTIONS###########
+"""get extension"""
+def get_ext(FC):
+    ext = arcpy.Describe(FC).extension
+    if len(ext)>0:
+        ext = "." + ext
+    return ext
+
+"get mean of list"
 def mean(l):
     return sum(l)/float(len(l))
 
@@ -308,7 +316,7 @@ def checkSpatialReference(alphaFC, otherFC):
         message("Spatial reference for " + otherFC + " does not match.")
         try:
             path = os.path.dirname(alphaFC)
-            ext = arcpy.Describe(alphaFC).extension
+            ext = get_ext(alphaFC)
             newName = os.path.basename(otherFC)
             output = path + os.sep + os.path.splitext(newName)[0] + "_prj" + ext
             arcpy.Project_management(otherFC, output, alphaSR)
@@ -325,7 +333,7 @@ def checkSpatialReference(alphaFC, otherFC):
 Purpose: takes inside buffer and creates outside buffers. Ensures ORIG_FID is correct."""
 #Function Notes: there can be multiple buffer distances, but must be list
 def buffer_donut(FC, outFC, buf, units):
-    ext = arcpy.Describe(FC).extension
+    ext = get_ext(FC)
     FCsort = os.path.splitext(FC)[0] + "_2"  + ext #the buffers should all be in the outTbl folder
     arcpy.Sort_management(FC, FCsort, [["ORIG_FID", "ASCENDING"]]) #sort FC by ORGI_FID
     arcpy.MultipleRingBuffer_analysis(FCsort, outFC, buf, units, "Distance", "NONE", "OUTSIDE_ONLY") #new buffer
@@ -337,7 +345,7 @@ Purpose: returns number of points in buffer as list"""
 #Function Notes:
 #Example: lst = buffer_contains(view_50, addresses)
 def buffer_contains(poly, pnts):
-    ext = arcpy.Describe(poly).extension
+    ext = get_ext(poly)
     poly_out = os.path.splitext(poly)[0] + "_2" + ext #hopefully this is created in outTbl
     arcpy.SpatialJoin_analysis(poly, pnts, poly_out, "JOIN_ONE_TO_ONE", "KEEP_ALL", "", "INTERSECT", "", "")
     #When a buffer is created for a site it may get a new OBJECT_ID, but the site ID is maintained as ORIG_FID,
@@ -500,7 +508,7 @@ def FR_MODULE(PARAMS):
     outTbl = PARAMS[8]
 
     path = os.path.dirname(outTbl) + os.sep
-    ext = arcpy.Describe(outTbl).extension
+    ext = get_ext(outTbl)
 
     #set variables
     FA = path + "int_FloodArea" #naming convention for flood intermediates
@@ -706,7 +714,7 @@ def View_MODULE(PARAMS):
     outTbl = PARAMS[8]
 
     path = os.path.dirname(outTbl) + os.sep
-    ext = arcpy.Describe(outTbl).extension
+    ext = get_ext(outTbl)
 
     #set variables
     VA = path + "int_ViewArea" #naming convention for view intermediates
@@ -731,9 +739,9 @@ def View_MODULE(PARAMS):
         arcpy.Delete_management(view_50)
         arcpy.Delete_management(view_100)
         
-    elif popRaster is not None: #population based method
-        lst_view_50 = buffer_population(view_50, popRaster)
-        lst_view_100 = buffer_population(view_100, popRaster)
+    elif popRast is not None: #population based method
+        lst_view_50 = buffer_population(view_50, popRast)
+        lst_view_100 = buffer_population(view_100, popRast)
         start=exec_time(start, "Scenic Views analysis - 3.2 How Many Benefit? (from population raster)")
         
     lst_view_score = view_score(lst_view_50, lst_view_100) #calculate weighted scores
@@ -822,7 +830,7 @@ def Edu_MODULE(PARAMS):
     outTbl = PARAMS[2]
 
     path = os.path.dirname(outTbl) + os.sep
-    ext = arcpy.Describe(outTbl).extension
+    ext = get_ext(outTbl)
 
     #set variables
     eduArea = path + "eduArea" + ext
@@ -877,7 +885,7 @@ def Rec_MODULE(PARAMS):
     outTbl = PARAMS[8]
 
     path = os.path.dirname(outTbl) + os.sep
-    ext = arcpy.Describe(outTbl).extension
+    ext = get_ext(outTbl)
 
     #set variables
     recArea = path + "recArea"
@@ -1025,7 +1033,7 @@ def Bird_MODULE(PARAMS):
     outTbl = PARAMS[4]
 
     path = os.path.dirname(outTbl) + os.sep
-    ext = arcpy.Describe(outTbl).extension
+    ext = get_ext(outTbl)
 
     #set variables
     birdArea = path + "birdArea" + ext
@@ -1037,8 +1045,8 @@ def Bird_MODULE(PARAMS):
     if addresses is not None:
         lst_bird_cnt = buffer_contains(birdArea, addresses)
         start=exec_time(start, "Bird Watching analysis: 3.2 How Many Benefit? (from addresses)")
-    elif popRaster is not None:
-        lst_bird_cnt = buffer_population(birdArea, popRaster)
+    elif popRast is not None:
+        lst_bird_cnt = buffer_population(birdArea, popRast)
         start=exec_time(start, "Bird Watching analysis: 3.2 How Many Benefit? (from population Raster)")
 
     #3.2 - are there roads or trails that could see birds on the site?
@@ -1089,7 +1097,7 @@ def socEq_MODULE(PARAMS):
     outTbl = PARAMS[4]
 
     path = os.path.dirname(outTbl) + os.sep
-    ext = arcpy.Describe(outTbl).extension
+    ext = get_ext(outTbl)
 
     #set variables
     tempPoly = path + "SoviTemp" + ext
@@ -1144,7 +1152,7 @@ def reliability_MODULE(PARAMS):
     outTbl = PARAMS[5]
 
     path = os.path.dirname(outTbl) + os.sep
-    ext = arcpy.Describe(outTbl).extension
+    ext = get_ext(outTbl)
     
     #set variables
     buf = path + "conservation" + ext
@@ -1200,7 +1208,7 @@ def Report_MODULE(PARAMS):
     pdf_path = os.path.dirname(pdf) + os.sep
     #Set path for intermediates
     path = os.path.dirname(outTbl) + os.sep
-    ext = arcpy.Describe(outTbl).extension
+    ext = get_ext(outTbl)
     #Create the file and append pages in the cursor loop
     pdfDoc = arcpy.mapping.PDFDocumentCreate(pdf)
 
@@ -1341,7 +1349,7 @@ def absTest_MODULE(PARAMS):
     buff_dist = PARAMS[3]
     
     path = os.path.dirname(outTbl) + os.sep
-    ext = arcpy.Describe(outTbl).extension
+    ext = get_ext(outTbl)
 
     #set variables
     buff_temp = path + "feature_buffer" + ext
