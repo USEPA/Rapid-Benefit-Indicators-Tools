@@ -267,10 +267,10 @@ def message(string):
 """Global Timer
 Purpose: returns the message and calc time since the last time the function was used."""
 #Function Notes: used during testing to compare efficiency of each step
-def exec_time(start, message):
+def exec_time(start, task):
     end = time.clock()
     comp_time = time.strftime("%H:%M:%S", time.gmtime(end-start))
-    message("Run time for " + message + ": " + str(comp_time))
+    message("Run time for " + task + ": " + str(comp_time))
     start = time.clock()
     return start
 
