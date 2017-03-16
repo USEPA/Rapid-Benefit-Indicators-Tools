@@ -1627,16 +1627,30 @@ class socialVulnerability (object):
         sites = setParam("Restoration Site Polygons (Required)", "in_poly", "", "", "")#sites
         poly = setParam("Social Vulnerability", "sovi_poly", "", "", "")
         poly_field = setParam("Vulnerability Field", "SoVI_ScoreFld","Field", "", "")
-        field_value = setParam("Vulnerable Field Values", "soc_field_val", "GPString", "Optional", "", True)
+        field_value = setParam("Vulnerable Field Values", "soc_field_val", "GPString", "", "", True)
         buff_dist = setParam("Buffer Distance", "bufferUnits", "GPLinearUnit", "", "")
 
         outTbl = setParam("Output", "outTable", "DEFeatureClass", "", "Output")
+
+        disableParamLst([poly_field, field_value]) #disable until source available
+        poly_field.parameterDependencies = [poly.name]
+        field_value.parameterDependencies = [poly_field.name]
+        field_value.filter.type = 'ValueList'
+        
         params = [sites, poly, poly_field, field_value, buff_dist, outTbl] 
         return params
 
     def isLicensed(self):
         return True
     def updateParameters(self, params):
+        #social vulnerability inputs    
+        if params[1].altered:
+            params[2].enabled = True
+        if params[2].altered: #socVul_field
+            in_poly = params[1].valueAsText
+            TypeField = params[2].valueAsText
+            params[3].enabled = True
+            params[3].filter.list = unique_values(in_poly, TypeField)
         return
     def updateMessages(self, params):
         return
@@ -1673,6 +1687,7 @@ class reliability (object):
         buff_dist = setParam("Buffer Distance", "bufferUnits", "GPLinearUnit", "", "")
         outTbl = setParam("Output", "outTable", "DEFeatureClass", "", "Output")
 
+        disableParamLst([poly_field, in_lst]) #disable until source available
         poly_field.parameterDependencies = [poly.name]
         in_lst.parameterDependencies = [poly_field.name]
         in_lst.filter.type = 'ValueList'
@@ -1683,14 +1698,13 @@ class reliability (object):
     def isLicensed(self):
         return True
     def updateParameters(self, params):
-        if params[1].value != None:
+        if params[1].altered:
             params[2].enabled = True
-        else:
-            params[2].enabled = False
-        if params[2].value != None:
+        if params[2].altered: #socVul_field
+            in_poly = params[1].valueAsText
+            TypeField = params[2].valueAsText
             params[3].enabled = True
-        else:
-            params[3].enabled = False
+            params[3].filter.list = unique_values(in_poly, TypeField)
         return
     
     def updateMessages(self, params):
