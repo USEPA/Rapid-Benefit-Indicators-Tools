@@ -1131,7 +1131,7 @@ def socEq_MODULE(PARAMS):
     else:
         message("This is too many values to create unique fields for them all, just calculating {} coverage".format(SoVI_High))
         name = "Vul_High"
-        arcpy.AddField_management(outTbl, name, "DOUBLE", "", "", "", val, "", "", "")
+        arcpy.AddField_management(outTbl, name, "DOUBLE", "", "", "", SoVI_High, "", "", "")
         whereClause = field + " = '" + val + "'"
         arcpy.SelectLayerByAttribute_management("soviLyr", "NEW_SELECTION", whereClause)
         pct_lst = percent_cover("soviLyr", buf)
