@@ -1119,7 +1119,7 @@ def socEq_MODULE(PARAMS):
         #add fields for each unique in field
         for val in fieldLst:
             if val == SoVI_High:
-                name = "SoVI_High"
+                name = "Vul_High"
             else:
                 name = val.replace(" ", "_")[0:9]
             message(name)
@@ -1130,7 +1130,7 @@ def socEq_MODULE(PARAMS):
             lst_to_field(outTbl, name, pct_lst)
     else:
         message("This is too many values to create unique fields for them all, just calculating {} coverage".format(SoVI_High))
-        name = "SoVI_High"
+        name = "Vul_High"
         arcpy.AddField_management(outTbl, name, "DOUBLE", "", "", "", val, "", "", "")
         whereClause = field + " = '" + val + "'"
         arcpy.SelectLayerByAttribute_management("soviLyr", "NEW_SELECTION", whereClause)
@@ -1221,7 +1221,7 @@ def Report_MODULE(PARAMS):
                          'V_3D_boo', 'EE_2_cnt', 'EE_3A_boo', 'EE_3B_sca', 'EE_3C_boo', 'EE_3D_boo',
                          'R_2_03', 'R_2_03_tb', 'R_2_03_bb', 'R_2_05', 'R_2_6', 'R_3A_acr', 'R_3B_sc06',
                          'R_3B_sc1', 'R_3B_sc12', 'R_3C_boo', 'R_3D_boo', 'B_2_cnt', 'B_2_boo', 'B_3A_boo',
-                         'B_3C_boo', 'B_3D_boo', 'SoVI_High', 'Conserved']}
+                         'B_3C_boo', 'B_3D_boo', 'Vul_High', 'Conserved']}
     txt, dbl ='Text', 'Double'
     fld_dct['type'] = [dbl, dbl, txt, txt, dbl, txt, dbl, dbl, dbl,txt, txt, dbl, dbl, txt, dbl, txt, dbl, txt, txt,
                        dbl, txt, txt, dbl, dbl, dbl, dbl, dbl, dbl, txt, txt, dbl, txt, txt, txt, txt, dbl, dbl]
