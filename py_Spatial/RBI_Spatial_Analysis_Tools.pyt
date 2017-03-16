@@ -509,6 +509,7 @@ def FR_MODULE(PARAMS):
 
     path = os.path.dirname(outTbl) + os.sep
     ext = get_ext(outTbl)
+    OID_field = arcpy.Describe(outTbl).OIDFieldName
 
     #set variables
     FA = path + "int_FloodArea" #naming convention for flood intermediates
@@ -518,7 +519,7 @@ def FR_MODULE(PARAMS):
     flood_areaD_clip = FA + "temp3_clip" + ext #downstream
     flood_areaD_clip_single = FA + "temp3_single" + ext #single site's downstream area
     clip_name = os.path.basename(FA) + "temp3_down" + ext #single downstream buffer
-    flood_areaD = path + os.sep + clip_name + ext
+    flood_areaD = path + os.sep + clip_name
     assets = FA + "_assets" + ext #addresses/population in flood zone
             
     start=exec_time(start, "intiating variables for Flood Risk")
@@ -556,7 +557,7 @@ def FR_MODULE(PARAMS):
 
     UpCOMs, DownCOMs = setNHD_dict(Flow) #REDUCE TO DownCOMs ONLY
     #create empty FC for downstream catchments
-    del_exists(path + os.sep + clip_name)
+    del_exists(flood_areaD)
     arcpy.CreateFeatureclass_management(path, clip_name, "POLYGON", spatial_reference = "flood_zone_lyr")
 
     site_cnt = arcpy.GetCount_management(outTbl)
@@ -564,7 +565,7 @@ def FR_MODULE(PARAMS):
     with arcpy.da.SearchCursor(outTbl, ["SHAPE@", "OID@"]) as cursor:
         for site in cursor:
             #select buffer for site
-            where_clause = "OBJECTID = " + str(site[1])
+            where_clause = str(OID_field) + " = " + str(site[1]) #does FID, not ORIG_FID
             arcpy.SelectLayerByAttribute_management("buffer_lyr", "NEW_SELECTION", where_clause)
             
             #list catchments in buffer
@@ -585,7 +586,6 @@ def FR_MODULE(PARAMS):
             #catchments in both lists
             #NOTE: this is redundant, the last catchment will already be outside the buffer clip
             catchment_lst = list(set(downCatchments).intersection(bufferCatchments))
-            
             #SELECT downstream catchments in buffer
             slt_qry_down = selectStr_by_list(InputField, catchment_lst)
             arcpy.SelectLayerByAttribute_management("catchment_lyr", "NEW_SELECTION", slt_qry_down)
@@ -619,7 +619,7 @@ def FR_MODULE(PARAMS):
     arcpy.CalculateField_management(flood_areaD, "areaD", "!SHAPE.area!", "PYTHON_9.3", "")
 
     #move downstream area result to flood zone table
-    arcpy.JoinField_management(flood_areaC, "OBJECTID", flood_areaD, "OBJECTID", ["areaD"])
+    arcpy.JoinField_management(flood_areaC, OID_field, flood_areaD, OID_field, ["areaD"])
 
     #calculate percent area fields
     with arcpy.da.UpdateCursor(flood_areaC, ["area_pct", "area", "BUFF_DIST", "areaD_pct", "areaD"]) as cursor:
@@ -1443,7 +1443,7 @@ def main(params):
     script_dir = os.path.dirname(os.path.realpath(__file__)) + os.sep 
     #check for NHD+ files
     if flood != None:
-        Catchment = script_dir + "Catchment.shp"
+        Catchment = script_dir + "NHDPlusV21_National_Seamless.gdb" + os.sep + "Catchment"
         if arcpy.Exists(Catchment):
             message("Using " + Catchment + " catchment file for upstream/downstream")
             InputField = "FEATUREID" #field from feature layer
