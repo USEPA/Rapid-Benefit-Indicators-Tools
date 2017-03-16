@@ -1624,7 +1624,7 @@ class socialVulnerability (object):
         self.label = "Part - Social Equity of Benefits"
         self.description = "Assess the social vulnerability of those benefitting to identify social equity issues."
     def getParameterInfo(self):
-        sites = setParam("Restoration Site Polygons", "in_poly", "", "", "")#sites
+        sites = setParam("Restoration Site Polygons (Required)", "in_poly", "", "", "")#sites
         poly = setParam("Social Vulnerability", "sovi_poly", "", "", "")
         poly_field = setParam("Vulnerability Field", "SoVI_ScoreFld","Field", "", "")
         field_value = setParam("Vulnerable Field Values", "soc_field_val", "GPString", "Optional", "", True)
@@ -1666,7 +1666,7 @@ class reliability (object):
         self.description = "Assess the site's ability to produce services " + \
                            "and provide benefits into the future."
     def getParameterInfo(self):
-        sites = setParam("Restoration Site Polygons", "in_poly", "", "", "")#sites
+        sites = setParam("Restoration Site Polygons (Required)", "in_poly", "", "", "")#sites
         poly = setParam("Conservation Lands", "cons_poly", "", "", "")
         poly_field = setParam("Conservation Field", "Conservation_Field", "Field", "", "")
         in_lst = setParam("Conservation Types", "Conservation_Type", "GPString", "", "", True)
@@ -1769,7 +1769,7 @@ class FloodTool (object):
     def getParameterInfo(self):
     #Define IN/OUT parameters
         #sites = in_gdb  + "restoration_Sites"
-        sites = setParam("Restoration Site Polygons", "in_poly", "", "", "")#sites
+        sites = setParam("Restoration Site Polygons (Required)", "in_poly", "", "", "")#sites
         #addresses = in_gdb + "e911_14_Addresses"
         addresses = setParam("Address Points", "in_pnts", "", "Optional", "")#beneficiaries points
         #popRast = None
