@@ -413,7 +413,8 @@ def selectStr_by_list(field, lst):
     exp = ''
     for item in lst:
         if type(item)==str or type(item)==unicode:
-            exp += '"' + field + '" = ' + "'" + str(item) + "' OR "
+            #exp += '"' + field + '" = ' + "'" + str(item) + "' OR "
+            exp += field + " = '" + str(item) + "' OR "
         elif type(item)==float:
             exp += '"' + field + '" = ' + str(Decimal(item)) + " OR "
         else: #float or int or long or ?complex
@@ -1111,7 +1112,7 @@ def socEq_MODULE(PARAMS):
 
     #select sovi layer by buffer
     arcpy.MakeFeatureLayer_management(sovi, "soviLyr")
-    arcpy.SelectLayerByLocation_management("soviLyr", "INTERSECT", buf)
+    #arcpy.SelectLayerByLocation_management("soviLyr", "INTERSECT", buf)
 
     #list all the unique values in the specified field
     full_fieldLst = unique_values("soviLyr", field)
@@ -1133,7 +1134,7 @@ def socEq_MODULE(PARAMS):
         for val in fieldLst:
             name = val.replace(".", "_")[0:9]
             arcpy.AddField_management(outTbl, name, "DOUBLE", "", "", "", val, "", "", "")
-            whereClause = field + " = '" + val + "'"
+            whereClause = selectStr_by_list(field, [val])
             arcpy.SelectLayerByAttribute_management("soviLyr", "NEW_SELECTION", whereClause)
             pct_lst = percent_cover("soviLyr", buf)
             lst_to_field(outTbl, name, pct_lst)
@@ -1668,11 +1669,11 @@ class socialVulnerability (object):
 
         sovi = params[1].valueAsText
         sovi_field = params[2].valueAsText 
-        sovi_High = params[3].valueAsText
+        sovi_High = params[3].values
         buff_dist = params[4].valueAsText
 
-        #if sovi_High != None: #coerce/map unicode list using field in table
-            #sovi_High = ListType_fromField(tbl_fieldType(sovi, sovi_field), sovi_High)        
+        if sovi_High != None: #coerce/map unicode list using field in table
+            sovi_High = ListType_fromField(tbl_fieldType(sovi, sovi_field), sovi_High)        
 
         soc_PARAMS = [sovi, sovi_field, sovi_High, buff_dist, outTbl]
         socEq_MODULE(soc_PARAMS)
