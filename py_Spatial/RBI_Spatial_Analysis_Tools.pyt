@@ -414,6 +414,8 @@ def selectStr_by_list(field, lst):
     for item in lst:
         if type(item)==str or type(item)==unicode:
             exp += '"' + field + '" = ' + "'" + str(item) + "' OR "
+        elif type(item)==float:
+            exp += '"' + field + '" = ' + str(Decimal(item)) + " OR "
         else: #float or int or long or ?complex
             exp += '"' + field + '" = ' + str(item) + " OR " #numeric
     return (exp[:-4])
