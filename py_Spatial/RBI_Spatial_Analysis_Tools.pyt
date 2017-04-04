@@ -1100,7 +1100,7 @@ def socEq_MODULE(PARAMS):
     ext = get_ext(outTbl)
 
     #set variables
-    tempPoly = path + "SoviTemp" + ext
+    #tempPoly = path + "SoviTemp" + ext
     buf = path + "sovi_buffer" + ext
 
     sovi = checkSpatialReference(outTbl, sovi) #check projection
@@ -1112,17 +1112,24 @@ def socEq_MODULE(PARAMS):
     arcpy.SelectLayerByLocation_management("soviLyr", "INTERSECT", buf)
 
     #list all the unique values in the specified field
-    fieldLst = unique_values("soviLyr", field)
+    full_fieldLst = unique_values("soviLyr", field)
+    fieldLst = [x for x in full_fieldLst if x not in SoVI_High]
+
+    #add/populate field for SoVI_High
+    name = "Vul_High"
+    arcpy.AddField_management(outTbl, name, "DOUBLE", "", "", "", "", "", "", "")
+    whereClause = selectStr_by_list(field, SoVI_High)
+    arcpy.SelectLayerByAttribute_management("soviLyr", "NEW_SELECTION", whereClause)
+    pct_lst = percent_cover("soviLyr", buf)
+    lst_to_field(outTbl, name, pct_lst)
+
+    #add fields for the rest of the possible values if 6 or less
     message("There are " + str(len(fieldLst)) + " unique values for " + field + ".")
-    if len(fieldLst) <6: #as long as they are reasonable determine percent cover for each 
+    if len(fieldLst) <6: 
         message("Creating new fields for each...")
         #add fields for each unique in field
         for val in fieldLst:
-            if val == SoVI_High:
-                name = "Vul_High"
-            else:
-                name = val.replace(" ", "_")[0:9]
-            message(name)
+            name = val.replace(".", "_")[0:9]
             arcpy.AddField_management(outTbl, name, "DOUBLE", "", "", "", val, "", "", "")
             whereClause = field + " = '" + val + "'"
             arcpy.SelectLayerByAttribute_management("soviLyr", "NEW_SELECTION", whereClause)
@@ -1130,12 +1137,6 @@ def socEq_MODULE(PARAMS):
             lst_to_field(outTbl, name, pct_lst)
     else:
         message("This is too many values to create unique fields for them all, just calculating {} coverage".format(SoVI_High))
-        name = "Vul_High"
-        arcpy.AddField_management(outTbl, name, "DOUBLE", "", "", "", SoVI_High, "", "", "")
-        whereClause = field + " = '" + SoVI_High + "'"
-        arcpy.SelectLayerByAttribute_management("soviLyr", "NEW_SELECTION", whereClause)
-        pct_lst = percent_cover("soviLyr", buf)
-        lst_to_field(outTbl, name, pct_lst)
 
     message("Social Equity assessment complete.")
     
@@ -1667,6 +1668,9 @@ class socialVulnerability (object):
         sovi_field = params[2].valueAsText 
         sovi_High = params[3].valueAsText
         buff_dist = params[4].valueAsText
+
+        #if sovi_High != None: #coerce/map unicode list using field in table
+            #sovi_High = ListType_fromField(tbl_fieldType(sovi, sovi_field), sovi_High)        
 
         soc_PARAMS = [sovi, sovi_field, sovi_High, buff_dist, outTbl]
         socEq_MODULE(soc_PARAMS)
