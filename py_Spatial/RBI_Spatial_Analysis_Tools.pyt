@@ -1174,15 +1174,17 @@ def reliability_MODULE(PARAMS):
     arcpy.MakeFeatureLayer_management(cons_poly, "consLyr")
     whereClause = selectStr_by_list(field, consLst)
     arcpy.SelectLayerByAttribute_management("consLyr", "NEW_SELECTION", whereClause)
-
     #determine percent of buffer which is each conservation type
     pct_consLst = percent_cover("consLyr", buf)
-
-    #make list based on threat use types
-    whereClause = selectStr_by_list(field, threatLst)
-    arcpy.SelectLayerByAttribute_management("consLyr", "NEW_SELECTION", whereClause)
-    pct_threatLst = percent_cover("consLyr", buf)
-    #start=exec_time(start, "Percent conserved/threatened use types calculated")
+    try:
+        #make list based on threat use types
+        whereClause = selectStr_by_list(field, threatLst)
+        arcpy.SelectLayerByAttribute_management("consLyr", "NEW_SELECTION", whereClause)
+        pct_threatLst = percent_cover("consLyr", buf)
+    except:
+        message("Error occured determining percent cover of non-conserved areas.")
+        traceback.print_exc()
+        continue
 
     #move results to outTbl
     fields_lst = ["Conserved", "Threatene"]
@@ -1726,7 +1728,7 @@ class reliability (object):
 
         poly = params[1].valueAsText
         field = params[2].valueAsText 
-        cons_fieldLst = params[3].valueAsText
+        cons_fieldLst = params[3].values
         buff_dist = params[4].valueAsText
 
         if cons_fieldLst != None:
