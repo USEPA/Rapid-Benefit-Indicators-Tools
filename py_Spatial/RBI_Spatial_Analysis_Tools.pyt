@@ -1107,7 +1107,7 @@ def socEq_MODULE(PARAMS):
     buf = path + "sovi_buffer" + ext
 
     sovi = checkSpatialReference(outTbl, sovi) #check projection
-
+    
     arcpy.Buffer_analysis(outTbl, buf, bufferDist)
 
     #select sovi layer by buffer
@@ -1148,7 +1148,7 @@ def socEq_MODULE(PARAMS):
 def reliability_MODULE(PARAMS):
     #start = time.clock() #start the clock
     message("Reliability of Benefits analysis...")
-
+    
     cons_poly = PARAMS[0]
     field = PARAMS[1]
     consLst, threatLst = PARAMS[2], PARAMS[3]
@@ -1160,13 +1160,15 @@ def reliability_MODULE(PARAMS):
     
     #set variables
     buf = path + "conservation" + ext
-
-    #remove None from lists #WHY WAS THIS A CONCERN?
+    
+    message("Checking input variables...")
+    #remove None from lists
     consLst = [x for x in consLst if x is not None]
     threatLst = [x for x in threatLst if x is not None]
 
     cons_poly = checkSpatialReference(outTbl, cons_poly)
-
+    message("Input variables OK")
+    
     #buffer site by user specified distance
     arcpy.Buffer_analysis(outTbl, buf, bufferDist)
     
@@ -1181,10 +1183,10 @@ def reliability_MODULE(PARAMS):
         whereClause = selectStr_by_list(field, threatLst)
         arcpy.SelectLayerByAttribute_management("consLyr", "NEW_SELECTION", whereClause)
         pct_threatLst = percent_cover("consLyr", buf)
-    except:
+    except Exception:
         message("Error occured determining percent cover of non-conserved areas.")
         traceback.print_exc()
-        continue
+        pass
 
     #move results to outTbl
     fields_lst = ["Conserved", "Threatene"]
@@ -1726,22 +1728,26 @@ class reliability (object):
 
         arcpy.CopyFeatures_management(sites, outTbl)
 
-        poly = params[1].valueAsText
+        conserved = params[1].valueAsText
         field = params[2].valueAsText 
         cons_fieldLst = params[3].values
         buff_dist = params[4].valueAsText
 
         if cons_fieldLst != None:
             #all values from rel_field not in cons_fieldLst
-            threat_fieldLst = [x for x in unique_values(conserved, rel_field) if x not in cons_fieldLst]
+            threat_fieldLst = [x for x in unique_values(conserved, field) if x not in cons_fieldLst]
             #convert unicode lists to field.type
-            rel_field_type = tbl_fieldType(conserved, rel_field)
+            rel_field_type = tbl_fieldType(conserved, field)
             cons_fieldLst = ListType_fromField(rel_field_type, cons_fieldLst)
             threat_fieldLst = ListType_fromField(rel_field_type, threat_fieldLst)
         
-        Rel_PARAMS = [poly, field, cons_fieldLst, threat_fieldLst, buff_dist, outTbl]
-        reliability_MODULE(Rel_PARAMS)
-        start1 = exec_time(start1, "Reliability assessment")
+        Rel_PARAMS = [conserved, field, cons_fieldLst, threat_fieldLst, buff_dist, outTbl]
+        try:
+            reliability_MODULE(Rel_PARAMS)
+            start1 = exec_time(start1, "Reliability assessment")
+        except Exception:
+            message("Error occured during Reliability assessment.")
+            traceback.print_exc()
         
 ########Report Generator########
 class Report (object):
