@@ -1164,8 +1164,8 @@ def reliability_MODULE(PARAMS):
     message("Checking input variables...")
     #remove None from lists
     consLst = [x for x in consLst if x is not None]
-    threatLst = [x for x in threatLst if x is not None]
-
+    threatLst = [x for x in threatLst if x is not None] #removes 0?
+    
     cons_poly = checkSpatialReference(outTbl, cons_poly)
     message("Input variables OK")
     
@@ -1180,8 +1180,8 @@ def reliability_MODULE(PARAMS):
     pct_consLst = percent_cover("consLyr", buf)
     try:
         #make list based on threat use types
-        whereClause = selectStr_by_list(field, threatLst)
-        arcpy.SelectLayerByAttribute_management("consLyr", "NEW_SELECTION", whereClause)
+        whereThreat = selectStr_by_list(field, threatLst)
+        arcpy.SelectLayerByAttribute_management("consLyr", "NEW_SELECTION", whereThreat)
         pct_threatLst = percent_cover("consLyr", buf)
     except Exception:
         message("Error occured determining percent cover of non-conserved areas.")
@@ -1189,6 +1189,7 @@ def reliability_MODULE(PARAMS):
         pass
 
     #move results to outTbl
+    message("Writing results to 'Conserved' field...")
     fields_lst = ["Conserved", "Threatene"]
     list_lst = [pct_consLst, pct_threatLst]
 
@@ -1426,13 +1427,12 @@ def main(params):
     cons_fieldLst = params[25].values
     #['Conservation/Limited', 'Major Parks & Open Space', 'Narragansett Indian Lands', 'Reserve', 'Water Bodies']
     if cons_fieldLst != None:
+        #convert unicode lists to field.type
+        cons_fieldLst = ListType_fromField(tbl_fieldType(conserved, rel_field), cons_fieldLst)
+
         #all values from rel_field not in cons_fieldLst
         #['Non-urban Developed', 'Prime Farmland', 'Sewered Urban Developed', 'Urban Development']
         threat_fieldLst = [x for x in unique_values(conserved, rel_field) if x not in cons_fieldLst]
-        #convert unicode lists to field.type
-        rel_field_type = tbl_fieldType(conserved, rel_field)
-        cons_fieldLst = ListType_fromField(rel_field_type, cons_fieldLst)
-        threat_fieldLst = ListType_fromField(rel_field_type, threat_fieldLst)
         
     #r"L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Test_Results\IntermediatesFinal77.gdb\Results_full"
     outTbl = params[26].valueAsText
@@ -1734,12 +1734,10 @@ class reliability (object):
         buff_dist = params[4].valueAsText
 
         if cons_fieldLst != None:
+            #convert unicode lists to field.type
+            cons_fieldLst = ListType_fromField(tbl_fieldType(conserved, field), cons_fieldLst)
             #all values from rel_field not in cons_fieldLst
             threat_fieldLst = [x for x in unique_values(conserved, field) if x not in cons_fieldLst]
-            #convert unicode lists to field.type
-            rel_field_type = tbl_fieldType(conserved, field)
-            cons_fieldLst = ListType_fromField(rel_field_type, cons_fieldLst)
-            threat_fieldLst = ListType_fromField(rel_field_type, threat_fieldLst)
         
         Rel_PARAMS = [conserved, field, cons_fieldLst, threat_fieldLst, buff_dist, outTbl]
         try:
@@ -2039,7 +2037,6 @@ class Tier_1_Indicator_Tool (object):
             TypeField = params[24].valueAsText
             params[25].enabled = True
             params[25].filter.list = unique_values(in_poly, TypeField)
-
         return
 
     def updateMessages(self, params):
