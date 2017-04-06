@@ -182,6 +182,38 @@ def ListType_fromField(typ, lst):
         return map(int, lst)
     else: #String
         return lst
+    
+"""check NHD+ inputs
+Purpose assigns defaults and/or checks the NHD Plus inputs"""
+def nhdPlus_check(catchment, joinField, relTbl):
+    script_dir = os.path.dirname(os.path.realpath(__file__)) + os.sep
+    if catchment == None:
+        catchment = script_dir + "NHDPlusV21_National_Seamless.gdb" + os.sep + "Catchment"
+    if arcpy.Exists(catchment):
+        message("Using " + catchment + " catchment file for upstream/downstream")
+        if joinField == None:
+            joinField = "FEATUREID" #field from feature layer
+        #check catchment for field
+        if not field_exists(catchment, joinField):
+            message(joinField + " could not be found in " + catchment)
+            return False
+    else:
+        message("Default catchment file not available in expected location: " + catchment)
+        return False
+    if relTbl == None:
+        relTbl = script_dir + "PlusFlow.dbf"
+    if arcpy.Exists(relTbl):
+        message("Using " + relTbl + " for upstream/downstream relationships")
+        #check relationship table for field "FROMCOMID" & "TOCOMID"
+        for targetField in ["FROMCOMID", "TOCOMID"]:
+            if not field_exists(relTbl , targetField):
+                message(targetField + " could not be found in " + relTbl)
+                return False
+    else:
+        message("Default relationship file not available in expected location: " + relTbl)
+        return False
+    message("NHD Plus Inputs are OK")
+    return catchment, joinField, relTbl
 
 """List Downstream
 Purpose: generates a list of catchments downstream of catchments in layer"""
@@ -281,6 +313,11 @@ def exec_time(start, task):
     message("Run time for " + task + ": " + str(comp_time))
     start = time.clock()
     return start
+"""Check if field exists in table
+Notes: return true/false"""
+def field_exists(table, field):
+    fieldList = [f.name for f in arcpy.ListFields(table)]
+    return True if field in fieldList else False
 
 """ Delete if exists
 Purpose: if a file exists it is deleted and noted in a message message"""
@@ -527,6 +564,14 @@ def FR_MODULE(PARAMS):
             
     start=exec_time(start, "intiating variables for Flood Risk")
 
+    #check NHD+ inputs
+    nhd_ck = nhdPlus_check(Catchment, InputField, Flow)
+    if not nhd_ck:
+        message("Flood benefits will not be assessed")
+        return False
+    else: #assign defaults via nhdPlus_check(
+        Catchment, InputField, Flow = nhd_ck
+    
     #3.2 - NUMBER WHO BENEFIT                    
     #3.2 - Step 1: check that there are people in the flood zone
     flood_zone = checkSpatialReference(outTbl, flood_zone) #check spatial ref
@@ -1447,25 +1492,15 @@ def main(params):
     if rel == True:
         rel_buff_dist = "500 Feet"
         message("Default buffer distance of " + rel_buff_dist + " used for Benefit Reliability")
-    #package dir path (based on where this file is)
-    script_dir = os.path.dirname(os.path.realpath(__file__)) + os.sep 
-    #check for NHD+ files
-    if flood != None:
-        Catchment = script_dir + "NHDPlusV21_National_Seamless.gdb" + os.sep + "Catchment"
-        if arcpy.Exists(Catchment):
-            message("Using " + Catchment + " catchment file for upstream/downstream")
-            InputField = "FEATUREID" #field from feature layer
-            relTbl = script_dir + "PlusFlow.dbf"
-            if arcpy.Exists(relTbl):
-                message("Using " + relTbl + " for upstream/downstream relationships")
-            else:
-                message("Default relationship file not available in expected location: " + relTbl)
-                message("Flood benefits will not be assessed")
-                flood = None
-        else:
-            message("Default catchment file not available in expected location: " + Catchment)
+
+    #check for NHD+ files to prep correct datasets
+    if flood:
+        if not nhdPlus_check(None, None, None):
             message("Flood benefits will not be assessed")
             flood = None
+        
+    #package dir path (based on where this file is)
+    script_dir = os.path.dirname(os.path.realpath(__file__)) + os.sep
     #check for report layout file
     if pdf != None:
         mxd_name = "report_layout.mxd"
@@ -1519,7 +1554,7 @@ def main(params):
 
     #run modules based on inputs
     if flood == True:
-        Flood_PARAMS = [addresses, popRast, flood_zone, OriWetlands, subs, Catchment, InputField, relTbl, outTbl]
+        Flood_PARAMS = [addresses, popRast, flood_zone, OriWetlands, subs, None, None, None, outTbl]
         FR_MODULE(Flood_PARAMS)
         start1 = exec_time(start1, "Flood Risk Benefit assessment")
     else: #create and set all fields to none?
@@ -1855,7 +1890,7 @@ class FloodTool (object):
 
         arcpy.CopyFeatures_management(sites, outTbl)
         addresses, popRast = check_vars(outTbl, addresses, popRast) #check sp ref
-        
+
         Flood_PARAMS = [addresses, popRast, flood_zone, oriWetlands, subs, catchment, inputField, rel_Tbl, outTbl]
         FR_MODULE(Flood_PARAMS)
         start1 = exec_time(start1, "Flood Risk benefit assessment")
