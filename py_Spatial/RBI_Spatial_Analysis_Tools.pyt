@@ -313,6 +313,7 @@ def exec_time(start, task):
     message("Run time for " + task + ": " + str(comp_time))
     start = time.clock()
     return start
+
 """Check if field exists in table
 Notes: return true/false"""
 def field_exists(table, field):
@@ -449,10 +450,10 @@ Purpose: return a string for a where clause from a list of field values
 def selectStr_by_list(field, lst):
     exp = ''
     for item in lst:
-        if type(item)==str or type(item)==unicode:
+        if isinstance(item, str) or isinstance(item, unicode):
             #exp += '"' + field + '" = ' + "'" + str(item) + "' OR "
             exp += field + " = '" + str(item) + "' OR "
-        elif type(item)==float:
+        elif isinstance(item, float):
             exp += '"' + field + '" = ' + str(Decimal(item)) + " OR "
         else: #float or int or long or ?complex
             exp += '"' + field + '" = ' + str(item) + " OR " #numeric
