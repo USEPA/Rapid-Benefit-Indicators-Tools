@@ -1417,7 +1417,6 @@ def absTest_MODULE(PARAMS):
 
     #set variables
     buff_temp = path + "feature_buffer" + ext
-    message(str(buff_temp))
     FC = checkSpatialReference(outTbl, FC) #check spatial ref
 
     #create buffers 
