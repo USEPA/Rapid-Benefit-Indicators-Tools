@@ -574,27 +574,37 @@ def FR_MODULE(PARAMS):
     
     #3.2 - NUMBER WHO BENEFIT                    
     #3.2 - Step 1: check that there are people in the flood zone
-    flood_zone = checkSpatialReference(outTbl, flood_zone) #check spatial ref
-    if addresses is not None: #if using addresses
-        arcpy.Clip_analysis(addresses, flood_zone, assets)
-        total_cnt = arcpy.GetCount_management(assets) #count addresses
-        if int(total_cnt.getOutput(0)) <= 0: #if there are no addresses in flood zones stop analysis
-            arcpy.AddError("No addresses were found within the flooded area.")
-            print("No addresses were found within the flooded area.")
-            raise arcpy.ExecuteError
-    elif popRast is not None: #NOT YET TESTED
-        arcpy.Clip_management(popRast, "", assets, flood_zone, "", "ClippingGeometry", "NO_MAINTAIN_EXTENT")
-        #add error handel to fail if floodarea contains no population
-        if cond <= 0:
-            arcpy.AddError("Nothing to do with input raster yet")
-            print("Nothing to do with input raster yet")
-            raise arcpy.ExecuteError
+    if flood_zone is not None:
+        flood_zone = checkSpatialReference(outTbl, flood_zone) #check spatial ref
+        if addresses is not None: #if using addresses
+            arcpy.Clip_analysis(addresses, flood_zone, assets)
+            total_cnt = arcpy.GetCount_management(assets) #count addresses
+            if int(total_cnt.getOutput(0)) <= 0: #if there are no addresses in flood zones stop analysis
+                arcpy.AddError("No addresses were found within the flooded area.")
+                print("No addresses were found within the flooded area.")
+                raise arcpy.ExecuteError
+        elif popRast is not None: #NOT YET TESTED
+            arcpy.Clip_management(popRast, "", assets, flood_zone, "", "ClippingGeometry", "NO_MAINTAIN_EXTENT")
+            #add error handel to fail if floodarea contains no population
+            if cond <= 0:
+                arcpy.AddError("Nothing to do with input raster yet")
+                print("Nothing to do with input raster yet")
+                raise arcpy.ExecuteError
+    else:
+        if addresses is not None:
+            assets = addresses
+        elif popRast is not None:
+            assets = popRast
+        message("Warning: No flood zone entered, results will be analyzed using the complete area instead of just areas that flood.")
 
     #3.2 - Step 2: buffer each site by 2.5 mile radius
     arcpy.Buffer_analysis(outTbl, flood_areaB, "2.5 Miles")
     #3.2 - Step 3A: clip the buffer to flood polygon
     message("Reducing flood zone to 2.5 Miles from sites...")
-    arcpy.Clip_analysis(flood_areaB, flood_zone, flood_areaC)
+    if flood_zone is not None:
+        arcpy.Clip_analysis(flood_areaB, flood_zone, flood_areaC)
+    else:
+        flood_areaC = flood_areaB
     #3.2 - Step 3B: clip the buffered flood area to downstream basins (OPTIONAL?)
     #if Catchment is not None:
     message("Using {} to determine downstream areas of flood zone".format(Catchment))
