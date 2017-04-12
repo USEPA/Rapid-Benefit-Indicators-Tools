@@ -1914,7 +1914,7 @@ class FloodTool (object):
 #########INDICATOR_TOOL#########       
 class Tier_1_Indicator_Tool (object):
     def __init__(self):
-        self.label = "Full Assessment" 
+        self.label = "Full Indicator Assessment" 
         self.description = "This tool performs the Tier 1 Indicators assessment on a desired" + \
                            "set of wetlands or wetlands restoration sites."
 
