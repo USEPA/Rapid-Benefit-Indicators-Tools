@@ -1417,6 +1417,7 @@ def absTest_MODULE(PARAMS):
 
     #set variables
     buff_temp = path + "feature_buffer" + ext
+    message(str(buff_temp))
     FC = checkSpatialReference(outTbl, FC) #check spatial ref
 
     #create buffers 
@@ -1642,14 +1643,16 @@ class presence_absence(object):
         self.description = "Use the presence or absence of some spatial feature within a range of " + \
                            "the site to determine if that metric is YES or NO"
     def getParameterInfo(self):
-        outTbl = setParam("Output", "outTable", "DEFeatureClass", "", "") #sites
+        sites = setParam("Restoration Site Polygons (Required)", "in_poly", "", "", "")#sites
         field = setParam("Field Name", "siteFld","Field", "", "") #field in outTbl
         FC = setParam("Features", "feat", "", "", "")
         buff_dist = setParam("Buffer Distance", "bufferUnits", "GPLinearUnit", "", "")
 
-        field.parameterDependencies = [outTbl.name]
+        outTbl = setParam("Output", "outTable", "DEFeatureClass", "", "Output")
+
+        field.parameterDependencies = [sites.name]
         
-        params = [outTbl, field, FC, buff_dist]
+        params = [sites, field, FC, buff_dist, outTbl]
         return params
     
     def isLicensed(self):
@@ -1662,11 +1665,14 @@ class presence_absence(object):
     def execute(self, params, messages):
         start1 = time.clock() #start the clock
 
-        outTbl = params[0].valueAsText
+        sites = params[0].valueAsText
         field = params[1].valueAsText
         FC = params[2].valueAsText
         buff_dist = params[3].valueAsText
+        outTbl = params[4].valueAsText
 
+        arcpy.CopyFeatures_management(sites, outTbl)
+        
         abs_test_PARAMS = [outTbl, field, FC, buff_dist]
         absTest_MODULE(abs_test_PARAMS)
         start1 = exec_time(start1, "Presence/Absence assessment")
