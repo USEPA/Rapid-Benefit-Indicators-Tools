@@ -1,5 +1,5 @@
 """
-# Name: Tier 1 Rapid Benefit Indicator Assessment- All Modules
+# Name: Rapid Benefit Indicator Assessment - All Modules (Tier 1)
 # Purpose: Calculate values for benefit indicators using wetland restoration site polygons
 #          and a variety of other input data
 # Author: Justin Bousquin
@@ -1835,7 +1835,7 @@ class Report (object):
 class FloodTool (object):
     def __init__(self):
         self.label = "Part - Flood Risk Reduction "
-        self.description = "This tool assesses the Tier 1 Flood Risk Reduction Benefit"
+        self.description = "This tool assesses Flood Risk Reduction Benefits"
 
     def getParameterInfo(self):
     #Define IN/OUT parameters
@@ -1914,7 +1914,7 @@ class FloodTool (object):
 #########INDICATOR_TOOL#########       
 class Tier_1_Indicator_Tool (object):
     def __init__(self):
-        self.label = "Full Tier 1 Assessment" 
+        self.label = "Full Assessment" 
         self.description = "This tool performs the Tier 1 Indicators assessment on a desired" + \
                            "set of wetlands or wetlands restoration sites."
 
