@@ -12,7 +12,7 @@
 # 0.1.0 Tool complete and ran for case study using this version
 """
 ###########IMPORTS###########
-import os, sys, time
+import os, time
 import arcpy
 import decimal, itertools
 from arcpy import da, env
@@ -405,9 +405,14 @@ Purpose: returns sum of raster cells in buffer as list"""
 def buffer_population(poly, popRaster):
     lst = []
     tempDBF = poly[:-4]+"_pop.dbf"
-    arcpy.sa.ZonalStatisticsAsTable(poly, "FID", popRaster, tempDBF, "", "SUM")
-    lst = field_to_lst(tempDBF, ["FID_", "SUM"]) #"AREA" "OID" "COUNT"
-    arcpy.Delete_management(tempDBF)
+    sa_Status = arcpy.CheckOutExtension("Spatial")
+    if  sa_Status == "CheckedOut":
+        arcpy.sa.ZonalStatisticsAsTable(poly, "FID", popRaster, tempDBF, "", "SUM")
+        lst = field_to_lst(tempDBF, ["FID_", "SUM"]) #"AREA" "OID" "COUNT"
+        arcpy.Delete_management(tempDBF)
+    else:
+        message("Spatial Analyst is " + sa_Status)
+        message("Population in area could not be estimated.")
     return lst
 
 """Percent Cover
@@ -459,30 +464,36 @@ def selectStr_by_list(field, lst):
     return (exp[:-4])
 
 """Read Field to List
-Purpose:"""
-#Function Notes: if field is: string, 1 field at a time;
-#                               list, 1 field at a time or 1st field is used to sort
-#Example: lst = field_to_lst("table.shp", "fieldName")
+Purpose:
+Function Notes: if field is: string, 1 field at a time;
+                               list, 1 field at a time or 1st field is used to sort
+Example: lst = field_to_lst("table.shp", "fieldName")
+"""
 def field_to_lst(table, field):
     lst = []
-    if type(field) == str:
-        with arcpy.da.SearchCursor(table, [field]) as cursor:
-            for row in cursor:
-                lst.append(row[0])
-    elif type(field) == list:
-        if len(field) == 1:
-            with arcpy.da.SearchCursor(table, field) as cursor:
+    #check that field exists in table
+    if field_exists(table, field) == True:
+        if type(field) == str:
+            with arcpy.da.SearchCursor(table, [field]) as cursor:
                 for row in cursor:
                     lst.append(row[0])
-        else: #first field is used to sort, second field returned as list
-            orderLst = []
-            with arcpy.da.SearchCursor(table, field) as cursor:
-                for row in cursor:
-                    orderLst.append(row[0])
-                    lst.append(row[1])
-            orderLst, lst = (list(x) for x in zip(*sorted(zip(orderLst, lst))))
+        elif type(field) == list:
+            if len(field) == 1:
+                with arcpy.da.SearchCursor(table, field) as cursor:
+                    for row in cursor:
+                        lst.append(row[0])
+            else: #first field is used to sort, second field returned as list
+                orderLst = []
+                with arcpy.da.SearchCursor(table, field) as cursor:
+                    for row in cursor:
+                        orderLst.append(row[0])
+                        lst.append(row[1])
+                orderLst, lst = (list(x) for x in zip(*sorted(zip(orderLst, lst))))
+        else:
+            message("Something went wrong with the field to list function")
     else:
-        message("Something went wrong with the field to list function")
+        message(str(field) + " could not be found in " + str(table))
+        message("Empty values will be returned.")
     return lst
 
 """Add List to Field
