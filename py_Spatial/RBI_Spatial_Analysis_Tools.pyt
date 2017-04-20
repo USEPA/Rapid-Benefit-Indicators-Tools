@@ -8,42 +8,49 @@
 
 # Version Notes:
 # Developed in ArcGIS 10.3
-# v27 Tier 1 Rapid Benefit Indicator Assessment
 # 0.1.0 Tool complete and ran for case study using this version
 """
-###########IMPORTS###########
-import os, time
+
+import os
+import time
+import itertools
+import decimal
 import arcpy
-import decimal, itertools
-from arcpy import da, env
+from arcpy import da
 from collections import deque, defaultdict
-from decimal import *
 
-arcpy.env.parallelProcessingFactor = "100%" #use all available resources
 
-###########FUNCTIONS###########
-"""get extension"""
 def get_ext(FC):
+    """get extension"""
     ext = arcpy.Describe(FC).extension
     if len(ext)>0:
         ext = "." + ext
     return ext
 
-"get mean of list"
+
+def dec(x):
+    """decimal.Decimal"""
+    return decimal.Decimal(x)
+
+
 def mean(l):
+    "get mean of list"
     return sum(l)/float(len(l))
 
-"""delete listed feature classes or layers
-Purpose: delete feature classes or layers using a list"""
+
 def deleteFC_Lst(lst):
+    """delete listed feature classes or layers
+    Purpose: delete feature classes or layers using a list."""
     for l in lst:
         arcpy.Delete_management(l)
         
-"""Buffer Distance for Social equity based on lst of checked benefits
-Purpose: Returns a distance to use for the buffer based on which benefits
-are checked and how far those benefits are delivered"""
+
 def SocEqu_BuffDist(lst):
-#ck[0, 4] = [flood, view, edu, rec, bird]
+    """Buffer Distance for Social equity based on lst of checked benefits
+    Purpose: Returns a distance to use for the buffer based on which benefits
+             are checked and how far those benefits are delivered.
+    """
+    #ck[0, 4] = [flood, view, edu, rec, bird]
     if lst[0] != None:
         buff_dist = "2.5 Miles"
     elif lst[3] != None:
@@ -59,39 +66,44 @@ def SocEqu_BuffDist(lst):
         buff_dist = "2.5 Miles"
     return buff_dist
 
-"""pdf from mxd
-"""
+
 def exportReport(pdfDoc, pdf_path, pg_cnt, mxd):
+    """pdf from mxd"""
     if arcpy.Exists(pdf_path + "report_page_" + str(pg_cnt) + ".pdf"):
         arcpy.Delete_management(pdf_path + "report_page_" + str(pg_cnt) + ".pdf", "")
     arcpy.mapping.ExportToPDF(mxd, pdf_path + "report_page_" + str(pg_cnt) + ".pdf", "PAGE_LAYOUT")
     pdfDoc.appendPages(pdf_path + "report_page_" + str(pg_cnt) + ".pdf")
     arcpy.Delete_management(pdf_path + "report_page_" + str(pg_cnt) + ".pdf", "")
-    
-"""position text on report
-Author Credit: Mike Charpentier 
-"""
+
+
 def textpos(theText,column,indnumber):
+    """position text on report
+    Author Credit: Mike Charpentier
+    """
     if column == 1:
         theText.elementPositionX = 6.25
     else:
         theText.elementPositionX = 7.15
     ypos = 9.025 - ((indnumber - 1) * 0.2)
     theText.elementPositionY = ypos
-"""position box on report
-Author Credit: Mike Charpentier 
-"""
+    
+
 def boxpos(theBox,column,indnumber):
+    """position box on report
+    Author Credit: Mike Charpentier 
+    """
     if column == 1:
         theBox.elementPositionX = 5.8
     else:
         theBox.elementPositionX = 6.7
     ypos = 9 - ((indnumber - 1) * 0.2)
     theBox.elementPositionY = ypos
-"""report
-Author Credit: Mike Charpentier 
-"""
+
+
 def fldExists(fieldName,colNumber,rowNumber, fieldInfo, blackbox):
+    """report
+    Author Credit: Mike Charpentier 
+    """
     fldIndex = fieldInfo.findFieldByName(fieldName)
     if fldIndex > 0:
         return True
@@ -99,10 +111,11 @@ def fldExists(fieldName,colNumber,rowNumber, fieldInfo, blackbox):
         newBox = blackbox.clone("_clone")
         boxpos(newBox,colNumber,rowNumber)
         return False
-"""
-Author Credit: Mike Charpentier
-"""
+
+
 def proctext(fieldValue,fieldType,ndigits,ltorgt,aveValue,colNumber,rowNumber,allNos, mxd):
+    """Author Credit: Mike Charpentier
+    """
     #map elements
     bluebox = arcpy.mapping.ListLayoutElements(mxd, "GRAPHIC_ELEMENT", "bluebox")[0]
     redbox = arcpy.mapping.ListLayoutElements(mxd, "GRAPHIC_ELEMENT", "redbox")[0]
@@ -161,21 +174,24 @@ def proctext(fieldValue,fieldType,ndigits,ltorgt,aveValue,colNumber,rowNumber,al
                     newText.text = "No"
         textpos(newText,colNumber,rowNumber)
 
-"""type from field in table
-Purpose: return the data type of a specified field in a specified table 
-"""
+
 def tbl_fieldType(table, field):
+    """type from field in table
+    Purpose: return the data type of a specified field in a specified table 
+    """
     fields = arcpy.ListFields(table)
     for f in fields:
         if f.name == field:
             return f.type
             break
 
-"""list type from field
-Purpose: map python list type based on field.type
-Example: lst = type_fromField(paramas[1].type, params[2].values)
-where (field Obj; list of unicode values)"""
+
 def ListType_fromField(typ, lst):
+    """list type from field
+    Purpose: map python list type based on field.type
+    Example: lst = type_fromField(paramas[1].type, params[2].values)
+             where (field Obj; list of unicode values).
+    """
     if typ == "Single" or typ == "Float" or typ == "Double":
         return map(float, lst)
     elif typ == "SmallInteger" or typ == "Integer": #"Short" or "Long"
@@ -183,9 +199,11 @@ def ListType_fromField(typ, lst):
     else: #String
         return lst
     
-"""check NHD+ inputs
-Purpose assigns defaults and/or checks the NHD Plus inputs"""
+
 def nhdPlus_check(catchment, joinField, relTbl):
+    """check NHD+ inputs
+    Purpose: Assigns defaults and/or checks the NHD Plus inputs.
+    """
     script_dir = os.path.dirname(os.path.realpath(__file__)) + os.sep
     if catchment == None:
         catchment = script_dir + "NHDPlusV21_National_Seamless.gdb" + os.sep + "Catchment"
@@ -215,10 +233,12 @@ def nhdPlus_check(catchment, joinField, relTbl):
     message("NHD Plus Inputs are OK")
     return catchment, joinField, relTbl
 
-"""List Downstream
-Purpose: generates a list of catchments downstream of catchments in layer"""
-#written to alternatively work for upstream
+
 def list_downstream(lyr, field, COMs):
+    """List Downstream
+    Purpose: generates a list of catchments downstream of catchments in layer
+    Notes: written to alternatively work for upstream
+    """
     #list lyr IDs
     HUC_ID_lst = field_to_lst(lyr, field)
     #list catchments downstream of site
@@ -230,9 +250,10 @@ def list_downstream(lyr, field, COMs):
     downCatchments = set(list(itertools.chain.from_iterable(downCatchments)))
     return(list(downCatchments))
 
-"""List children
-Purpose: returns list of all children"""
+
 def children(token, tree):
+    """List children
+    Purpose: returns list of all children"""
     visited = set()
     to_crawl = deque([token])
     while to_crawl:
@@ -244,9 +265,10 @@ def children(token, tree):
         to_crawl.extendleft(node_children - visited)
     return list(visited)
             
-"""Read in NHD Relates
-Purpose: read the upstream/downstream table to memory"""
+
 def setNHD_dict(Flow):
+    """Read in NHD Relates
+    Purpose: read the upstream/downstream table to memory"""
     UpCOMs = defaultdict(list)
     DownCOMs = defaultdict(list)
     message("Gathering info on upstream / downstream relationships")
@@ -259,10 +281,12 @@ def setNHD_dict(Flow):
                 DownCOMs[FROMCOMID].append(TOCOMID)
     return (UpCOMs, DownCOMs)
 
-"""Calculate Weighted View Score
-Purpose: list of weighted view scores."""
-#Function Notes: Does not currently test that the lists are of equal length
+
 def view_score(lst_50, lst_100):
+    """Calculate Weighted View Score
+    Purpose: list of weighted view scores.
+    Notes: Does not currently test that the lists are of equal length.
+    """
     lst =[]
     i=0
     #add test for equal length of lists? (robust check, but should never happen)
@@ -274,9 +298,11 @@ def view_score(lst_50, lst_100):
        i+=1
     return lst
 
-"""Set Input Parameter
-Purpose: returns arcpy.Parameter for provided string, setting defaults for missing."""
+
 def setParam(str1, str2, str3, str4="", str5="", multiValue=False):
+    """Set Input Parameter
+    Purpose: returns arcpy.Parameter for provided string, setting defaults for missing.
+    """
     lst = [str1, str2, str3, str4, str5]
     defLst = ["Input", "name", "GpFeatureLayer", "Required", "Input"]
     i = 0
@@ -292,43 +318,53 @@ def setParam(str1, str2, str3, str4="", str5="", multiValue=False):
         direction = lst[4],
         multiValue = multiValue)
 
-"""Disable Parameter List
-Purpose: disables input fields for a list of parameters"""
+
 def disableParamLst(lst):
+    """Disable Parameter List
+    Purpose: disables input fields for a list of parameters.
+    """
     for field in lst:
         field.enabled = False
     
-"""Generic message
-Purpose: prints string message in py or pyt"""
+
 def message(string):
+    """Generic message
+    Purpose: prints string message in py or pyt.
+    """
     arcpy.AddMessage(string)
     print(string)
 
-"""Global Timer
-Purpose: returns the message and calc time since the last time the function was used."""
-#Function Notes: used during testing to compare efficiency of each step
+
 def exec_time(start, task):
+    """Global Timer
+    Purpose: returns the message and calc time since the last time the function was used.
+    Notes: used during testing to compare efficiency of each step"""
     end = time.clock()
     comp_time = time.strftime("%H:%M:%S", time.gmtime(end-start))
     message("Run time for " + task + ": " + str(comp_time))
     start = time.clock()
     return start
-"""Check if field exists in table
-Notes: return true/false"""
+
+
 def field_exists(table, field):
+    """Check if field exists in table
+    Notes: return true/false
+    """
     fieldList = [f.name for f in arcpy.ListFields(table)]
     return True if field in fieldList else False
 
-""" Delete if exists
-Purpose: if a file exists it is deleted and noted in a message message"""
+
 def del_exists(item):
+    """ Delete if exists
+    Purpose: if a file exists it is deleted and noted in a message message."""
     if arcpy.Exists(item):
         arcpy.Delete_management(item)
         message(str(item) + " already exists, it was deleted and will be replaced.")
-        
-"""Check variables
-Prupose: make sure population var has correct spatial reference"""
+
+
 def check_vars(outTbl, addresses, popRast):
+    """Check variables
+    Purpose: make sure population var has correct spatial reference."""
     if addresses is not None:
         addresses = checkSpatialReference(outTbl, addresses) #check spatial ref
         message("Addresses OK")
@@ -341,11 +377,13 @@ def check_vars(outTbl, addresses, popRast):
         arcpy.AddError("No population inputs specified")
         print("No population inputs specified")
         raise arcpy.ExecuteError
-    
-"""Check Spatial Reference
-Purpose: checks that a second spatial reference matches the first and re-projects if not."""
-#Function Notes: Either the original FC or the re-projected one is returned
+
+
 def checkSpatialReference(alphaFC, otherFC):
+    """Check Spatial Reference
+    Purpose: checks that a second spatial reference matches the first and re-projects if not.
+    Function Notes: Either the original FC or the re-projected one is returned
+    """
     alphaSR = arcpy.Describe(alphaFC).spatialReference
     otherSR = arcpy.Describe(otherFC).spatialReference
     if alphaSR.name != otherSR.name:
@@ -366,10 +404,11 @@ def checkSpatialReference(alphaFC, otherFC):
         fc = otherFC
     return fc
 
-"""Donut Buffer
-Purpose: takes inside buffer and creates outside buffers. Ensures ORIG_FID is correct."""
-#Function Notes: there can be multiple buffer distances, but must be list
+
 def buffer_donut(FC, outFC, buf, units):
+    """Donut Buffer
+    Purpose: takes inside buffer and creates outside buffers. Ensures ORIG_FID is correct.
+    Notes: there can be multiple buffer distances, but must be list"""
     ext = get_ext(FC)
     FCsort = os.path.splitext(FC)[0] + "_2"  + ext #the buffers should all be in the outTbl folder
     arcpy.Sort_management(FC, FCsort, [["ORIG_FID", "ASCENDING"]]) #sort FC by ORGI_FID
@@ -377,11 +416,13 @@ def buffer_donut(FC, outFC, buf, units):
     arcpy.Delete_management(FCsort) #Delete intermediate FC
     return outFC
 
-"""Buffer Contains
-Purpose: returns number of points in buffer as list"""
-#Function Notes:
-#Example: lst = buffer_contains(view_50, addresses)
+
 def buffer_contains(poly, pnts):
+    """Buffer Contains
+    Purpose: returns number of points in buffer as list.
+    Notes:
+    Example: lst = buffer_contains(view_50, addresses).
+    """
     ext = get_ext(poly)
     poly_out = os.path.splitext(poly)[0] + "_2" + ext #hopefully this is created in outTbl
     arcpy.SpatialJoin_analysis(poly, pnts, poly_out, "JOIN_ONE_TO_ONE", "KEEP_ALL", "", "INTERSECT", "", "")
@@ -397,12 +438,14 @@ def buffer_contains(poly, pnts):
     arcpy.Delete_management(poly_out)
     return lst
 
-"""Buffer Population
-Purpose: returns sum of raster cells in buffer as list"""
-#Function Notes: Currently works on raster of population total (not density)
-#Function Notes: Requires Spatial Analyst (look into rasterstats as alternative?)
-#https://pcjericks.github.io/py-gdalogr-cookbook/raster_layers.html
+
 def buffer_population(poly, popRaster):
+    """Buffer Population
+    Purpose: returns sum of raster cells in buffer as list
+    Notes: Currently works on raster of population total (not density)
+    Notes: Requires Spatial Analyst (look into rasterstats as alternative?)
+    https://pcjericks.github.io/py-gdalogr-cookbook/raster_layers.html
+    """
     lst = []
     tempDBF = poly[:-4]+"_pop.dbf"
     sa_Status = arcpy.CheckOutExtension("Spatial")
@@ -415,61 +458,65 @@ def buffer_population(poly, popRaster):
         message("Population in area could not be estimated.")
     return lst
 
-"""Percent Cover
-Purpose:"""
-#Function Notes:
-def percent_cover(poly, bufPoly):
+
+def percent_cover(poly, bufPoly, units = "SQUAREMETERS"):
+    """Percent Cover
+    Purpose:"""
     arcpy.MakeFeatureLayer_management(poly, "polyLyr")
     lst=[]
     orderLst=[]
     #add handle for when no overlap?
     with arcpy.da.SearchCursor(bufPoly, ["SHAPE@", "ORIG_FID"]) as cursor:
         for row in cursor:
-            totalArea = Decimal(row[0].getArea("PLANAR", "SQUAREMETERS"))
+            totalArea = dec(row[0].getArea("PLANAR", units))
             arcpy.SelectLayerByLocation_management("polyLyr", "INTERSECT", row[0])
             lyrLst = []
             with arcpy.da.SearchCursor("polyLyr", ["SHAPE@"]) as cursor2:
                 for row2 in cursor2:
-                    interPoly = row2[0].intersect(row[0], 4) #dimension = 4 for polygon
-                    interArea = Decimal(interPoly.getArea("PLANAR", "SQUAREMETERS"))
+                    p = 4 #dimension = polygon
+                    interPoly = row2[0].intersect(row[0], p)
+                    interArea = dec(interPoly.getArea("PLANAR", units))
                     lyrLst.append((interArea/totalArea)*100)
             lst.append(sum(lyrLst))
             orderLst.append(row[1])
-    #arcpy.Delete_management(polyD)
-    #fix above cleanup
-    orderLst, lst = (list(x) for x in zip(*sorted(zip(orderLst, lst)))) #sort by ORIG_FID
+    arcpy.Delete_management("polyLyr")
+    # Sort by ORIG_FID
+    orderLst, lst = (list(x) for x in zip(*sorted(zip(orderLst, lst))))
     return lst
         
-"""List in buffer
-Purpose: generates a list of catchments in buffer"""
+
 def list_buffer(lyr, field, lyr_range):
+    """List in buffer
+    Purpose: generates a list of catchments in buffer"""
     arcpy.SelectLayerByAttribute_management(lyr, "CLEAR_SELECTION")
     arcpy.SelectLayerByLocation_management(lyr, "INTERSECT", lyr_range)
     HUC_ID_lst = field_to_lst(lyr, field) #list catchment IDs
     return (HUC_ID_lst)
 
-"""Selection Query String from list
-Purpose: return a string for a where clause from a list of field values
-"""
+
 def selectStr_by_list(field, lst):
+    """Selection Query String from list
+    Purpose: return a string for a where clause from a list of field values
+    """
     exp = ''
     for item in lst:
         if type(item)==str or type(item)==unicode:
             #exp += '"' + field + '" = ' + "'" + str(item) + "' OR "
             exp += field + " = '" + str(item) + "' OR "
         elif type(item)==float:
-            exp += '"' + field + '" = ' + str(Decimal(item)) + " OR "
+            exp += '"' + field + '" = ' + str(dec(item)) + " OR "
         else: #float or int or long or ?complex
             exp += '"' + field + '" = ' + str(item) + " OR " #numeric
     return (exp[:-4])
 
-"""Read Field to List
-Purpose:
-Function Notes: if field is: string, 1 field at a time;
-                               list, 1 field at a time or 1st field is used to sort
-Example: lst = field_to_lst("table.shp", "fieldName")
-"""
+
 def field_to_lst(table, field):
+    """Read Field to List
+    Purpose:
+    Notes: if field is: string, 1 field at a time;
+                                   list, 1 field at a time or 1st field is used to sort
+    Example: lst = field_to_lst("table.shp", "fieldName")
+    """
     lst = []
     #check that field exists in table
     if field_exists(table, field) == True:
@@ -496,11 +543,13 @@ def field_to_lst(table, field):
         message("Empty values will be returned.")
     return lst
 
-"""Add List to Field
-Purpose: """
-#Function Notes: 1 field at a time
-#Example: lst_to_field(featureClass, "fieldName", lst)
+
 def lst_to_field(table, field, lst): #handle empty list
+    """Add List to Field
+    Purpose:
+    Notes: 1 field at a time
+    Example: lst_to_field(featureClass, "fieldName", lst)
+    """
     if len(lst) ==0:
         message("No values to add to '{}'.".format(field))
     else:
@@ -511,10 +560,12 @@ def lst_to_field(table, field, lst): #handle empty list
                 i+=1
                 cursor.updateRow(row)
 
-"""Lists to ADD Field
-Purpose: """
-#Function Notes: table, list of new fields, list of listes of field values, list of field datatypes
+
 def lst_to_AddField_lst(table, field_lst, list_lst, type_lst):
+    """Lists to ADD Field
+    Purpose:
+    Notes: table, list of new fields, list of listes of field values, list of field datatypes
+    """
     if len(field_lst) != len(field_lst) or len(field_lst) != len(type_lst):
         message("ERROR: lists aren't the same length!")
     #"" defaults to "DOUBLE"
@@ -527,17 +578,20 @@ def lst_to_AddField_lst(table, field_lst, list_lst, type_lst):
         #add values
         lst_to_field(table, field, list_lst[i])
         i +=1
-    
-"""Unique Values
-Purpose: returns a sorted list of unique values"""
-#Function Notes: used to find unique field values in table column
+
+
 def unique_values(table, field):
+    """Unique Values
+    Purpose: returns a sorted list of unique values
+    Notes: used to find unique field values in table column
+    """
     with arcpy.da.SearchCursor(table, [field]) as cursor:
         return sorted({row[0] for row in cursor if row[0]})
 
-"""Quantitative List to Qualitative List
-Purpose: convert counts of >0 to YES"""
+
 def quant_to_qual_lst(lst):
+    """Quantitative List to Qualitative List
+    Purpose: convert counts of >0 to YES"""
     qual_lst = []
     for i in lst:
         if (i == 0):
@@ -546,9 +600,10 @@ def quant_to_qual_lst(lst):
             qual_lst.append("YES")
     return qual_lst
 
+
 ###########MODULES############
-##########FLOOD RISK##########
 def FR_MODULE(PARAMS):
+    """Flood Risk Benefits"""
     start1 = time.clock() #start the clock (full module)
     start = time.clock() #start the clock (parts)
 
@@ -596,8 +651,8 @@ def FR_MODULE(PARAMS):
                 raise arcpy.ExecuteError
         elif popRast is not None: #NOT YET TESTED
             arcpy.Clip_management(popRast, "", assets, flood_zone, "", "ClippingGeometry", "NO_MAINTAIN_EXTENT")
-            #add error handel to fail if floodarea contains no population
-            if cond <= 0:
+            #if there are no people in flood zones stop analysis
+            if arcpy.GetRasterProperties_management(assets, "MAXIMUM").getOutput(0) <= 0:
                 arcpy.AddError("Nothing to do with input raster yet")
                 print("Nothing to do with input raster yet")
                 raise arcpy.ExecuteError
@@ -770,8 +825,8 @@ def FR_MODULE(PARAMS):
     start1=exec_time(start1, "full flood module")
     
 ##############################
-#############VIEWS############
 def View_MODULE(PARAMS):
+    """Scenic View Benefits"""
     start1 = time.clock() #start the clock
     message("Scenic View Benefits analysis...")
 
@@ -1032,17 +1087,17 @@ def Rec_MODULE(PARAMS):
 
         with arcpy.da.SearchCursor(outTbl, ["SHAPE@"]) as cursor:
             for site in cursor: #for each site
-                var = Decimal(site[0].getArea("PLANAR", "ACRES")) #start with the site area
+                var = dec(site[0].getArea("PLANAR", "ACRES")) #start with the site area
                 #select green space that intersects the site
                 arcpy.SelectLayerByLocation_management("greenSpace_lyr", "INTERSECT", site[0])
                 with arcpy.da.SearchCursor("greenSpace_lyr", ["SHAPE@"]) as cursor2:
                     for row in cursor2:
                         #area of greenspace
-                        areaGreen = Decimal(row[0].getArea("PLANAR", "ACRES"))
+                        areaGreen = dec(row[0].getArea("PLANAR", "ACRES"))
                         #part of greenspace already in site
                         overlap = site[0].intersect(row[0], 4)
                         #area of greenspace already in site
-                        interArea = Decimal(overlap.getArea("PLANAR", "ACRES"))
+                        interArea = dec(overlap.getArea("PLANAR", "ACRES"))
                         #add area of greenspace - overlap to site and previous rows
                         var += areaGreen - interArea
                 lst_green_neighbor.append(var)
