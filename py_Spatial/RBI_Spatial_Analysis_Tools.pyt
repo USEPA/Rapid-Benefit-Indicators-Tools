@@ -1,7 +1,7 @@
 """
 # Name: Rapid Benefit Indicator Assessment - All Modules (Tier 1)
-# Purpose: Calculate values for benefit indicators using wetland restoration site polygons
-#          and a variety of other input data
+# Purpose: Calculate values for benefit indicators using wetland restoration
+#          site polygons and a variety of other input data
 # Author: Justin Bousquin
 # Additional Author Credits: Michael Charpentier (Report generation)
 # Additional Author Credits: Marc Weber and Tad Larsen (StreamCat)
@@ -51,29 +51,30 @@ def SocEqu_BuffDist(lst):
              are checked and how far those benefits are delivered.
     """
     #ck[0, 4] = [flood, view, edu, rec, bird]
-    if lst[0] != None:
+    if lst[0] is not None:
         buff_dist = "2.5 Miles"
-    elif lst[3] != None:
+    elif lst[3] is not None:
         buff_dist = "0.33 Miles"
-    elif lst[2] != None:
+    elif lst[2] is not None:
         buff_dist = "0.25 Miles"
-    elif lst[4] != None:
+    elif lst[4] is not None:
         buff_dist = "0.2 Miles"
-    elif lst[1] != None:
+    elif lst[1] is not None:
         buff_dist = "100 Meters"
     else:
-        message("No benefits selected, default distance for Social Equity will be 2.5 Miles")
+        message("No benefits selected, default distance for Social Equity " +
+                "will be 2.5 Miles")
         buff_dist = "2.5 Miles"
     return buff_dist
 
 
 def exportReport(pdfDoc, pdf_path, pg_cnt, mxd):
     """pdf from mxd"""
-    if arcpy.Exists(pdf_path + "report_page_" + str(pg_cnt) + ".pdf"):
-        arcpy.Delete_management(pdf_path + "report_page_" + str(pg_cnt) + ".pdf", "")
-    arcpy.mapping.ExportToPDF(mxd, pdf_path + "report_page_" + str(pg_cnt) + ".pdf", "PAGE_LAYOUT")
-    pdfDoc.appendPages(pdf_path + "report_page_" + str(pg_cnt) + ".pdf")
-    arcpy.Delete_management(pdf_path + "report_page_" + str(pg_cnt) + ".pdf", "")
+    pdf = pdf_path + "report_page_" + str(pg_cnt) + ".pdf"
+    del_exists(pdf)
+    arcpy.mapping.ExportToPDF(mxd, pdf, "PAGE_LAYOUT")
+    pdfDoc.appendPages(pdf)
+    arcpy.Delete_management(pdf, "")
 
 
 def textpos(theText,column,indnumber):
@@ -113,28 +114,29 @@ def fldExists(fieldName,colNumber,rowNumber, fieldInfo, blackbox):
         return False
 
 
-def proctext(fieldValue,fieldType,ndigits,ltorgt,aveValue,colNumber,rowNumber,allNos, mxd):
+def proctext(fieldVal,fieldType,ndigits,ltorgt,aveVal,colNum,rowNum,allNos, mxd):
     """Author Credit: Mike Charpentier
     """
-    #map elements
-    bluebox = arcpy.mapping.ListLayoutElements(mxd, "GRAPHIC_ELEMENT", "bluebox")[0]
-    redbox = arcpy.mapping.ListLayoutElements(mxd, "GRAPHIC_ELEMENT", "redbox")[0]
-    graybox = arcpy.mapping.ListLayoutElements(mxd, "GRAPHIC_ELEMENT", "graybox")[0]
-    blackbox = arcpy.mapping.ListLayoutElements(mxd, "GRAPHIC_ELEMENT", "blackbox")[0]
+    # Map elements
+    graphic = "GRAPHIC_ELEMENT"
+    bluebox = arcpy.mapping.ListLayoutElements(mxd, graphic, "bluebox")[0]
+    redbox = arcpy.mapping.ListLayoutElements(mxd, graphic, "redbox")[0]
+    graybox = arcpy.mapping.ListLayoutElements(mxd, graphic, "graybox")[0]
+    blackbox = arcpy.mapping.ListLayoutElements(mxd, graphic, "blackbox")[0]
     indtext = arcpy.mapping.ListLayoutElements(mxd, "TEXT_ELEMENT", "IndText")[0]
 
     # Process the box first so that text draws on top of box
-    if fieldValue is None or fieldValue == ' ':
+    if fieldVal is None or fieldVal == ' ':
         newBox = blackbox.clone("_clone")
     else:
         if fieldType == "Num":  # Process numeric fields
             if ltorgt == "lt":
-                if fieldValue < aveValue:
+                if fieldVal < aveVal:
                     newBox = bluebox.clone("_clone")
                 else:
                     newBox = redbox.clone("_clone")
             else:
-                if fieldValue > aveValue:
+                if fieldVal > aveVal:
                     newBox = bluebox.clone("_clone")
                 else:
                     newBox = redbox.clone("_clone")
@@ -142,42 +144,42 @@ def proctext(fieldValue,fieldType,ndigits,ltorgt,aveValue,colNumber,rowNumber,al
             if allNos == 1:
                 newBox = graybox.clone("_clone")
             else:
-                if fieldValue == aveValue:
+                if fieldVal == aveVal:
                     newBox = bluebox.clone("_clone")
                 else:
                     newBox = redbox.clone("_clone")
-    boxpos(newBox,colNumber,rowNumber)
+    boxpos(newBox,colNum,rowNum)
     # Process the text
-    if not (fieldValue is None or fieldValue == ' '):
+    if not (fieldVal is None or fieldVal == ' '):
         newText = indtext.clone("_clone")
         if fieldType == "Num":  # Process numeric fields
-            if fieldValue == 0:
+            if fieldVal == 0:
                 newText.text = "0"
             else:
                 if ndigits == 0:
-                    if fieldValue > 10:
-                        rndnumber = round(fieldValue,0)
+                    if fieldVal > 10:
+                        rndnumber = round(fieldVal,0)
                         intnumber = int(rndnumber)
                         newnum = format(intnumber, ",d")
                         newText.text = newnum
                     else:
-                        newText.text = str(round(fieldValue,1))
+                        newText.text = str(round(fieldVal,1))
                 else:
-                    newText.text = str(round(fieldValue,ndigits))
+                    newText.text = str(round(fieldVal,ndigits))
         else: #boolean fields
             if allNos == 1:
                 newText.text = "No"
             else:
-                if fieldValue == "YES":
+                if fieldVal == "YES":
                     newText.text = "Yes"
                 else:
                     newText.text = "No"
-        textpos(newText,colNumber,rowNumber)
+        textpos(newText,colNum,rowNum)
 
 
 def tbl_fieldType(table, field):
     """type from field in table
-    Purpose: return the data type of a specified field in a specified table 
+    Purpose: return the data type of a specified field in specified table 
     """
     fields = arcpy.ListFields(table)
     for f in fields:
@@ -216,7 +218,8 @@ def nhdPlus_check(catchment, joinField, relTbl):
             message(joinField + " could not be found in " + catchment)
             return False
     else:
-        message("Default catchment file not available in expected location: " + catchment)
+        message("Default catchment file not available in expected location: " +
+                catchment)
         return False
     if relTbl == None:
         relTbl = script_dir + "PlusFlow.dbf"
@@ -245,7 +248,8 @@ def list_downstream(lyr, field, COMs):
     downCatchments = []
     for ID in set(HUC_ID_lst):
         downCatchments.append(children(ID, COMs))
-        #upCatchments.append(children(ID, UpCOMs)) #list catchments upstream of site #alt
+        #upCatchments.append(children(ID, UpCOMs))
+        #list catchments upstream of site #alt
     #flatten list and remove any duplicates
     downCatchments = set(list(itertools.chain.from_iterable(downCatchments)))
     return(list(downCatchments))
@@ -301,7 +305,8 @@ def view_score(lst_50, lst_100):
 
 def setParam(str1, str2, str3, str4="", str5="", multiValue=False):
     """Set Input Parameter
-    Purpose: returns arcpy.Parameter for provided string, setting defaults for missing.
+    Purpose: Returns arcpy.Parameter for provided string,
+             setting defaults for missing.
     """
     lst = [str1, str2, str3, str4, str5]
     defLst = ["Input", "name", "GpFeatureLayer", "Required", "Input"]
@@ -387,7 +392,7 @@ def checkSpatialReference(alphaFC, otherFC):
     alphaSR = arcpy.Describe(alphaFC).spatialReference
     otherSR = arcpy.Describe(otherFC).spatialReference
     if alphaSR.name != otherSR.name:
-        #e.g. .name = u'WGS_1984_UTM_Zone_19N' for Projected Coordinate System = WGS_1984_UTM_Zone_19N
+        #e.g. .name = u'WGS_1984_UTM_Zone_19N' for WGS_1984_UTM_Zone_19N
         message("Spatial reference for " + otherFC + " does not match.")
         try:
             path = os.path.dirname(alphaFC)
@@ -410,10 +415,13 @@ def buffer_donut(FC, outFC, buf, units):
     Purpose: takes inside buffer and creates outside buffers. Ensures ORIG_FID is correct.
     Notes: there can be multiple buffer distances, but must be list"""
     ext = get_ext(FC)
-    FCsort = os.path.splitext(FC)[0] + "_2"  + ext #the buffers should all be in the outTbl folder
-    arcpy.Sort_management(FC, FCsort, [["ORIG_FID", "ASCENDING"]]) #sort FC by ORGI_FID
-    arcpy.MultipleRingBuffer_analysis(FCsort, outFC, buf, units, "Distance", "NONE", "OUTSIDE_ONLY") #new buffer
-    arcpy.Delete_management(FCsort) #Delete intermediate FC
+    #the buffers should all be in the outTbl folder
+    FCsort = os.path.splitext(FC)[0] + "_2"  + ext
+    #sort FC by ORGI_FID
+    arcpy.Sort_management(FC, FCsort, [["ORIG_FID", "ASCENDING"]])
+    # Create new buffer
+    arcpy.MultipleRingBuffer_analysis(FCsort, outFC, buf, units, "Distance", "NONE", "OUTSIDE_ONLY")
+    arcpy.Delete_management(FCsort) # Delete intermediate FC
     return outFC
 
 
@@ -514,7 +522,7 @@ def field_to_lst(table, field):
     """Read Field to List
     Purpose:
     Notes: if field is: string, 1 field at a time;
-                                   list, 1 field at a time or 1st field is used to sort
+                        list, 1 field at a time or 1st field is used to sort
     Example: lst = field_to_lst("table.shp", "fieldName")
     """
     lst = []
@@ -564,7 +572,8 @@ def lst_to_field(table, field, lst): #handle empty list
 def lst_to_AddField_lst(table, field_lst, list_lst, type_lst):
     """Lists to ADD Field
     Purpose:
-    Notes: table, list of new fields, list of listes of field values, list of field datatypes
+    Notes: Table, list of new fields, list of listes of field values,
+           list of field datatypes.
     """
     if len(field_lst) != len(field_lst) or len(field_lst) != len(type_lst):
         message("ERROR: lists aren't the same length!")
@@ -645,7 +654,8 @@ def FR_MODULE(PARAMS):
         if addresses is not None: #if using addresses
             arcpy.Clip_analysis(addresses, flood_zone, assets)
             total_cnt = arcpy.GetCount_management(assets) #count addresses
-            if int(total_cnt.getOutput(0)) <= 0: #if there are no addresses in flood zones stop analysis
+            # If there are no addresses in flood zones stop analysis.
+            if int(total_cnt.getOutput(0)) <= 0:
                 arcpy.AddError("No addresses were found within the flooded area.")
                 print("No addresses were found within the flooded area.")
                 raise arcpy.ExecuteError
@@ -661,7 +671,8 @@ def FR_MODULE(PARAMS):
             assets = addresses
         elif popRast is not None:
             assets = popRast
-        message("Warning: No flood zone entered, results will be analyzed using the complete area instead of just areas that flood.")
+        message("WARNING: No flood zone entered, results will be analyzed us" +
+                "ing the complete area instead of just areas that flood.")
 
     #3.2 - Step 2: buffer each site by 2.5 mile radius
     arcpy.Buffer_analysis(outTbl, flood_areaB, "2.5 Miles")
@@ -762,17 +773,19 @@ def FR_MODULE(PARAMS):
     #3.2 - Step 4: calculate number of people benefitting
     message("Counting people who benefit...")
     if addresses is not None:
-        lst_flood_cnt = buffer_contains(str(flood_areaD), assets) #addresses in buffer/flood zone/downstream
+        # Addresses in buffer/flood zone/downstream.
+        lst_flood_cnt = buffer_contains(str(flood_areaD), assets)
 
     elif popRast is not None: #not yet tested
-        lst_flood_cnt = buffer_population(flood_areaD, popRast) #population in buffer/flood zone/downstream 
+        # population in buffer/flood zone/downstream 
+        lst_flood_cnt = buffer_population(flood_areaD, popRast)
         
     start=exec_time(start, "Flood Risk Reduction analysis: 3.2 How Many Benefit")
 
-    #3.3.A: SERVICE QUALITY
+    # 3.3.A: SERVICE QUALITY
     message("Measuring area of each restoration site...")
 
-    #calculate area of each restoration site
+    # calculate area of each restoration site
     siteAreaLst =[]
     with arcpy.da.SearchCursor(outTbl, ["SHAPE@"]) as cursor:
         for row in cursor:
@@ -780,38 +793,44 @@ def FR_MODULE(PARAMS):
 
     start = exec_time (start, "Flood Risk Reduction analysis: 3.3.A Service Quality")
 
-    #3.3.B: SUBSTITUTES
+    # 3.3.B: SUBSTITUTES
     if subs is not None:
-        message("Estimating number of substitutes within 2.5 miles downstream of restoration site...")
+        message("Estimating number of substitutes within 2.5 miles " +
+                "downstream of restoration site...")
         subs = checkSpatialReference(outTbl, subs)
 
-        lst_subs_cnt = buffer_contains(str(flood_areaD), subs) #subs in buffer/flood/downstream
+        # subs in buffer/flood/downstream
+        lst_subs_cnt = buffer_contains(str(flood_areaD), subs)
 
-        #convert lst to binary list
+        # convert lst to binary list
         lst_subs_cnt_boolean = quant_to_qual_lst(lst_subs_cnt)
 
-        start = exec_time (start, "Flood Risk Reduction analysis: 3.3.B Scarcity (substitutes - 'FR_3B_boo')")
+        start = exec_time (start, "Flood Risk Reduction analysis: 3.3.B " +
+                           "Scarcity (substitutes - 'FR_3B_boo')")
     else:
-        message("Substitutes (dams and levees) input not specified, 'FR_sub' will all be '0' and 'FR_3B_boo' will be left blank.")
+        message("Substitutes (dams and levees) input not specified, 'FR_sub' " +
+                "will all be '0' and 'FR_3B_boo' will be left blank.")
         lst_subs_cnt, lst_subs_cnt_boolean = [], []
             
     #3.3.B: SCARCITY
     if OriWetlands is not None:
-        message("Estimating area of wetlands within 2.5 miles in both directions (5 miles total) of restoration site...")
+        message("Estimating area of wetlands within 2.5 miles in both " +
+                "directions (5 miles total) of restoration site...")
         #lst_floodRet_Density = percent_cover(OriWetlands, flood_areaC) #analysis for scarcity
-    #CONCERN- the above only looks at wetlands in the flood areas within 2.5 miles, the below does entire buffer.
-    #Should this be restricted to upstream/downstream?
+        #CONCERN- the above only looks at wetlands in the flood areas within 2.5 miles, the below does entire buffer.
+        #Should this be restricted to upstream/downstream?
         lst_floodRet_Density = percent_cover(OriWetlands, flood_areaB) #analysis for scarcity
-    #CONCERN: THIS IS WICKED SLOW
+        #CONCERN: THIS IS WICKED SLOW
         start = exec_time (start, "Flood Risk Reduction analysis: Scarcity (scarcity - 'FR_3B_sca')")
     else:
         message("Substitutes (existing wetlands) input not specified, 'FR_3B_sca' will all be '0'.")
         lst_floodRet_Density = []
         
     #FINAL STEP: move results to results file
-    fields_lst = ["FR_2_cnt", "FR_zPct", "FR_zDown", "FR_zDoPct", "FR_3A_acr", "FR_3A_boo", "FR_sub",
-                  "FR_3B_boo", "FR_3B_sca", "FR_3D_boo"]
-    list_lst = [lst_flood_cnt, lst_floodzoneArea_pct, lst_floodzoneD, lst_floodzoneD_pct, siteAreaLst, [], lst_subs_cnt,
+    fields_lst = ["FR_2_cnt", "FR_zPct", "FR_zDown", "FR_zDoPct", "FR_3A_acr",
+                  "FR_3A_boo", "FR_sub", "FR_3B_boo", "FR_3B_sca", "FR_3D_boo"]
+    list_lst = [lst_flood_cnt, lst_floodzoneArea_pct, lst_floodzoneD,
+                lst_floodzoneD_pct, siteAreaLst, [], lst_subs_cnt,
                 lst_subs_cnt_boolean, lst_floodRet_Density, []]
     type_lst = ["", "", "", "", "", "Text", "", "Text", "", "Text"]
 
@@ -902,7 +921,7 @@ def View_MODULE(PARAMS):
     #make a 200m buffer that doesn't include the site
         arcpy.MultipleRingBuffer_analysis(outTbl, view_200, 200, "Meters", "Distance", "NONE", "OUTSIDE_ONLY")
 
-    #FIX next line, cannot create output wetlands_dis (L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Test_Results\wetlands_dis.shp)#may require lyr input
+    #FIX next line, cannot create output wetlands_dis (~\Code\Python\Python_Addins\Tier1_pyt\Test_Results\wetlands_dis.shp)#may require lyr input
         arcpy.Dissolve_management(wetlandsOri, wetlands_dis) #Dissolve wetlands fields
         wetlandsOri = wetlands_dis
         #wetlands in 200m
@@ -1555,7 +1574,7 @@ def main(params):
         #['Non-urban Developed', 'Prime Farmland', 'Sewered Urban Developed', 'Urban Development']
         threat_fieldLst = [x for x in unique_values(conserved, rel_field) if x not in cons_fieldLst]
         
-    #r"L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Test_Results\IntermediatesFinal77.gdb\Results_full"
+    #r"~\Code\Python\Python_Addins\Tier1_pyt\Test_Results\IntermediatesFinal77.gdb\Results_full"
     outTbl = params[26].valueAsText
     pdf = params[27].valueAsText
 
@@ -1929,7 +1948,7 @@ class FloodTool (object):
         FloodField = setParam("NHD Join Field", "inputField", "Field", "Optional", "")
         #relationship table = PlusFlow.dbf
         relateTable = setParam("Relationship Table", "Flow", "DEDbaseTable", "Optional","")
-        #outTbl = r"L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Test_Results\IntermediatesFinal77.gdb\Results_full"
+        #outTbl = r"~\Code\Python\Python_Addins\Tier1_pyt\Test_Results\IntermediatesFinal77.gdb\Results_full"
         outTbl = setParam("Output", "outTable", "DEFeatureClass", "", "Output")
 
         params = [sites, addresses, popRast, flood_zone, OriWetlands, dams, catchment, FloodField, relateTable, outTbl]
@@ -2043,19 +2062,21 @@ class Tier_1_Indicator_Tool (object):
         #rel_field = "Map_Legend"
         conserve_Field = setParam("Conservation Field", "Conservation_Field", "Field", "Optional", "")
         #user must select 1 field to base calculation on
-        #cons_fieldLst = ['Conservation/Limited', 'Major Parks & Open Space', 'Narragansett Indian Lands', 'Reserve', 'Water Bodies']
+        #cons_fieldLst = ['Conservation/Limited', 'Major Parks & Open Space',
+        #                 'Narragansett Indian Lands', 'Reserve', 'Water Bodies']
         useVal = setParam("Conservation Types", "Conservation_Type", "GPString", "Optional", "", True)
                 
         #outputs
-        #outTbl = r"L:\Public\jbousqui\Code\Python\Python_Addins\Tier1_pyt\Test_Results\IntermediatesFinal77.gdb\Results_full"
+        #outTbl = r"~\Code\Python\Python_Addins\Tier1_pyt\Test_Results\IntermediatesFinal77.gdb\Results_full"
         outTbl = setParam("Output", "outTable", "DEFeatureClass", "", "Output")
         #outTbl = setParam("Output", "outTable", "DEWorkspace", "", "Output")
 
         pdf = setParam("PDF Report", "outReport", "DEFile", "Optional", "Output")
 
         #set inputs to be disabled until benefits are selected
-        disableParamLst([flood_zone, dams, edu_inst, bus_stp, trails, roads, OriWetlands, landUse, LULC_field, landVal,
-                         socVul, soc_Field, socVal, conserve, conserve_Field, useVal])
+        disableParamLst([flood_zone, dams, edu_inst, bus_stp, trails, roads,
+                         OriWetlands, landUse, LULC_field, landVal, socVul,
+                         soc_Field, socVal, conserve, conserve_Field, useVal])
 
 	#Set FieldsLists to be filtered by the list from the feature dataset field
         LULC_field.parameterDependencies = [landUse.name]
