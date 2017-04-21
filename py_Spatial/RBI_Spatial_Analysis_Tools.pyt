@@ -437,13 +437,15 @@ def checkSpatialReference(alphaFC, otherFC):
 def buffer_donut(FC, outFC, buf, units):
     """Donut Buffer
     Purpose: Takes inside buffer and creates outside buffers.
-             Ensures ORIG_FID is correct.
-    Notes: there can be multiple buffer distances, but must be list"""
+             Ensures sort is done on "orig_ID", since FID/OID may change.
+    Notes: There can be multiple buffer distances, but must be in list form
+    """
     ext = get_ext(FC)
     #the buffers should all be in the outTbl folder
     FCsort = os.path.splitext(FC)[0] + "_2"  + ext
-    #sort FC by ORGI_FID
-    arcpy.Sort_management(FC, FCsort, [["ORIG_FID", "ASCENDING"]])
+    del_exists(FCsort) #delete intermediate if it exists
+    #sort FC by orig_ID
+    arcpy.Sort_management(FC, FCsort, [["orig_ID", "ASCENDING"]])
     # Create new buffer
     o_o = "OUTSIDE_ONLY" # Leave out inside of buffer
     arcpy.MultipleRingBuffer_analysis(FCsort, outFC, buf, units, "Distance", "NONE", o_o)
@@ -453,42 +455,66 @@ def buffer_donut(FC, outFC, buf, units):
 
 def buffer_contains(poly, pnts):
     """Buffer Contains
-    Purpose: returns number of points in buffer as list.
-    Notes:
+    Purpose: Returns number of points in buffer as list.
+    Notes: When a buffer is created for a site it may get a new OBJECT_ID, but
+           the site OID@ is maintained as ORIG_FID, buffer OID@ returns the
+           new ID. Since results are joined back to the site they must be
+           sorted in site order. The outTbl the buffer is created from was
+           assigned "orig_ID" which is preffered, then ORIG_FID, then OID@.
     Example: lst = buffer_contains(view_50, addresses).
     """
     ext = get_ext(poly)
-    #hopefully this is created in outTbl
-    poly_out = os.path.splitext(poly)[0] + "_2" + ext
-    j_type = "JOIN_ONE_TO_ONE"
-    arcpy.SpatialJoin_analysis(poly, pnts, poly_out, j_type, "KEEP_ALL", "", "INTERSECT", "", "")
-    # When a buffer is created for a site it may get a new OBJECT_ID, but the
-    #site ID is maintained as ORIG_FID, "OID@" returns the ID generated
-    #for poly_out, based on TARGET_FID (OBJECT_ID for buffer). Since results
-    #are joined back to the site they must be sorted in that order.
-    #check for ORIG_FID
-    fields = arcpy.ListFields(poly_out)
-    if "ORIG_FID" in fields:
-        lst = field_to_lst(poly_out, ["ORIG_FID", "Join_Count"])
-    else:
-        lst = field_to_lst(poly_out, ["Join_Count"])
+    polyOut = os.path.splitext(poly)[0] + "_2" + ext
+    del_exists(polyOut) #delete intermediate if it exists
+    # Use spatial join to count points in buffers.
+    join = "JOIN_ONE_TO_ONE" #one line for each buffer
+    match = "INTERSECT" #pnts matched if they intersect target poly
+    arcpy.SpatialJoin_analysis(poly, pnts, polyOut, join, "", "", match, "", "")
+    # Check for fields to sort with, then "Join_Count" is the number of pnts
+    field = find_ID(poly_out)
+    lst = field_to_lst(poly_out, [field, "Join_Count"])
     arcpy.Delete_management(poly_out)
     return lst
 
+def find_ID(table):
+    """return an ID field where orig_ID > ORIG_FID > OID@
+    """
+    if field_exists(table, "orig_ID"):
+        return "orig_ID"
+    elif field_exists(table, "ORIG_FID"):
+        return "ORIG_FID"
+    else:
+        return arcpy.Describe(table).OIDFieldName
 
-def buffer_population(poly, popRaster):
+def buffer_population(poly, popRast):
     """Buffer Population
-    Purpose: returns sum of raster cells in buffer as list
+    Purpose: Returns sum of raster cells in buffer as list.
     Notes: Currently works on raster of population total (not density)
     Notes: Requires Spatial Analyst (look into rasterstats as alternative?)
-    https://pcjericks.github.io/py-gdalogr-cookbook/raster_layers.html
+           https://pcjericks.github.io/py-gdalogr-cookbook/raster_layers.html
+    Notes: Reserved fields are used for Zone Field, which causes problems
+           when reading the results table because the new field with counts
+           can't have the same name as the reserved field, which is where fld2
+           comes into use.
+    Notes: If poly has overlapping polygons, the analysis will not be performed
+           for each individual polygon, because poly is converted to a raster
+           so each location can have only one value.
     """
     lst = []
+    ext = get_ext(poly)
     tempDBF = poly[:-4]+"_pop.dbf"
+    del_exists(tempDBF) #delete intermediate if it exists
+    # Make sure Spatial Analyst is available.
     sa_Status = arcpy.CheckOutExtension("Spatial")
     if  sa_Status == "CheckedOut":
-        arcpy.sa.ZonalStatisticsAsTable(poly, "FID", popRaster, tempDBF, "", "SUM")
-        lst = field_to_lst(tempDBF, ["FID_", "SUM"]) #"AREA" "OID" "COUNT"
+        # Check for "orig_ID" then "ORIG_FID" then use OID@
+        fld = find_ID(poly)
+        arcpy.sa.ZonalStatisticsAsTable(poly, fld, popRast, tempDBF, "", "SUM")
+        # check for if fld is a reserved field that would be renamed
+        if fld == str(arcpy.Describe(poly).OIDFieldName):
+            fld2 = fld + "_" #hoping the assignment is consistent
+            else: fld2 = fld
+        lst = field_to_lst(tempDBF, [fld2, "SUM"]) #"AREA" "OID" "COUNT"
         arcpy.Delete_management(tempDBF)
     else:
         message("Spatial Analyst is " + sa_Status)
@@ -503,7 +529,9 @@ def percent_cover(poly, bufPoly, units = "SQUAREMETERS"):
     lst=[]
     orderLst=[]
     #add handle for when no overlap?
-    with arcpy.da.SearchCursor(bufPoly, ["SHAPE@", "ORIG_FID"]) as cursor:
+    # Check for "orig_ID" then "ORIG_FID" then use OID@
+    field = find_ID(poly)
+    with arcpy.da.SearchCursor(bufPoly, ["SHAPE@", field]) as cursor:
         for row in cursor:
             totalArea = dec(row[0].getArea("PLANAR", units))
             arcpy.SelectLayerByLocation_management("polyLyr", "INTERSECT", row[0])
@@ -517,7 +545,7 @@ def percent_cover(poly, bufPoly, units = "SQUAREMETERS"):
             lst.append(sum(lyrLst))
             orderLst.append(row[1])
     arcpy.Delete_management("polyLyr")
-    # Sort by ORIG_FID
+    # Sort by ID field
     orderLst, lst = (list(x) for x in zip(*sorted(zip(orderLst, lst))))
     return lst
         
@@ -653,7 +681,9 @@ def FR_MODULE(PARAMS):
 
     path = os.path.dirname(outTbl) + os.sep
     ext = get_ext(outTbl)
-    OID_field = arcpy.Describe(outTbl).OIDFieldName
+    #OID_field = arcpy.Describe(outTbl).OIDFieldName
+    # Check for "orig_ID" then "ORIG_FID" then use OID@
+    OID_field = find_ID(outTbl)
 
     #set variables
     FA = path + "int_FloodArea" #naming convention for flood intermediates
@@ -730,11 +760,11 @@ def FR_MODULE(PARAMS):
     arcpy.CreateFeatureclass_management(path, clip_name, "POLYGON", spatial_reference = "flood_zone_lyr")
 
     site_cnt = arcpy.GetCount_management(outTbl)
-
-    with arcpy.da.SearchCursor(outTbl, ["SHAPE@", "OID@"]) as cursor:
+    
+    with arcpy.da.SearchCursor(outTbl, ["SHAPE@", OID_field]) as cursor:
         for site in cursor:
             #select buffer for site
-            where_clause = str(OID_field) + " = " + str(site[1]) #does FID, not ORIG_FID
+            where_clause = str(OID_field) + " = " + str(site[1])
             arcpy.SelectLayerByAttribute_management("buffer_lyr", "NEW_SELECTION", where_clause)
             
             #list catchments in buffer
