@@ -442,14 +442,15 @@ def buffer_donut(FC, outFC, buf, units):
     """
     ext = get_ext(FC)
     #the buffers should all be in the outTbl folder
-    FCsort = os.path.splitext(FC)[0] + "_2"  + ext
-    del_exists(FCsort) #delete intermediate if it exists
+    sortFC = os.path.splitext(FC)[0] + "_2"  + ext
+    del_exists(sortFC) #delete intermediate if it exists
     #sort FC by orig_ID
-    arcpy.Sort_management(FC, FCsort, [["orig_ID", "ASCENDING"]])
+    arcpy.Sort_management(FC, sortFC, [["orig_ID", "ASCENDING"]])
     # Create new buffer
     o_o = "OUTSIDE_ONLY" # Leave out inside of buffer
-    arcpy.MultipleRingBuffer_analysis(FCsort, outFC, buf, units, "Distance", "NONE", o_o)
-    arcpy.Delete_management(FCsort) # Delete intermediate FC
+    N = "NONE" # All buffer areas will be maintained regardless of overlap.
+    arcpy.MultipleRingBuffer_analysis(sortFC, outFC, buf, units, "", N, o_o)
+    arcpy.Delete_management(sortFC) # Delete intermediate FC
     return outFC
 
 
@@ -513,7 +514,8 @@ def buffer_population(poly, popRast):
         # check for if fld is a reserved field that would be renamed
         if fld == str(arcpy.Describe(poly).OIDFieldName):
             fld2 = fld + "_" #hoping the assignment is consistent
-            else: fld2 = fld
+        else: fld2 = fld
+        
         lst = field_to_lst(tempDBF, [fld2, "SUM"]) #"AREA" "OID" "COUNT"
         arcpy.Delete_management(tempDBF)
     else:
@@ -534,7 +536,8 @@ def percent_cover(poly, bufPoly, units = "SQUAREMETERS"):
     with arcpy.da.SearchCursor(bufPoly, ["SHAPE@", field]) as cursor:
         for row in cursor:
             totalArea = dec(row[0].getArea("PLANAR", units))
-            arcpy.SelectLayerByLocation_management("polyLyr", "INTERSECT", row[0])
+            match = "INTERSECT" # Default
+            arcpy.SelectLayerByLocation_management("polyLyr", match, row[0])
             lyrLst = []
             with arcpy.da.SearchCursor("polyLyr", ["SHAPE@"]) as cursor2:
                 for row2 in cursor2:
@@ -672,6 +675,8 @@ def FR_MODULE(PARAMS):
     """Flood Risk Benefits"""
     start1 = time.clock() #start the clock (full module)
     start = time.clock() #start the clock (parts)
+    mod_str = "Flood Risk Reduction Benefits analysis"
+    message(mode_str + "...")
 
     addresses, popRast = PARAMS[0], PARAMS[1]
     flood_zone = PARAMS[2]
@@ -698,7 +703,7 @@ def FR_MODULE(PARAMS):
     flood_areaD = path + os.sep + clip_name
     assets = FA + "_assets" + ext #addresses/population in flood zone
             
-    start=exec_time(start, "intiating variables for Flood Risk")
+    start=exec_time(start, "intiating variables for " + mode_str)
 
     #check NHD+ inputs
     nhd_ck = nhdPlus_check(Catchment, InputField, Flow)
@@ -718,12 +723,12 @@ def FR_MODULE(PARAMS):
             total_cnt = arcpy.GetCount_management(assets) #count addresses
             # If there are no addresses in flood zones stop analysis.
             if int(total_cnt.getOutput(0)) <= 0:
-                arcpy.AddError("No addresses were found within the flooded area.")
+                arcpy.AddError("No addresses were found within the flood area.")
                 print("No addresses were found within the flooded area.")
                 raise arcpy.ExecuteError
         elif popRast is not None: #NOT YET TESTED
             cp_geo = "ClippingGeometry" #use geometry of flood_zone to clip
-            extent_no = "NO_MAINTAIN_EXTENT" #maintain cell alignment without resampling
+            extent_no = "NO_MAINTAIN_EXTENT" #maintain cells, no resampling
             arcpy.Clip_management(popRast, "", assets, flood_zone, "", cp_geo, extent_no)
             # If there are no people in flood zones stop analysis
             if arcpy.GetRasterProperties_management(assets, "MAXIMUM").getOutput(0) <= 0:
@@ -751,13 +756,13 @@ def FR_MODULE(PARAMS):
     message("Using {} to determine downstream areas of flood zone".format(Catchment))
 
     arcpy.MakeFeatureLayer_management(flood_areaB, "buffer_lyr")
-    arcpy.MakeFeatureLayer_management(flood_areaC, "flood_zone_lyr")
-    arcpy.MakeFeatureLayer_management(Catchment, "catchment_lyr")
+    arcpy.MakeFeatureLayer_management(flood_areaC, "flood_lyr")
+    arcpy.MakeFeatureLayer_management(Catchment, "catch_lyr")
 
     UpCOMs, DownCOMs = setNHD_dict(Flow) #REDUCE TO DownCOMs ONLY
     #create empty FC for downstream catchments
     del_exists(flood_areaD)
-    arcpy.CreateFeatureclass_management(path, clip_name, "POLYGON", spatial_reference = "flood_zone_lyr")
+    arcpy.CreateFeatureclass_management(path, clip_name, "POLYGON", spatial_reference = "flood_lyr")
 
     site_cnt = arcpy.GetCount_management(outTbl)
     
@@ -768,7 +773,7 @@ def FR_MODULE(PARAMS):
             arcpy.SelectLayerByAttribute_management("buffer_lyr", "NEW_SELECTION", where_clause)
             
             #list catchments in buffer
-            bufferCatchments = list_buffer("catchment_lyr", InputField, "buffer_lyr")
+            bufferCatchments = list_buffer("catch_lyr", InputField, "buffer_lyr")
 
             #subset DownCOMs to only those in buffer (keeps them consecutive)
             shortDownCOMs = defaultdict(list)
@@ -777,10 +782,10 @@ def FR_MODULE(PARAMS):
                 shortDownCOMs[item] = list(itertools.chain.from_iterable(shortDownCOMs[item]))
 
             #select catchments where the restoration site is
-            arcpy.SelectLayerByLocation_management("catchment_lyr", "INTERSECT", site[0])
+            arcpy.SelectLayerByLocation_management("catch_lyr", "INTERSECT", site[0])
 
             #list catchments downstream selection
-            downCatchments = list_downstream("catchment_lyr", InputField, shortDownCOMs)
+            downCatchments = list_downstream("catch_lyr", InputField, shortDownCOMs)
 
             #catchments in both lists
             # NOTE: this is redundant, the last catchment will already be
@@ -788,13 +793,13 @@ def FR_MODULE(PARAMS):
             catchment_lst = list(set(downCatchments).intersection(bufferCatchments))
             #SELECT downstream catchments in buffer
             slt_qry_down = selectStr_by_list(InputField, catchment_lst)
-            arcpy.SelectLayerByAttribute_management("catchment_lyr", "NEW_SELECTION", slt_qry_down)
+            arcpy.SelectLayerByAttribute_management("catch_lyr", "NEW_SELECTION", slt_qry_down)
             #may need to make this selection into single feature for population as raster
             #arcpy.Dissolve_management("catchment_lyr", flood_areaD_clip_single)
 
             #select and clip corresponding flood zone
-            arcpy.SelectLayerByAttribute_management("flood_zone_lyr", "NEW_SELECTION", where_clause)
-            arcpy.Clip_analysis("flood_zone_lyr", "catchment_lyr", flood_areaD_clip)
+            arcpy.SelectLayerByAttribute_management("flood_lyr", "NEW_SELECTION", where_clause)
+            arcpy.Clip_analysis("flood_lyr", "catch_lyr", flood_areaD_clip)
             arcpy.MakeFeatureLayer_management(flood_areaD_clip, "flood_zone_down_lyr")
             arcpy.Dissolve_management("flood_zone_down_lyr", flood_areaD_clip_single)
                                
@@ -849,7 +854,7 @@ def FR_MODULE(PARAMS):
         # population in buffer/flood zone/downstream 
         lst_flood_cnt = buffer_population(flood_areaD, popRast)
         
-    start=exec_time(start, "Flood Risk Reduction analysis: 3.2 How Many Benefit")
+    start=exec_time(start, mode_str + ": 3.2 How Many Benefit")
 
     # 3.3.A: SERVICE QUALITY
     message("Measuring area of each restoration site...")
@@ -860,7 +865,7 @@ def FR_MODULE(PARAMS):
         for row in cursor:
             siteAreaLst.append(row[0].getArea("GEODESIC", "ACRES"))
 
-    start = exec_time (start, "Flood Risk Reduction analysis: 3.3.A Service Quality")
+    start = exec_time (start, mode_str + ": 3.3.A Service Quality")
 
     # 3.3.B: SUBSTITUTES
     if subs is not None:
@@ -874,8 +879,8 @@ def FR_MODULE(PARAMS):
         # convert lst to binary list
         lst_subs_cnt_boolean = quant_to_qual_lst(lst_subs_cnt)
 
-        start = exec_time (start, "Flood Risk Reduction analysis: 3.3.B " +
-                           "Scarcity (substitutes - 'FR_3B_boo')")
+        start = exec_time (start, mode_str + ": 3.3.B Scarcity " +
+                           "(substitutes - 'FR_3B_boo')")
     else:
         message("Substitutes (dams and levees) input not specified, 'FR_sub' " +
                 "will all be '0' and 'FR_3B_boo' will be left blank.")
@@ -892,7 +897,7 @@ def FR_MODULE(PARAMS):
         #Should this be restricted to upstream/downstream?
         lst_floodRet_Density = percent_cover(OriWetlands, flood_areaB) #analysis for scarcity
         #CONCERN: THIS IS WICKED SLOW
-        start = exec_time (start, "Flood Risk Reduction analysis: Scarcity (scarcity - 'FR_3B_sca')")
+        start = exec_time (start, mode_str + ": Scarcity (scarcity - 'FR_3B_sca')")
     else:
         message("Substitutes (existing wetlands) input not specified, 'FR_3B_sca' will all be '0'.")
         lst_floodRet_Density = []
@@ -913,7 +918,7 @@ def FR_MODULE(PARAMS):
     deleteFC_Lst(["flood_zone_lyr", "flood_zone_down_lyr", "catchment_lyr",
                   "polyLyr", "buffer_lyr"])
                                        
-    message("Flood Module Complete")
+    message(mode_str + " Module Complete")
     start1=exec_time(start1, "full flood module")
     
 ##############################
@@ -1049,6 +1054,8 @@ def View_MODULE(PARAMS):
 ##############################
 ############ENV EDU###########
 def Edu_MODULE(PARAMS):
+    """ Environmental Education Benefits"""
+    start = time.clock() #start the clock
     mod_str = "Environmental Education Benefits analysis"
     message(mod_str + "...")
     
@@ -1104,6 +1111,7 @@ def Edu_MODULE(PARAMS):
 ##############################
 ##############REC#############
 def Rec_MODULE(PARAMS):
+    """Recreation Benefits"""
     start1 = time.clock() #start the clock
     mod_str = "Recreation Benefits analysis"
     message(mod_str + "...")
@@ -1263,6 +1271,7 @@ def Rec_MODULE(PARAMS):
 ##############################
 #############BIRD#############
 def Bird_MODULE(PARAMS):
+    """Bird Watching Benefits"""
     start1 = time.clock() #start the clock
     mod_str = "Bird Watching Benefits analysis"
     message(mod_str + "...")
@@ -1329,9 +1338,11 @@ def Bird_MODULE(PARAMS):
 ##############################
 ##########SOC_EQUITY##########
 def socEq_MODULE(PARAMS):
+    """Social Equity of Benefits"""
     #start = time.clock() #start the clock
     mod_str = "Social Equity of Benefits analysis"
     message(mod_str + "...")
+    
     sovi = PARAMS[0]
     field, SoVI_High = PARAMS[1], PARAMS[2]
     bufferDist = PARAMS[3]
@@ -1385,6 +1396,7 @@ def socEq_MODULE(PARAMS):
 ##############################
 #########RELIABILITY##########
 def reliability_MODULE(PARAMS):
+    """Reliability of Benefits"""
     #start = time.clock() #start the clock
     mod_str = "Reliability of Benefits analysis"
     message(mod_str + "...")
@@ -1440,6 +1452,7 @@ def reliability_MODULE(PARAMS):
 ##############################
 ########Report_MODULE#########
 def Report_MODULE(PARAMS):
+    """Report Generation"""
     start = time.clock() #start the clock
     message("Generating report...")
     #Report_PARAMS = [outTbl, siteName, mxd, pdf]
@@ -1604,6 +1617,9 @@ def Report_MODULE(PARAMS):
 ##############################
 ######PRESENCE/ABSENCE########
 def absTest_MODULE(PARAMS):
+    """Presence Absence Test"""
+    #start1 = time.clock() #start the clock
+    
     outTbl, field = PARAMS[0], PARAMS[1]
     FC = PARAMS[2]
     buff_dist = PARAMS[3]
@@ -1634,6 +1650,7 @@ def absTest_MODULE(PARAMS):
 ##############################
 #############MAIN#############
 def main(params):
+    """Main"""
     start = time.clock() #start the clock
     start1 = time.clock() #start the clock
 
@@ -2049,10 +2066,9 @@ class FloodTool (object):
     #Define IN/OUT parameters
         #sites = in_gdb  + "restoration_Sites"
         sites = setParam("Restoration Site Polygons (Required)", "in_poly", "", "", "")
-        #addresses = in_gdb + "e911_14_Addresses"
-        addresses = setParam("Address Points", "in_pnts", "", "Optional", "")#beneficiaries points
-        #popRast = None
-        #beneficiaries raster
+        #addresses = in_gdb + "e911_14_Addresses" #beneficiaries points
+        addresses = setParam("Address Points", "in_pnts", "", "Optional", "")
+        #popRast = None #beneficiaries raster
         popRast = setParam("Population Raster", "popRast", "DERasterDataset", "Optional", "")
 
         #flood_zone = in_gdb + "FEMA_FloodZones_clp"
@@ -2060,7 +2076,7 @@ class FloodTool (object):
         #subs = in_gdb + "dams"
         dams = setParam("Dams/Levee", "flood_sub", "", "", "")
         #pre-existing wetlands #OriWetlands = in_gdb + "NWI14"
-        OriWetlands = setParam("Wetland Polygons", "in_wet", "", "", "")#pre-existing wetlands
+        OriWetlands = setParam("Wetland Polygons", "in_wet", "", "", "")
         #catchment = r"~\Local_GIS\NHD_Plus\NHDPlusNationalData\NHDPlusV21_National_Seamless.gdb\NHDPlusCatchment\Catchment"
         catchment = setParam("NHD+ Catchments", "NHD_catchment" , "", "Optional", "")
         #FloodField = "FEATUREID"
@@ -2091,7 +2107,8 @@ class FloodTool (object):
         return
     
     def execute(self, params, messages):
-        #[sites, addresses, popRast, flood_zone, OriWetlands, dams, catchment, FloodField, outTbl]
+        #[sites, addresses, popRast, flood_zone, OriWetlands, dams, catchment,
+        # FloodField, outTbl]
         start1 = time.clock() #start the clock
         sites = params[0].valueAsText
         outTbl = params[9].valueAsText
@@ -2132,9 +2149,9 @@ class Tier_1_Indicator_Tool (object):
     def getParameterInfo(self):
     #Define IN/OUT parameters
         #sites = in_gdb  + "restoration_Sites"
-        sites = setParam("Restoration Site Polygons (Required)", "in_poly", "", "", "")#sites
-        #addresses = in_gdb + "e911_14_Addresses"
-        addresses = setParam("Address Points", "in_pnts", "", "Optional", "")#beneficiaries points
+        sites = setParam("Restoration Site Polygons (Required)", "in_poly", "", "", "")
+        #addresses = in_gdb + "e911_14_Addresses" #beneficiaries points
+        addresses = setParam("Address Points", "in_pnts", "", "Optional", "")
         #popRast = None
         #beneficiaries raster
         popRast = setParam("Population Raster", "popRast", "DERasterDataset", "Optional", "")
