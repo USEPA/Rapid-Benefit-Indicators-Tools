@@ -20,6 +20,26 @@ from arcpy import da
 from collections import deque, defaultdict
 
 
+def create_outTbl(sites, outTbl):
+    """create copy of sites to use for processing and results
+    Notes: this also creates an "orig_ID" field to retain @OID
+    """
+    #check if outTbl already exists, and delete if so
+    del_exists(outTbl)
+    arcpy.CopyFeatures_management(sites, outTbl)
+    # Check if "orig_ID" field exists already
+    if field_exists(outTbl, "orig_ID"):
+        message('"orig_ID" already exists in sites, this field will be used " +
+                "to maintain unique site IDs')
+    else:
+        #create field for orig OID@
+        arcpy.AddField_management(outTbl, "orig_ID", "DOUBLE")
+        with arcpy.da.UpdateCursor(outTbl, ["OID@", "orig_ID"]) as cursor:
+            for row in cursor:
+                row[1] = row[0]
+                cursor.updateRow(row)
+
+
 def get_ext(FC):
     """get extension"""
     ext = arcpy.Describe(FC).extension
@@ -363,7 +383,8 @@ def field_exists(table, field):
 
 def del_exists(item):
     """ Delete if exists
-    Purpose: if a file exists it is deleted and noted in a message message."""
+    Purpose: if a file exists it is deleted and noted in a message.
+    """
     if arcpy.Exists(item):
         arcpy.Delete_management(item)
         message(str(item) + " already exists, it was deleted and will be replaced.")
@@ -1669,7 +1690,7 @@ def main(params):
             pdf = None
 
     #Copy restoration wetlands in for results
-    arcpy.CopyFeatures_management(sites, outTbl)
+    create_outTbl(sites, outTbl)
 
     start1 = exec_time(start1, "loading variables")       
     message("Checking input variables...")
@@ -1822,7 +1843,7 @@ class presence_absence(object):
         buff_dist = params[3].valueAsText
         outTbl = params[4].valueAsText
 
-        arcpy.CopyFeatures_management(sites, outTbl)
+        create_outTbl(sites, outTbl)
         
         abs_test_PARAMS = [outTbl, field, FC, buff_dist]
         absTest_MODULE(abs_test_PARAMS)
@@ -1871,7 +1892,7 @@ class socialVulnerability (object):
         sites = params[0].valueAsText
         outTbl = params[5].valueAsText
 
-        arcpy.CopyFeatures_management(sites, outTbl)
+        create_outTbl(sites, outTbl)
 
         sovi = params[1].valueAsText
         sovi_field = params[2].valueAsText 
@@ -1928,7 +1949,7 @@ class reliability (object):
         sites = params[0].valueAsText
         outTbl = params[5].valueAsText
 
-        arcpy.CopyFeatures_management(sites, outTbl)
+        create_outTbl(sites, outTbl)
 
         conserved = params[1].valueAsText
         field = params[2].valueAsText 
@@ -2056,7 +2077,7 @@ class FloodTool (object):
         inputField = params[7].valueAsText
         rel_Tbl = params[8].valueAsText
 
-        arcpy.CopyFeatures_management(sites, outTbl)
+        create_outTbl(sites, outTbl)
         addresses, popRast = check_vars(outTbl, addresses, popRast) #check sp ref
 
         if OriWetlands is not None: #if the dataset is specified
