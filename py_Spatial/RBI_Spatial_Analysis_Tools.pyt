@@ -29,8 +29,8 @@ def create_outTbl(sites, outTbl):
     arcpy.CopyFeatures_management(sites, outTbl)
     # Check if "orig_ID" field exists already
     if field_exists(outTbl, "orig_ID"):
-        message('"orig_ID" already exists in sites, this field will be used " +
-                "to maintain unique site IDs')
+        message("orig_ID field already exists in sites, it will be used " +
+                "to maintain unique site IDs")
     else:
         #create field for orig OID@
         arcpy.AddField_management(outTbl, "orig_ID", "DOUBLE")
@@ -1852,8 +1852,7 @@ class presence_absence(object):
 class socialVulnerability (object):
     def __init__(self):
         self.label = "Part - Social Equity of Benefits"
-        self.description = "Assess the social vulnerability of those " +
-                           "benefitting to identify social equity issues."
+        self.description = "Assess the social vulnerability of those benefitting to identify social equity issues."
     def getParameterInfo(self):
         sites = setParam("Restoration Site Polygons (Required)", "in_poly", "", "", "")
         poly = setParam("Social Vulnerability", "sovi_poly", "", "", "")
