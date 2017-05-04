@@ -930,6 +930,192 @@ def FR_MODULE(PARAMS):
                                        
     message(mod_str + " Module Complete")
     start1=exec_time(start1, "full flood module")
+
+
+##############################
+def NHD_get_MODULE(PARAMS):
+    """Download NHD Plus Data"""
+    import subprocess
+    from urllib import urlretrieve
+    from shutil import rmtree
+    
+    sites = PARAMS[0]
+    NHD_VUB = PARAMS[1]
+    local = PARAMS[2]
+
+    # Default destination
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    if os.path.basename(script_dir) == 'py_standaloneScripts':
+        # Move up one folder if standalone script
+        script_dir = os.path.dirname(script_dir) + os.sep
+    else:
+        script_dir = script_dir + os.sep
+        
+    if local is None:
+        local = script_dir + "NHDPlusV21"
+        message("Download will be saved to default location:\n" + local)
+    else:
+        message("Download will be saved to user location:\n" + local)
+        
+    # Default boundary file
+    if NHD_VUB is None:
+        NHD_VUB = script_dir + "NHDPlusV21" + os.sep + "BoundaryUnit.shp"
+        if arcpy.Exists(NHD_VUB):
+            message("NHDPlus Boundaries found in default location:\n" + NHD_VUB)
+        else:
+            arcpy.AddError("No NHDPlus Boundaries specified")
+            print("No NHDPlus Boundaries specified")
+            raise arcpy.ExecuteError
+    else:
+        message("NHDPlus Boundaries found in user location:\n" + NHD_VUB)
+        
+    # ftp://www.horizon-systems.com/NHDPlus/NHDPlusV21/Data/NHDPlus
+    v2_dir = "/{0}Data/{0}V21/Data/{0}".format("NHDPlus")
+    NHD_ftp = "ftp.horizon-systems.com"
+    # http://www.horizon-systems.com/NHDPlusData/NHDPlusV21/Data/NHDPlus
+    NHD_http = "http://www" + NHD_ftp[3:] + v2_dir
+    distance = "5 Miles"
+
+    # Check projection.
+    NHD_VUB = checkSpatialReference(sites, NHD_VUB)
+
+    # Make layer.
+    arcpy.MakeFeatureLayer_management(NHD_VUB, "VUB")
+
+    # Select NHDPlus vector unit boundaries
+    overlap = "WITHIN_A_DISTANCE"
+    arcpy.SelectLayerByLocation_management("VUB", overlap, sites, distance, "", "")
+
+    # Gather info from fields to construct request
+    ID_list = field_to_lst("VUB", "UnitID")
+    drain_list = field_to_lst("VUB", "DrainageID")
+
+    # List to make sure a catchment isn't copied twice
+    added_lst = []
+
+    for i, DA in enumerate(drain_list):
+        # Give progress update
+        message("Downloading region {} of {}".format(str(i+1), len(drain_list)))
+
+        # Zipfile names
+        ID = ID_list[i]
+        ext = ".7z"
+
+        # Componentname is the name of the NHDPlusV2 component in the file
+        f_comp = "NHDPlusCatchment"
+        ff_comp = "NHDPlusAttributes"
+        
+        # Some Zipfiles had different vv, data content versions
+        f_vv = "01" #Catchments
+        if ID == "06":
+            f_vv = "05"
+        if ID in ['10U', '13', '17']:
+            f_vv = "02"
+            
+        ff_vv = "01" #Attributes
+        if ID in ["20", "21", "22AS", "22GU", "22MP"]:
+            ff_vv = "02"
+        if ID in ["03N", "03S", "03W", "13", "16"]:
+            ff_vv = "05"
+        if ID in ["02", "09", "11", "18"]:
+            ff_vv = "06"
+        if ID in ["01", "08", "12"]:
+            ff_vv = "07"
+        if ID in ["05", "15", "17"]:
+            ff_vv = "08"
+        if ID in ["06", "07", "10U", "14"]:
+            ff_vv = "09"
+        if ID == "10L":
+            ff_vv = "11" 
+        if ID == "04":
+            ff_vv = "12"
+            
+        # Assign filenames
+        f = "NHDPlusV21_{}_{}_{}_{}{}".format(DA, ID, f_comp, f_vv, ext)
+        flow_f = "NHDPlusV21_{}_{}_{}_{}{}".format(DA, ID, ff_comp, ff_vv, ext)
+        # Fix the one They mis-named
+        if ID == "04":
+            f = f[:-6] + "s_05.7z"
+        
+        # Set http zipfile is requested from
+        if DA in ["SA", "MS", "CO", "PI"]: #regions with sub-regions
+            request = NHD_http + DA + "/" + "NHDPlus" + ID + "/"
+        else:
+            request = NHD_http + DA + "/"
+
+        # Download catchment
+        HTTP_download(request, local, f)
+        # unzip catchment file using winzip
+        WinZip_unzip(local, f)
+
+        # Download flow table
+        HTTP_download(request, local, flow_f)
+        # unzip flow table using winzip
+        WinZip_unzip(local, flow_f)
+
+        # Unzip destination folders and files
+        d_folder = local + os.sep + "NHDPlus" + DA
+        ID_folder = d_folder + os.sep + "NHDPlus" + ID
+        cat_folder = ID_folder + os.sep + f_comp
+        cat_shp = cat_folder + os.sep + "Catchment.shp"
+        flow_folder = ID_folder + os.sep + ff_comp
+        flow_dbf = flow_folder + os.sep + "PlusFlow.dbf"
+
+        # Default file location to copy downloads to
+        local_gdb = local + os.sep + "NHDPlus_Downloads.gdb"
+        if os.path.isdir(local_gdb):
+            message("Downloaded files will be added to default file geodatabase")
+            
+            # Pull catchments into gdb
+            if os.path.isdir(cat_folder):
+                # Find the Catchment shapefile in that folder
+                if arcpy.Exists(cat_shp):
+                    # Find the default Catchment Feature Class
+                    local_cat = local_gdb + os.sep + "Catchment"
+                    if arcpy.Exists(local_cat):
+                        # Append the downloaded into the default
+                        arcpy.Append_management(cat_shp, local_cat, "NO_TEST")
+                        message("Downloaded catchments added to default:\n" +
+                                str(local_cat))
+                        # Delete downloaded
+                        try:
+                            rmtree(cat_folder)
+                            message("Original downloaded catchment folder deleted")
+                        except:
+                            message("Unable to delete downloaded catchment folder")
+                    else:
+                        message("Expected default Catchment file '{}' not found".format(local_cat))
+                else:
+                    message("Expected file '{}' not found".format(cat_shp))
+            else:
+                message("Expected folder '{}' not found".format(cat_folder))
+                
+            # Pull flow table into gdb
+            if os.path.isdir(flow_folder):
+                # Find the flow table in that folder
+                if arcpy.Exists(flow_dbf):
+                    # Find the default flow table
+                    local_flow = local_gdb + os.sep + "PlusFlow"
+                    if arcpy.Exists(local_flow):
+                        # Append the downloaded into the default
+                        arcpy.Append_management(flow_dbf, local_flow, "NO_TEST")
+                        message("Downloaded flow table added to default:\n" +
+                                str(local_flow))
+                        # Delete downloaded
+                        try:
+                            rmtree(flow_folder)
+                            message("Original downloaded flow table folder deleted")
+                        except:
+                            message("Unable to delete downloaded flow table folder")
+                    else:
+                        message("Expected default flow table '{}' not found".format(local_flow))
+                else:
+                    message("Expected file '{}' not found".format(flow_dbf))
+                
+            else:
+                message("Expected folder '{}' not found".format(flow_folder))
+        else:
+            message("Default file geodatabase not found. Files must be combined manually.")
     
 ##############################
 def View_MODULE(PARAMS):
@@ -1890,9 +2076,9 @@ class Toolbox(object):
         self.alias = "Tier_1"
         # List of tool classes associated with this toolbox
         self.tools = [Tier_1_Indicator_Tool, FloodTool, Report, reliability,
-                      socialVulnerability, presence_absence]
+                      socialVulnerability, presence_absence, FloodDataDownloader]
 
-#############################
+#############################      
 class presence_absence(object):
     def __init__(self):
         self.label = "Part - Presence/Absence to Yes/No"
@@ -1934,7 +2120,8 @@ class presence_absence(object):
         abs_test_PARAMS = [outTbl, field, FC, buff_dist]
         absTest_MODULE(abs_test_PARAMS)
         start1 = exec_time(start1, "Presence/Absence assessment")
-        
+
+################################        
 class socialVulnerability (object):
     def __init__(self):
         self.label = "Part - Social Equity of Benefits"
@@ -2181,7 +2368,41 @@ class FloodTool (object):
                         catchment, inputField, rel_Tbl, outTbl]
         FR_MODULE(Flood_PARAMS)
         start1 = exec_time(start1, "Flood Risk benefit assessment")
+################################
+class FloodDataDownloader(object):
+    def __init__(self):
+        self.label = "Part - Flood Data Download"
+        self.description = "Download NHD Plus data. Requires web access."
+    def getParameterInfo(self):
+        sites = setParam("Restoration Site Polygons (Required)", "in_poly", "", "", "")
+        # NHDPlus boundaries
+        NHD_VUB = setParam("NHD Plus Vector Processing Unit", "VUB", "", "Optional", "")
+        # Location to save catchments
+        local = setParam("Download Folder", "outTable", "DEFeatureClass", "Optional", "Output")
 
+        params = [sites, NHD_VUB, outTbl]
+        return params
+    
+    def isLicensed(self):
+        return True
+    def updateParameters(self, params):
+        return
+    def updateMessages(self, params):
+        return
+
+    def execute(self, params, messages):
+        start = time.clock() #start the clock
+
+        sites = params[0].valueAsText
+        NHD_VUB = params[1].valueAsText
+        local = params[2].valueAsText
+
+        NHD_PARAMS = [sites, NHD_VUB, local]
+        NHD_get_MODULE(NHD_PARAMS)
+
+        start = exec_time(start, "Downloading NHD Plus Stream Data")
+
+        
 ################################        
 #########INDICATOR_TOOL#########       
 class Tier_1_Indicator_Tool (object):
