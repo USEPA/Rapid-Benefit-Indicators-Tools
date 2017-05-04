@@ -5,23 +5,23 @@ bousquin.justin@epa.gov
 
 
 import arcpy
-import urllib
+#import urllib
 import os
 import subprocess
 from urllib import urlretrieve
 from shutil import rmtree
-from ftplib import FTP
+#from ftplib import FTP
 
 # User Defined Parameters
 # Restoration sites
-#sites = arcpy.GetParameterAsText(0)
-sites = r"C:\Users\jbousqui\Desktop\Review\Test_Inputs_Review.gdb\VBU_testPoints_islands"
+sites = arcpy.GetParameterAsText(0)
+#sites = r"C:\Users\jbousqui\Desktop\Review\Test_Inputs_Review.gdb\VBU_testPoints_islands"
 # NHDPlus boundaries
-#NHD_VUB = arcpy.GetParameterAsText(1)
-NHD_VUB = None
+NHD_VUB = arcpy.GetParameterAsText(1)
 # Location to save catchments
-#local = arcpy.GetParameterAsText(2)
-local = None
+local = arcpy.GetParameterAsText(2)
+# Defaults
+#NHD_VUB, local = None, None
 
 # Functions
 def message(string):
