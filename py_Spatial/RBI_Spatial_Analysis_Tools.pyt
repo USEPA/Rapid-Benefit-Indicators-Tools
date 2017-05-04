@@ -14,6 +14,7 @@
 import os
 import time
 import itertools
+#from itertools import chain
 import arcpy
 from decimal import Decimal
 from collections import deque, defaultdict
@@ -221,7 +222,7 @@ def ListType_fromField(typ, lst):
         return map(int, lst)
     else: #String
         return lst
-    
+
 
 def nhdPlus_check(catchment, joinField, relTbl):
     """check NHD+ inputs
@@ -480,6 +481,7 @@ def buffer_contains(poly, pnts):
     arcpy.Delete_management(polyOut)
     return lst
 
+
 def find_ID(table):
     """return an ID field where orig_ID > ORIG_FID > OID@
     """
@@ -489,6 +491,7 @@ def find_ID(table):
         return "ORIG_FID"
     else:
         return arcpy.Describe(table).OIDFieldName
+
 
 def buffer_population(poly, popRast):
     """Buffer Population
