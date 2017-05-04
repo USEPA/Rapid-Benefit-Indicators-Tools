@@ -2380,7 +2380,7 @@ class FloodDataDownloader(object):
         # Location to save catchments
         local = setParam("Download Folder", "outTable", "DEFeatureClass", "Optional", "Output")
 
-        params = [sites, NHD_VUB, outTbl]
+        params = [sites, NHD_VUB, local]
         return params
     
     def isLicensed(self):
