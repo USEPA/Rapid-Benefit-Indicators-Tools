@@ -310,6 +310,44 @@ def setNHD_dict(Flow):
     return (UpCOMs, DownCOMs)
 
 
+def HTTP_download(request, directory, filename):
+    """Download HTTP request to filename
+    Param request: HTTP request link ending in "/"
+    Param directory: Directory where downloaded file will be saved
+    Param filename: Name of file for download request and saving
+    """
+    host = "http://www.horizon-systems.com/NHDPlus/NHDPlusV2_data.php"
+    #add dir to var zipfile is saved as
+    f = directory + os.sep + filename
+    r = request + filename
+    try:
+        urlretrieve(r, f)
+        message("HTTP downloaded successfully as:\n" + str(f))
+    except:
+        message("Error downloading from: " + '\n' + str(r))
+        message("Try manually downloading from: " + host)
+
+
+def WinZip_unzip(directory, zipfile):
+    """Use program WinZip in C:\Program Files\WinZip to unzip .7z"""
+    message("Unzipping download...")
+    message("Winzip may open. If file already exists you will be prompted...")
+    d = directory
+    z = directory + os.sep + zipfile
+    try:
+        zipExe = r"C:\Program Files\WinZip\WINZIP64.EXE"
+        args = zipExe + ' -e ' + z + ' ' + d
+        subprocess.call(args, stdout=subprocess.PIPE)
+        message("Successfully extracted NHDPlus data to:\n" + d)
+        os.remove(z)
+        message("Deleted zipped NHDPlus file")
+    except:
+        message("Unable to extract NHDPlus files. " +
+                "Try manually extracting the files from:\n" + z)
+        message("Software to extract '.7z' files can be found at: " +
+                "http://www.7-zip.org/download.html")
+
+
 def view_score(lst_50, lst_100):
     """Calculate Weighted View Score
     Purpose: list of weighted view scores.
@@ -411,7 +449,7 @@ def check_vars(outTbl, addresses, popRast):
         raise arcpy.ExecuteError
 
 
-def checkSpatialReference(alphaFC, otherFC):
+def checkSpatialReference(alphaFC, otherFC, output = None):
     """Check Spatial Reference
     Purpose: Checks that a second spatial reference matches the first and
              re-projects if not.
@@ -421,15 +459,16 @@ def checkSpatialReference(alphaFC, otherFC):
     otherSR = arcpy.Describe(otherFC).spatialReference
     if alphaSR.name != otherSR.name:
         #e.g. .name = u'WGS_1984_UTM_Zone_19N' for WGS_1984_UTM_Zone_19N
-        message("Spatial reference for " + otherFC + " does not match.")
+        message("Spatial reference for '{}' does not match.".format(otherFC))
         try:
             path = os.path.dirname(alphaFC)
-            ext = get_ext(alphaFC)
+            p_ext = "_prj" + get_ext(alphaFC)
             newName = os.path.basename(otherFC)
-            output = path + os.sep + os.path.splitext(newName)[0] + "_prj" + ext
+            if output is None:
+                output = path + os.sep + os.path.splitext(newName)[0] + p_ext
             arcpy.Project_management(otherFC, output, alphaSR)
             fc = output
-            message("File was re-projected and saved as " + fc)
+            message("File was re-projected and saved as: " + fc)
         except:
             message("Warning: spatial reference could not be updated.")
             fc = otherFC
@@ -603,12 +642,12 @@ def field_to_lst(table, field):
                     for row in cursor:
                         lst.append(row[0])
             else: #first field is used to sort, second field returned as list
-                orderLst = []
+                order = []
                 with arcpy.da.SearchCursor(table, field) as cursor:
                     for row in cursor:
-                        orderLst.append(row[0])
+                        order.append(row[0])
                         lst.append(row[1])
-                orderLst, lst = (list(x) for x in zip(*sorted(zip(orderLst, lst))))
+                order, lst = (list(x) for x in zip(*sorted(zip(order, lst))))
         else:
             message("Something went wrong with the field to list function")
     else:
