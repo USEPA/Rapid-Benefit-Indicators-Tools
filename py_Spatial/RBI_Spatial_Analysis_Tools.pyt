@@ -388,14 +388,12 @@ def view_score(lst_50, lst_100):
     Notes: Does not currently test that the lists are of equal length.
     """
     lst =[]
-    i=0
     #add test for equal length of lists? (robust check, but shouldn't happen)
     #if len(lst_50) != len(lst_100):
     #   arcpy.AddMessage("Error in view score function, unequal list lengths")
     #   break
-    for item in lst_50:
-       lst.append(lst_50[i] * 0.7 + lst_100[i] * 0.3)
-       i+=1
+    for i, item in enumerate(lst_50):
+       lst.append(item * 0.7 + lst_100[i] * 0.3)
     return lst
 
 
@@ -406,11 +404,9 @@ def setParam(str1, str2, str3, str4="", str5="", multiValue=False):
     """
     lst = [str1, str2, str3, str4, str5]
     defLst = ["Input", "name", "GpFeatureLayer", "Required", "Input"]
-    i = 0
-    for str_ in lst:
+    for i, str_ in enumerate(lst):
         if str_ =="":
             lst[i]=defLst[i]
-        i+=1
     return arcpy.Parameter(
         displayName = lst[0],
         name = lst[1],
@@ -652,13 +648,15 @@ def selectStr_by_list(field, lst):
     """
     exp = ''
     for item in lst:
-        if type(item) == str or type(item) == unicode:
+        if type(item) in [str, unicode]: #sequence
             #exp += '"' + field + '" = ' + "'" + str(item) + "' OR "
             exp += field + " = '" + str(item) + "' OR "
         elif type(item) == float:
             exp += '"' + field + '" = ' + str(dec(item)) + " OR "
-        else: #float or int or long or ?complex
-            exp += '"' + field + '" = ' + str(item) + " OR " #numeric
+        elif type(item) in [int, long, complex]: #numeric
+            exp += '"' + field + '" = ' + str(item) + " OR "
+        else:
+            message("'{}' in list, unknown type '{}'".format(item, type(item))
     return (exp[:-4])
 
 
@@ -705,11 +703,10 @@ def lst_to_field(table, field, lst): #handle empty list
     if len(lst) ==0:
         message("No values to add to '{}'.".format(field))
     else:
-        i=0
         with arcpy.da.UpdateCursor(table, [field]) as cursor:
             for row in cursor:
+            for i, row in enumerate(cursor):
                 row[0] = lst[i]
-                i+=1
                 cursor.updateRow(row)
 
 
@@ -719,18 +716,16 @@ def lst_to_AddField_lst(table, field_lst, list_lst, type_lst):
     Notes: Table, list of new fields, list of listes of field values,
            list of field datatypes.
     """
-    if len(field_lst) != len(field_lst) or len(field_lst) != len(type_lst):
+    if len(field_lst) != len(list_lst) or len(field_lst) != len(type_lst):
         message("ERROR: lists aren't the same length!")
     #"" defaults to "DOUBLE"
     type_lst = ["Double" if x == "" else x for x in type_lst]
 
-    i = 0
-    for field in field_lst:
+    for i, field in enumerate(field_lst):
         #add fields
         arcpy.AddField_management(table, field, type_lst[i])
         #add values
         lst_to_field(table, field, list_lst[i])
-        i +=1
 
 
 def unique_values(table, field):
@@ -1210,14 +1205,11 @@ def View_MODULE(PARAMS):
         if roads is not None:
             #roads in buffer?
             lst_view_roads_100 = buffer_contains(view_100_int, roads)
-            i=0
-            for item in lst_view_trails_100:
-                if (lst_view_trails_100[i] == 0) and (lst_view_roads_100[i] == 0):
+            for i, item in enumerate(lst_view_trails_100):
+                if 0 in [item, lst_view_roads_100[i]]:
                     rteLst.append("NO")
-                    i+=1
                 else:
                     rteLst.append("YES")
-                    i+=1
         else:
             rteLst = quant_to_qual_lst(lst_view_trails_100)   
     elif roads is not None:
@@ -1500,7 +1492,7 @@ def Rec_MODULE(PARAMS):
     #deleteFC_Lst([#arcpy.Delete_management(eduArea
 
     message(mod_str + " complete.")
-    
+
 ##############################
 #############BIRD#############
 def Bird_MODULE(PARAMS):
@@ -1539,14 +1531,11 @@ def Bird_MODULE(PARAMS):
         lst_bird_trails = buffer_contains(birdArea, trails)
         if roads is not None:
             lst_bird_roads = buffer_contains(birdArea, roads)
-            i=0
-            for item in lst_bird_trails:
-                if (lst_bird_trails[i] == 0) or (lst_bird_roads[i] == 0):
+            for i, item in enumerate(lst_bird_trails):
+                if 0 in [item, lst_bird_roads[i]]:
                     rteLstBird.append("NO")
-                    i+=1
                 else:
-                    rteLstBird.append("YES")
-                    i+=1       
+                    rteLstBird.append("YES")     
         else:
             rteLstBird = quant_to_qual_lst(lst_bird_trails)  
     elif roads is not None:
