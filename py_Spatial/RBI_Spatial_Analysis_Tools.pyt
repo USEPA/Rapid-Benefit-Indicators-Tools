@@ -350,6 +350,35 @@ def WinZip_unzip(directory, zipfile):
                 "http://www.7-zip.org/download.html")
 
 
+def append_to_default(out_file, in_file, msg):
+    """Pull downloaded catchments/flow tables into defaults in gdb
+    """
+    folder = os.path.dirname(in_file)
+    gdb = os.path.dirname(out_file)
+    f = os.path.basename(out_file)
+    # Check that sub-folder exists in download
+    if os.path.isdir(folder):
+        # Find the file in that folder
+        if arcpy.Exists(in_file):
+            # Find the default Feature Class or table
+            if arcpy.Exists(out_file):
+                # Append the downloaded into the default
+                arcpy.Append_management(in_file, out_file, "NO_TEST")
+                message("Downloaded {} added to:\n {}".format(msg, out_file))
+                # Delete downloaded
+                try:
+                    rmtree(folder)
+                    message("Original downloaded {} folder deleted".format(msg))
+                except:
+                    message("Unable to delete downloaded {} folder".format(msg))
+            else:
+                message("Expected '{}' not found in '{}'".format(f, gdb))
+        else:
+            message("Expected download file '{}' not found".format(in_file))
+    else:
+        message("Expected download folder '{}' not found".format(folder))
+
+
 def view_score(lst_50, lst_100):
     """Calculate Weighted View Score
     Purpose: list of weighted view scores.
@@ -474,6 +503,7 @@ def checkSpatialReference(match_dataset, in_dataset, output = None):
                 p_ext = "_prj" + get_ext(match_dataset)
                 out_name = os.path.splitext(os.path.basename(in_dataset))[0]
                 output = path + os.sep + out_name + p_ext
+            del_exists(output) #delete if output exists
             arcpy.Project_management(in_dataset, output, matchSR)
             message("File was re-projected and saved as:\n" + output)
             return output
@@ -987,38 +1017,41 @@ def NHD_get_MODULE(PARAMS):
     NHD_VUB = PARAMS[1]
     local = PARAMS[2]
 
-    # Default destination
+    # Assign default destination if not user specified
     script_dir = os.path.dirname(os.path.realpath(__file__))
     if os.path.basename(script_dir) == 'py_standaloneScripts':
         # Move up one folder if standalone script
         script_dir = os.path.dirname(script_dir) + os.sep
     else:
         script_dir = script_dir + os.sep
-        
     if local is None:
         local = script_dir + "NHDPlusV21"
-        message("Download will be saved to default location:\n" + local)
+        message("Files will be Downloaded to default location:\n" + local)
     else:
-        message("Download will be saved to user location:\n" + local)
+        message("Files will be Downloaded to user location:\n" + local)
+
+    # Default file location to copy downloads to
+    local_gdb = local + os.sep + "NHDPlus_Downloads.gdb"
+    if os.path.isdir(local_gdb) and get_ext(local_gdb) == ".gdb":
+        message("Downloaded files will be added to default file geodatabase")
+    else:
+        message("Unable to find Default file geodatabase:\n" + local_gdb)
+        message("Files will be downloaded but must be combined manually.")
         
-    # Default boundary file
+    # Assign default boundary file if not user specified
     if NHD_VUB is None:
         NHD_VUB = script_dir + "NHDPlusV21" + os.sep + "BoundaryUnit.shp"
-        if arcpy.Exists(NHD_VUB):
-            message("NHDPlus Boundaries found in default location:\n" + NHD_VUB)
-        else:
-            arcpy.AddError("No NHDPlus Boundaries specified")
-            print("No NHDPlus Boundaries specified")
-            raise arcpy.ExecuteError
+        loc = "default location:\n" + NHD_VUB
     else:
-        message("NHDPlus Boundaries found in user location:\n" + NHD_VUB)
-        
-    # ftp://www.horizon-systems.com/NHDPlus/NHDPlusV21/Data/NHDPlus
-    v2_dir = "/{0}Data/{0}V21/Data/{0}".format("NHDPlus")
-    NHD_ftp = "ftp.horizon-systems.com"
-    # http://www.horizon-systems.com/NHDPlusData/NHDPlusV21/Data/NHDPlus
-    NHD_http = "http://www" + NHD_ftp[3:] + v2_dir
-    distance = "5 Miles"
+        loc = "user specified location:\n" + NHD_VUB
+
+    # Check boundary file
+    if arcpy.Exists(NHD_VUB):
+            message("NHDPlus Boundaries found in " + loc)
+    else:
+        arcpy.AddError("NHDPlus Boundaries could not be found in " + loc)
+        print("NHDPlus Boundaries could not be found in " + loc)
+        raise arcpy.ExecuteError
 
     # Check projection.
     if get_ext(local) == '.gdb': #filename if re-projected in geodatabase
@@ -1027,23 +1060,23 @@ def NHD_get_MODULE(PARAMS):
         out_prj = local + os.sep + 'VUB_prj.shp'
     NHD_VUB = checkSpatialReference(sites, NHD_VUB, out_prj)
 
-    # Make layer.
-    arcpy.MakeFeatureLayer_management(NHD_VUB, "VUB")
-
     # Select NHDPlus vector unit boundaries
+    arcpy.MakeFeatureLayer_management(NHD_VUB, "VUB") #make layer.
     overlap = "WITHIN_A_DISTANCE"
-    arcpy.SelectLayerByLocation_management("VUB", overlap, sites, distance, "", "")
+    dis = "5 Miles" #distance within
+    arcpy.SelectLayerByLocation_management("VUB", overlap, sites, dis, "", "")
 
+    # http://www.horizon-systems.com/NHDPlusData/NHDPlusV21/Data/NHDPlus
+    sub_link = "/{0}Data/{0}V21/Data/{0}".format("NHDPlus")
+    NHD_http = "http://www.horizon-systems.com" + sub_link
+    
     # Gather info from fields to construct request
     ID_list = field_to_lst("VUB", "UnitID")
-    drain_list = field_to_lst("VUB", "DrainageID")
+    d_list = field_to_lst("VUB", "DrainageID")
 
-    # List to make sure a catchment isn't copied twice
-    added_lst = []
-
-    for i, DA in enumerate(drain_list):
+    for i, DA in enumerate(d_list):
         # Give progress update
-        message("Downloading region {} of {}".format(str(i+1), len(drain_list)))
+        message("Downloading region {} of {}".format(str(i+1), len(d_list)))
 
         # Zipfile names
         ID = ID_list[i]
@@ -1078,93 +1111,42 @@ def NHD_get_MODULE(PARAMS):
         if ID == "04":
             ff_vv = "12"
             
-        # Assign filenames
-        f = "NHDPlusV21_{}_{}_{}_{}{}".format(DA, ID, f_comp, f_vv, ext)
-        flow_f = "NHDPlusV21_{}_{}_{}_{}{}".format(DA, ID, ff_comp, ff_vv, ext)
-        # Fix the one They mis-named
-        if ID == "04":
-            f = f[:-6] + "s_05.7z"
-        
         # Set http zipfile is requested from
         if DA in ["SA", "MS", "CO", "PI"]: #regions with sub-regions
             request = NHD_http + DA + "/" + "NHDPlus" + ID + "/"
         else:
             request = NHD_http + DA + "/"
 
+        # Download child destination folder
+        ID_folder = local + os.sep + "NHDPlus" + DA + os.sep + "NHDPlus" + ID
+
+        # Assign catchment filenames
+        f = "NHDPlusV21_{}_{}_{}_{}{}".format(DA, ID, f_comp, f_vv, ext)
+        # Fix the one they mis-named
+        if ID == "04":
+            f = f[:-6] + "s_05.7z"
         # Download catchment
         HTTP_download(request, local, f)
         # unzip catchment file using winzip
         WinZip_unzip(local, f)
+        # Pull catchments into gdb
+        cat_folder = ID_folder + os.sep + f_comp
+        cat_shp = cat_folder + os.sep + "Catchment.shp"
+        local_catchment = local_gdb + os.sep + "Catchment"
+        append_to_default(local_catchment, cat_shp, "catchment")
 
+        # Assign flow table filename
+        flow_f = "NHDPlusV21_{}_{}_{}_{}{}".format(DA, ID, ff_comp, ff_vv, ext)
         # Download flow table
         HTTP_download(request, local, flow_f)
         # unzip flow table using winzip
         WinZip_unzip(local, flow_f)
-
-        # Unzip destination folders and files
-        d_folder = local + os.sep + "NHDPlus" + DA
-        ID_folder = d_folder + os.sep + "NHDPlus" + ID
-        cat_folder = ID_folder + os.sep + f_comp
-        cat_shp = cat_folder + os.sep + "Catchment.shp"
+        # Pull flow table into gdb
         flow_folder = ID_folder + os.sep + ff_comp
         flow_dbf = flow_folder + os.sep + "PlusFlow.dbf"
+        local_flow = local_gdb + os.sep + "PlusFlow"
+        append_to_default(local_flow, flow_dbf, "flow table")
 
-        # Default file location to copy downloads to
-        local_gdb = local + os.sep + "NHDPlus_Downloads.gdb"
-        if os.path.isdir(local_gdb):
-            message("Downloaded files will be added to default file geodatabase")
-            
-            # Pull catchments into gdb
-            if os.path.isdir(cat_folder):
-                # Find the Catchment shapefile in that folder
-                if arcpy.Exists(cat_shp):
-                    # Find the default Catchment Feature Class
-                    local_cat = local_gdb + os.sep + "Catchment"
-                    if arcpy.Exists(local_cat):
-                        # Append the downloaded into the default
-                        arcpy.Append_management(cat_shp, local_cat, "NO_TEST")
-                        message("Downloaded catchments added to default:\n" +
-                                str(local_cat))
-                        # Delete downloaded
-                        try:
-                            rmtree(cat_folder)
-                            message("Original downloaded catchment folder deleted")
-                        except:
-                            message("Unable to delete downloaded catchment folder")
-                    else:
-                        message("Expected default Catchment file '{}' not found".format(local_cat))
-                else:
-                    message("Expected file '{}' not found".format(cat_shp))
-            else:
-                message("Expected folder '{}' not found".format(cat_folder))
-                
-            # Pull flow table into gdb
-            if os.path.isdir(flow_folder):
-                # Find the flow table in that folder
-                if arcpy.Exists(flow_dbf):
-                    # Find the default flow table
-                    local_flow = local_gdb + os.sep + "PlusFlow"
-                    if arcpy.Exists(local_flow):
-                        # Append the downloaded into the default
-                        arcpy.Append_management(flow_dbf, local_flow, "NO_TEST")
-                        message("Downloaded flow table added to default:\n" +
-                                str(local_flow))
-                        # Delete downloaded
-                        try:
-                            rmtree(flow_folder)
-                            message("Original downloaded flow table folder deleted")
-                        except:
-                            message("Unable to delete downloaded flow table folder")
-                    else:
-                        message("Expected default flow table '{}' not found".format(local_flow))
-                else:
-                    message("Expected file '{}' not found".format(flow_dbf))
-                
-            else:
-                message("Expected folder '{}' not found".format(flow_folder))
-        else:
-            message("Default file geodatabase not found. Files must be combined manually.")
-    
 ##############################
 def View_MODULE(PARAMS):
     """Scenic View Benefits"""
