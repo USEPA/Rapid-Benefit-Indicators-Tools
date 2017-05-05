@@ -13,9 +13,11 @@
 
 import os
 import time
-import itertools
-#from itertools import chain
 import arcpy
+import subprocess
+from itertools import chain
+from urllib import urlretrieve
+from shutil import rmtree
 from decimal import Decimal
 from collections import deque, defaultdict
 
@@ -275,7 +277,7 @@ def list_downstream(lyr, field, COMs):
         #upCatchments.append(children(ID, UpCOMs))
         #list catchments upstream of site #alt
     #flatten list and remove any duplicates
-    downCatchments = set(list(itertools.chain.from_iterable(downCatchments)))
+    downCatchments = set(list(chain.from_iterable(downCatchments)))
     return(list(downCatchments))
 
 
@@ -449,32 +451,37 @@ def check_vars(outTbl, addresses, popRast):
         raise arcpy.ExecuteError
 
 
-def checkSpatialReference(alphaFC, otherFC, output = None):
+def checkSpatialReference(match_dataset, in_dataset, output = None):
     """Check Spatial Reference
-    Purpose: Checks that a second spatial reference matches the first and
-             re-projects if not.
-    Function Notes: Either the original FC or the re-projected one is returned
+    Purpose: Checks that the spatial reference name of one dataset (in_dataset)
+             matches that of another (match_dataset) and re-projects if not.
+    Inputs: \n match_dataset (Feature Class / Feature Layer / Feature Dataset):
+            The dataset with the spatial reference that will be matched.
+            in_dataset (Feature Class / Feature Layer / Feature Dataset):
+            The dataset that will be projected if it does not match.
+    output: \n Path, filename and extension where projected in_dataset is saved
+            Defaults to match_dataset location.
+    Return: \n Either the original FC or the projected 'output' is returned.
     """
-    alphaSR = arcpy.Describe(alphaFC).spatialReference
-    otherSR = arcpy.Describe(otherFC).spatialReference
-    if alphaSR.name != otherSR.name:
-        #e.g. .name = u'WGS_1984_UTM_Zone_19N' for WGS_1984_UTM_Zone_19N
-        message("Spatial reference for '{}' does not match.".format(otherFC))
+    matchSR = arcpy.Describe(match_dataset).spatialReference
+    otherSR = arcpy.Describe(in_dataset).spatialReference
+    if matchSR.name != otherSR.name:
+        message("Spatial reference for '{}' does not match.".format(in_dataset))
         try:
-            path = os.path.dirname(alphaFC)
-            p_ext = "_prj" + get_ext(alphaFC)
-            newName = os.path.basename(otherFC)
             if output is None:
-                output = path + os.sep + os.path.splitext(newName)[0] + p_ext
-            arcpy.Project_management(otherFC, output, alphaSR)
-            fc = output
-            message("File was re-projected and saved as: " + fc)
+                # Output defaults to match_dataset location
+                path = os.path.dirname(match_dataset)
+                p_ext = "_prj" + get_ext(match_dataset)
+                out_name = os.path.splitext(os.path.basename(in_dataset))[0]
+                output = path + os.sep + out_name + p_ext
+            arcpy.Project_management(in_dataset, output, matchSR)
+            message("File was re-projected and saved as:\n" + output)
+            return output
         except:
             message("Warning: spatial reference could not be updated.")
-            fc = otherFC
+            return in_dataset
     else:
-        fc = otherFC
-    return fc
+        return in_dataset
 
 
 def buffer_donut(FC, outFC, buf, units):
@@ -824,7 +831,8 @@ def FR_MODULE(PARAMS):
             shortDownCOMs = defaultdict(list)
             for item in bufferCatchments:
                 shortDownCOMs[item].append(DownCOMs[item])
-                shortDownCOMs[item] = list(itertools.chain.from_iterable(shortDownCOMs[item]))
+                #shortDownCOMs[item] = list(itertools.chain.from_iterable(shortDownCOMs[item]))
+                shortDownCOMs[item] = list(chain.from_iterable(shortDownCOMs[item]))
 
             #select catchments where the restoration site is
             arcpy.SelectLayerByLocation_management("catch_lyr", "INTERSECT", site[0])
@@ -974,9 +982,6 @@ def FR_MODULE(PARAMS):
 ##############################
 def NHD_get_MODULE(PARAMS):
     """Download NHD Plus Data"""
-    import subprocess
-    from urllib import urlretrieve
-    from shutil import rmtree
     
     sites = PARAMS[0]
     NHD_VUB = PARAMS[1]
@@ -1016,7 +1021,11 @@ def NHD_get_MODULE(PARAMS):
     distance = "5 Miles"
 
     # Check projection.
-    NHD_VUB = checkSpatialReference(sites, NHD_VUB)
+    if get_ext(local) == '.gdb': #filename if re-projected in geodatabase
+        out_prj = local + os.sep + 'VUB_prj'
+    else: #filename if re-projected in folder
+        out_prj = local + os.sep + 'VUB_prj.shp'
+    NHD_VUB = checkSpatialReference(sites, NHD_VUB, out_prj)
 
     # Make layer.
     arcpy.MakeFeatureLayer_management(NHD_VUB, "VUB")
