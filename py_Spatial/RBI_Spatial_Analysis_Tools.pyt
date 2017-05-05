@@ -218,12 +218,15 @@ def ListType_fromField(typ, lst):
     Example: lst = type_fromField(paramas[1].type, params[2].values)
              where (field Obj; list of unicode values).
     """
-    if typ == "Single" or typ == "Float" or typ == "Double":
+    if typ in ["Single", "Float", "Double"]:
         return map(float, lst)
-    elif typ == "SmallInteger" or typ == "Integer": #"Short" or "Long"
+    elif typ in ["SmallInteger", "Integer"]: #"Short" or "Long"
         return map(int, lst)
-    else: #String
-        return lst
+    else: #String #Date?
+        try:
+            return map(str, lst)
+        except:
+            message("Could not recongnize field type")
 
 
 def nhdPlus_check(catchment, joinField, relTbl):
@@ -1994,10 +1997,10 @@ def main(params):
     message("Checking input variables...")
     #check spatial references for inputs
     #all require pop except edu
-    if flood == True or view == True or rec == True or bird == True:
+    if True in [flood, view, rec, bird]:
         addresses, popRast = check_vars(outTbl, addresses, popRast)
     #trails
-    if view == True or bird == True or rec == True:
+    if True in [view, bird, rec]:
         if trails is not None:
             trails = checkSpatialReference(outTbl, trails) #check spatial ref
             message("Trails input OK")
@@ -2011,7 +2014,7 @@ def main(params):
             message("Roads input not specified, " + blank_warn)
 
     # Benefits requiring existing wetlands
-    if flood == True or view == True or edu == True or rec == True:
+    if True in [flood, view, edu, rec]:
         if OriWetlands is not None: #if the dataset is specified
             # Check spatial ref
             OriWetlands = checkSpatialReference(outTbl, OriWetlands)
@@ -2019,7 +2022,7 @@ def main(params):
         else:
             message("Existings wetlands input not specified, " + blank_warn)
     #benefits using landuse       
-    if view == True or rec == True:
+    if True in [view, rec]:
         if landuse is not None:
             landuse = checkSpatialReference(outTbl, landuse) #check spatial ref
             message("Landuse polygons OK")
@@ -2548,89 +2551,85 @@ class Tier_1_Indicator_Tool (object):
         # Modify the values and properties of parameters before internal
         #validation is performed.
         #Called whenever a parameter is changed.
-        #only take points or raster
-        if params[1].value != None:
-            params[2].enabled = False
+        p = params
+        # Only take points or raster
+        if p[1].value != None:
+            p[2].enabled = False
         else:
-            params[2].enabled = True
-        if params[2].value != None:
-            params[1].enabled = False
+            p[2].enabled = True
+        if p[2].value != None:
+            p[1].enabled = False
         else:
-            params[1].enabled = True
-        #flood only inputs (flood zone & dams)
-        if params[3].value == True: #option button
-            params[10].enabled = True #zone
-            params[11].enabled = True #dams
+            p[1].enabled = True
+        # Flood only inputs (flood zone & dams)
+        if p[3].value == True: #option button
+            p[10].enabled = True #zone
+            p[11].enabled = True #dams
         else:
-            params[10].enabled = False
-            params[11].enabled = False
+            p[10].enabled = False
+            p[11].enabled = False
         #edu only inputs (edu_inst)
-        if params[5].value == True:
-            params[12].enabled = True
+        if p[5].value == True:
+            p[12].enabled = True
         else:
-            params[12].enabled = False
+            p[12].enabled = False
         #rec only inputs (bus_stp)
-        if params[6].value == True:
-            params[13].enabled = True
+        if p[6].value == True:
+            p[13].enabled = True
         else:
-            params[13].enabled = False
+            p[13].enabled = False
         #trails required benefits (view, rec, bird)
-        #if params[4].value == True or params[6].value == True or 
-        #params[7].value == True :
-        lst = [params[4].value, params[6].value, params[7].value]
-        if True in set(lst):
-            params[14].enabled = True
+        if True in set([p[4].value, p[6].value, p[7].value]):
+            p[14].enabled = True
         else:
-            params[14].enabled = False 
+            p[14].enabled = False 
         #roads required benefits (view, bird)
-        if params[4].value == True or params[7].value == True :
-            params[15].enabled = True
+        if True in [params[4].value, params[7].value]:
+            p[15].enabled = True
         else:
-            params[15].enabled = False
+            p[15].enabled = False
         # Wetlands required benefits (flood, view, edu, rec).
-        lst = [params[3].value, params[4].value, params[5].value, params[6].value]
+        lst = [p[3].value, p[4].value, p[5].value, p[6].value]
         if True in set(lst):
-        #if params[3].value == True or params[4].value == True or 
-        #params[5].value == True or params[6].value == True:
-            params[16].enabled = True
+            p[16].enabled = True
         else:
-            params[16].enabled = False 
+            p[16].enabled = False 
         # landuse required benefits (view & rec).
-        if params[4].value == True or params[6].value == True:
-            params[17].enabled = True
+        if True in [p[4].value, p[6].value]:
+            p[17].enabled = True
         else:
-            params[17].enabled = False
-        if params[17].altered:
-            params[18].enabled = True
-        if params[18].altered:
-            in_poly = params[17].valueAsText
-            TypeField = params[18].valueAsText
-            params[19].enabled = True
-            params[19].filter.list = unique_values(in_poly, TypeField)
+            p[17].enabled = False
+        if p[17].altered:
+            p[18].enabled = True
+        if p[18].altered:
+            in_poly = p[17].valueAsText
+            TypeField = p[18].valueAsText
+            p[19].enabled = True
+            p[19].filter.list = unique_values(in_poly, TypeField)
         #social vulnerability inputs    
-        if params[8].value == True:
-            params[20].enabled = True #SocVul
+        if p[8].value == True:
+            p[20].enabled = True #SocVul
         else:
-            params[20].enabled = False
-        if params[20].altered:
-            params[21].enabled = True
-        if params[21].altered: #socVul_field
-            in_poly = params[20].valueAsText
-            TypeField = params[21].valueAsText
-            params[22].enabled = True
-            params[22].filter.list = unique_values(in_poly, TypeField)
+            p[20].enabled = False
+        if p[20].altered:
+            p[21].enabled = True
+        if p[21].altered: #socVul_field
+            in_poly = p[20].valueAsText
+            TypeField = p[21].valueAsText
+            p[22].enabled = True
+            p[22].filter.list = unique_values(in_poly, TypeField)
         #reliability inputs
-        if params[9].value == True:
-            params[23].enabled = True #Conservation
+        if p[9].value == True:
+            p[23].enabled = True #Conservation
         else:
-            params[23].enabled = False
-        if params[23].altered:
-            params[24].enabled = True #Conserve_Field
-        if params[24].altered: 
-            in_poly = params[23].valueAsText
-            TypeField = params[24].valueAsText
-            params[25].enabled = True
-            params[25].filter.list = unique_values(in_poly, TypeField)
+            p[23].enabled = False
+        if p[23].altered:
+            p[24].enabled = True #Conserve_Field
+        if p[24].altered: 
+            in_poly = p[23].valueAsText
+            TypeField = p[24].valueAsText
+            p[25].enabled = True
+            p[25].filter.list = unique_values(in_poly, TypeField)
         return
 
     def updateMessages(self, params):
