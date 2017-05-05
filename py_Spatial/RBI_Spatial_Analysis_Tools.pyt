@@ -234,33 +234,34 @@ def nhdPlus_check(catchment, joinField, relTbl):
     Purpose: Assigns defaults and/or checks the NHD Plus inputs.
     """
     script_dir = os.path.dirname(os.path.realpath(__file__)) + os.sep
+    NHD_gdb = "NHDPlusV21" + os.sep + "NHDPlus_Downloads.gdb"
     if catchment == None:
-        NHD_gdb = "NHDPlusV21_National_Seamless.gdb"
         catchment = script_dir + NHD_gdb + os.sep + "Catchment"
     if arcpy.Exists(catchment):
-        message("Using " + catchment + " catchment file for downstream")
+        message("Catchment file for downstream:\n{}".format(catchment))
         if joinField == None:
             joinField = "FEATUREID" #field from feature layer
         #check catchment for field
         if not field_exists(catchment, joinField):
-            message(joinField + " could not be found in " + catchment)
+            message("'{}' field could not be found in:\n".format(joinField,
+                                                                 catchment))
             return False
     else:
-        message("Default catchment file not available in expected location: " +
-                catchment)
+        message("Catchment file not in expected location:\n" + catchment)
         return False
     if relTbl == None:
-        relTbl = script_dir + "PlusFlow.dbf"
+        relTbl = script_dir + NHD_gdb + os.sep + "PlusFlow"
     if arcpy.Exists(relTbl):
-        message("Using " + relTbl + " for upstream/downstream relationships")
+        message("Downstream relationships table:\n".format(relTbl))
         #check relationship table for field "FROMCOMID" & "TOCOMID"
         for targetField in ["FROMCOMID", "TOCOMID"]:
             if not field_exists(relTbl , targetField):
-                message(targetField + " could not be found in " + relTbl)
+                message("'{}' field could not be found in:\n".format(
+                    targetField, relTbl))
                 return False
     else:
-        message("Default relationship file not available in expected location: "
-                + relTbl)
+        message("Default relationship file not in expected location:\n" +
+                relTbl)
         return False
     message("NHD Plus Inputs are OK")
     return catchment, joinField, relTbl
@@ -367,7 +368,7 @@ def append_to_default(out_file, in_file, msg):
             if arcpy.Exists(out_file):
                 # Append the downloaded into the default
                 arcpy.Append_management(in_file, out_file, "NO_TEST")
-                message("Downloaded {} added to:\n {}".format(msg, out_file))
+                message("Downloaded {} added to:\n{}".format(msg, out_file))
                 # Delete downloaded
                 try:
                     rmtree(folder)
@@ -855,7 +856,7 @@ def FR_MODULE(PARAMS):
         flood_areaC = flood_areaB
     #3.2 Step 3B: clip the buffered flood area to downstream basins (OPTIONAL?)
     #if Catchment is not None:
-    message("Using {} to determine downstream areas of flood zone".format(Catchment))
+    message("Determining downstream flood zone area from:\n" + Catchment)
 
     arcpy.MakeFeatureLayer_management(flood_areaB, "buffer_lyr")
     arcpy.MakeFeatureLayer_management(flood_areaC, "flood_lyr")
@@ -865,6 +866,9 @@ def FR_MODULE(PARAMS):
     #create empty FC for downstream catchments
     del_exists(flood_areaD)
     arcpy.CreateFeatureclass_management(path, clip_name, "POLYGON", spatial_reference = "flood_lyr")
+    #if OID field doesn't exist add it
+    if field_exists(flood_areaD, OID_field) == False:
+        arcpy.AddField_management(flood_areaD, OID_field, "LONG")
 
     site_cnt = arcpy.GetCount_management(outTbl)
     
@@ -905,10 +909,10 @@ def FR_MODULE(PARAMS):
             arcpy.SelectLayerByAttribute_management("flood_lyr", slct, wClause)
             arcpy.Clip_analysis("flood_lyr", "catch_lyr", flood_areaD_clip)
             arcpy.MakeFeatureLayer_management(flood_areaD_clip, "flood_zone_down_lyr")
-            arcpy.Dissolve_management("flood_zone_down_lyr", flood_areaD_clip_single)
+            arcpy.Dissolve_management("flood_zone_down_lyr", flood_areaD_clip_single, OID_field)
                                
             #append to empty clipped set
-            arcpy.Append_management(flood_areaD_clip_single, flood_areaD)
+            arcpy.Append_management(flood_areaD_clip_single, flood_areaD, "NO_TEST")
             clip_rows = arcpy.GetCount_management(flood_areaD)
             message("Determined catchments downstream for site "+ 
                     "{}, of {}".format(clip_rows, site_cnt))
