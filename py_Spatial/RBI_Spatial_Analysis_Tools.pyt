@@ -656,7 +656,7 @@ def selectStr_by_list(field, lst):
         elif type(item) in [int, long, complex]: #numeric
             exp += '"' + field + '" = ' + str(item) + " OR "
         else:
-            message("'{}' in list, unknown type '{}'".format(item, type(item))
+            message("'{}' in list, unknown type '{}'".format(item, type(item)))
     return (exp[:-4])
 
 
@@ -704,10 +704,10 @@ def lst_to_field(table, field, lst): #handle empty list
         message("No values to add to '{}'.".format(field))
     else:
         with arcpy.da.UpdateCursor(table, [field]) as cursor:
-            for row in cursor:
+            #for row in cursor:
             for i, row in enumerate(cursor):
-                row[0] = lst[i]
-                cursor.updateRow(row)
+                    row[0] = lst[i]
+                    cursor.updateRow(row)
 
 
 def lst_to_AddField_lst(table, field_lst, list_lst, type_lst):
@@ -736,6 +736,29 @@ def unique_values(table, field):
     with arcpy.da.SearchCursor(table, [field]) as cursor:
         return sorted({row[0] for row in cursor if row[0]})
 
+
+def buffer_contains_multiset(dataset1, dataset2, bufferFC):
+    """make qual list based on 2 datasets"""                
+    if dataset1 is not None:
+        # Dataset in buffer?
+        lst_1 = buffer_contains(bufferFC, dataset1)
+        if dataset2 is not None:
+            # Dataset2 in buffer?
+            lst_2 = buffer_contains(bufferFC, dataset2)
+            for i, item in enumerate(lst_1):
+                if 0 in [item, lst_2[i]]:
+                    lst.append("NO")
+                else:
+                    lst.append("YES")
+        else:
+            lst = quant_to_qual_lst(lst_1)
+    elif dataset2 is not None:
+        lst_2 = buffer_contains(bufferFC, dataset2)
+        lst = quant_to_qual_lst(lst_2)
+    else:
+        lst = []
+    return lst
+                    
 
 def quant_to_qual_lst(lst):
     """Quantitative List to Qualitative List
@@ -979,7 +1002,8 @@ def FR_MODULE(PARAMS):
         #CONCERN- the above only looks at wetlands in the flood areas
         #         within 2.5 miles, the below does entire buffer.
         #Should this be restricted to upstream/downstream?
-        lst_floodRet_Density = percent_cover(OriWetlands, flood_areaB) #analysis for scarcity
+        #analysis for scarcity
+        lst_floodRet_Density = percent_cover(OriWetlands, flood_areaB)
         #CONCERN: THIS IS WICKED SLOW
         start = exec_time (start, mod_str + ": Scarcity (scarcity - 'FR_3B_sca')")
     else:
@@ -1174,11 +1198,11 @@ def View_MODULE(PARAMS):
     start = time.clock() #start the clock
     step_str = "3.2 How Many Benefit?"
     message("Scenic Views - " + step_str)
-    #create buffers 
-    arcpy.Buffer_analysis(outTbl, view_50, "50 Meters") #buffer each site by 50-m
+    # Create buffers 
+    arcpy.Buffer_analysis(outTbl, view_50, "50 Meters") #buffer sites by 50m
     buffer_donut(view_50, view_100, [50], vUnit) #distance past original buffer
 
-    #calculate number benefitting in buffers
+    # Calculate number benefitting in buffers
     if addresses is not None: #address based method
         lst_view_50 = buffer_contains(view_50, addresses)
         lst_view_100 = buffer_contains(view_100, addresses)
@@ -1194,29 +1218,14 @@ def View_MODULE(PARAMS):
         
     lst_view_score = view_score(lst_view_50, lst_view_100) #calculate weighted scores
 
-    # Generate a complete 100m buffer and determines if trails or roads cross
-    #through buffer
+    # Generate a complete 100m buffer and determine if trails/roads interstect
     arcpy.Buffer_analysis(outTbl, view_100_int, "100 Meters")
-    rteLst = []
-
-    if trails is not None:
-        #trails in buffer?
-        lst_view_trails_100 = buffer_contains(view_100_int, trails)
-        if roads is not None:
-            #roads in buffer?
-            lst_view_roads_100 = buffer_contains(view_100_int, roads)
-            for i, item in enumerate(lst_view_trails_100):
-                if 0 in [item, lst_view_roads_100[i]]:
-                    rteLst.append("NO")
-                else:
-                    rteLst.append("YES")
-        else:
-            rteLst = quant_to_qual_lst(lst_view_trails_100)   
-    elif roads is not None:
-        lst_view_roads_100 = buffer_contains(view_100_int, roads) #roads in buffer?
-        rteLst = quant_to_qual_lst(lst_view_roads_100)
+    # Generate a Yes/No list from trails and roads
+    if trails is not None or roads is not None:
+        rteLst = buffer_contains_multiset(trails, roads, view_100_int)
     else:
         message("No roads or trails specified")
+
     start=exec_time(start, mod_str + " - " + step_str + " (from trails or roads)")
     start1= exec_time(start1, mod_str + " - " + step_str + " Total")
 
@@ -1525,22 +1534,9 @@ def Bird_MODULE(PARAMS):
         start=exec_time(start, mod_str +
                         ": 3.2 How Many Benefit? (from population Raster)")
 
-    #3.2 - are there roads or trails that could see birds on the site?
-    rteLstBird = []
-    if trails is not None:
-        lst_bird_trails = buffer_contains(birdArea, trails)
-        if roads is not None:
-            lst_bird_roads = buffer_contains(birdArea, roads)
-            for i, item in enumerate(lst_bird_trails):
-                if 0 in [item, lst_bird_roads[i]]:
-                    rteLstBird.append("NO")
-                else:
-                    rteLstBird.append("YES")     
-        else:
-            rteLstBird = quant_to_qual_lst(lst_bird_trails)  
-    elif roads is not None:
-        lst_bird_roads = buffer_contains(birdArea, roads)
-        rteLstBird = quant_to_qual_lst(lst_bird_roads)
+    #3.2 - are there roads or trails that could see birds on the site?      
+    if trails is not None or roads is not None:
+        rteLstBird = buffer_contains_multiset(trails, roads, birdArea)
     else:
         message("No trails or roads specified to determine if birds at the " +
                 "site will be visible from these")
