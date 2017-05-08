@@ -1929,28 +1929,32 @@ def main(params):
     fieldLst = params[19].values #[u'161', u'162', u'410', u'430']
     if fieldLst != None:
         #coerce/map unicode list using field in table
-        fieldLst = ListType_fromField(tbl_fieldType(landuse, field), fieldLst)
+        typ = tbl_fieldType(landuse, field)
+        fieldLst = ListType_fromField(typ, fieldLst)
 
     sovi = params[20].valueAsText #in_gdb + "SoVI0610_RI"
     sovi_field = params[21].valueAsText #"SoVI0610_1"
     sovi_High = params[22].values #"High" #this is now a list...
     if sovi_High != None:
         #coerce/map unicode list using field in table
-        sovi_High = ListType_fromField(tbl_fieldType(sovi, sovi_field), sovi_High)
+        typ = tbl_fieldType(sovi, sovi_field)
+        sovi_High = ListType_fromField(typ, sovi_High)
 
     conserved = params[23].valueAsText #in_gdb + "LandUse2025"
     rel_field = params[24].valueAsText #"Map_Legend"
-    cons_fieldLst = params[25].values
+    cons_fLst = params[25].values
     #['Conservation/Limited', 'Major Parks & Open Space',
     # 'Narragansett Indian Lands', 'Reserve', 'Water Bodies']
-    if cons_fieldLst != None:
+    if cons_fLst != None:
         #convert unicode lists to field.type
-        cons_fieldLst = ListType_fromField(tbl_fieldType(conserved, rel_field), cons_fieldLst)
+        typ = tbl_fieldType(conserved, rel_field)
+        cons_fLst = ListType_fromField(typ, cons_fLst)
 
-        #all values from rel_field not in cons_fieldLst
+        #all values from rel_field not in cons_fLst
         #['Non-urban Developed', 'Prime Farmland', 'Sewered Urban Developed',
         # 'Urban Development']
-        threat_fieldLst = [x for x in unique_values(conserved, rel_field) if x not in cons_fieldLst]
+        uq_lst = unique_values(conserved, rel_field)
+        threat_fieldLst = [x for x in uq_lst if x not in cons_fLst]
         
     #r"~\Tier1_pyt\Test_Results\IntermediatesFinal77.gdb\Results_full"
     outTbl = params[26].valueAsText
@@ -1961,7 +1965,8 @@ def main(params):
     if socEq == True:
         #buff_dist = params[22].valueAsText #"2.5 Miles"
         buff_dist = SocEqu_BuffDist(ck[0:5])
-        message("Default buffer distance of " + buff_dist + " used for Social Equity")
+        message("Default buffer distance of {} used" +
+                " for Social Equity".format(buff_dist))
     if rel == True:
         rel_buff_dist = "500 Feet"
         message("Default buffer distance of " + rel_buff_dist +
@@ -1981,8 +1986,8 @@ def main(params):
         if arcpy.Exists(mxd):
             message("Using " + mxd + " report layout file")
         else:
-            message("Default report layout file not available in expected location: " +
-                    mxd)
+            message("Default report layout file not available in expected" +
+                    "location:\n{}".format(mxd))
             message("A PDF report will not be generated from results")
             pdf = None
 
@@ -2075,7 +2080,7 @@ def main(params):
         message("Social Equity of Benefits not assessed")
         
     if rel == True:
-        Rel_PARAMS = [conserved, rel_field, cons_fieldLst, threat_fieldLst,
+        Rel_PARAMS = [conserved, rel_field, cons_fLst, threat_fieldLst,
                       rel_buff_dist, outTbl]
         reliability_MODULE(Rel_PARAMS)
         start1 = exec_time(start1, "Reliability assessment")
@@ -2160,7 +2165,8 @@ class socialVulnerability (object):
         sites = setParam("Restoration Site Polygons (Required)", "in_poly", "", "", "")
         poly = setParam("Social Vulnerability", "sovi_poly", "", "", "")
         poly_field = setParam("Vulnerability Field", "SoVI_ScoreFld","Field", "", "")
-        field_value = setParam("Vulnerable Field Values", "soc_field_val", "GPString", "", "", True)
+        field_value = setParam("Vulnerable Field Values", "soc_field_val",
+                               "GPString", "", "", True)
         buff_dist = setParam("Buffer Distance", "bufferUnits", "GPLinearUnit", "", "")
 
         outTbl = setParam("Output", "outTable", "DEFeatureClass", "", "Output")
@@ -2260,11 +2266,14 @@ class reliability (object):
 
         if cons_fieldLst != None:
             #convert unicode lists to field.type
-            cons_fieldLst = ListType_fromField(tbl_fieldType(conserved, field), cons_fieldLst)
+            typ = tbl_fieldType(conserved, field)
+            cons_fieldLst = ListType_fromField(typ, cons_fieldLst)
             #all values from rel_field not in cons_fieldLst
-            threat_fieldLst = [x for x in unique_values(conserved, field) if x not in cons_fieldLst]
+            uq_vals = unique_values(conserved, field)
+            threat_fieldLst = [x for x in uq_vals if x not in cons_fieldLst]
         
-        Rel_PARAMS = [conserved, field, cons_fieldLst, threat_fieldLst, buff_dist, outTbl]
+        Rel_PARAMS = [conserved, field, cons_fieldLst, threat_fieldLst,
+                      buff_dist, outTbl]
         try:
             reliability_MODULE(Rel_PARAMS)
             start1 = exec_time(start1, "Reliability assessment")
