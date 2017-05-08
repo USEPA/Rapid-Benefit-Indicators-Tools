@@ -612,7 +612,7 @@ def percent_cover(poly, bufPoly, units = "SQUAREMETERS"):
     orderLst=[]
     #add handle for when no overlap?
     # Check for "orig_ID" then "ORIG_FID" then use OID@
-    field = find_ID(poly)
+    field = find_ID(bufPoly)
     with arcpy.da.SearchCursor(bufPoly, ["SHAPE@", field]) as cursor:
         for row in cursor:
             totalArea = dec(row[0].getArea("PLANAR", units))
