@@ -1,7 +1,7 @@
 """
 # Name: Rapid Benefit Indicator Assessment - All Modules (Tier 1)
-# Purpose: Calculate values for benefit indicators using wetland restoration
-#          site polygons and a variety of other input data
+# Purpose: Calculate values for benefit indicators using wetland
+#          restoration site polygons and a variety of other input data
 # Author: Justin Bousquin
 # Additional Author Credits: Michael Charpentier (Report generation)
 # Additional Author Credits: Marc Weber and Tad Larsen (StreamCat)
@@ -68,9 +68,9 @@ def deleteFC_Lst(lst):
         
 
 def SocEqu_BuffDist(lst):
-    """Buffer Distance for Social equity based on lst of checked benefits
-    Purpose: Returns a distance to use for the buffer based on which benefits
-             are checked and how far those benefits are delivered.
+    """Buffer Distance for Social equity based on lst benefits
+    Purpose: Returns a distance to use for the buffer based on which
+             benefits are checked and how far those are delivered.
     """
     #ck[0, 4] = [flood, view, edu, rec, bird]
     if lst[0] is not None:
@@ -202,9 +202,7 @@ def proctext(fieldVal, fieldType, ndigits, ltorgt, aveVal, colNum, rowNum,
 
 
 def tbl_fieldType(table, field):
-    """type from field in table
-    Purpose: return the data type of a specified field in specified table 
-    """
+    """Return data type for a field in a table"""
     fields = arcpy.ListFields(table)
     for f in fields:
         if f.name == field:
@@ -252,11 +250,11 @@ def nhdPlus_check(catchment, joinField, relTbl):
     if relTbl == None:
         relTbl = script_dir + NHD_gdb + os.sep + "PlusFlow"
     if arcpy.Exists(relTbl):
-        message("Downstream relationships table:\n".format(relTbl))
+        message("Downstream relationships table:\n{}".format(relTbl))
         #check relationship table for field "FROMCOMID" & "TOCOMID"
         for targetField in ["FROMCOMID", "TOCOMID"]:
             if not field_exists(relTbl , targetField):
-                message("'{}' field could not be found in:\n".format(
+                message("'{}' field could not be found in:\n{}".format(
                     targetField, relTbl))
                 return False
     else:
@@ -268,9 +266,8 @@ def nhdPlus_check(catchment, joinField, relTbl):
 
 
 def list_downstream(lyr, field, COMs):
-    """List Downstream
-    Purpose: generates a list of catchments downstream of catchments in layer
-    Notes: written to alternatively work for upstream
+    """List catchments downstream of catchments in layer
+    Notes: can be re-written to work for upstream
     """
     #list lyr IDs
     HUC_ID_lst = field_to_lst(lyr, field)
@@ -437,7 +434,8 @@ def exec_time(start, task):
     """Global Timer
     Purpose: Returns the time since the last function assignment,
              and a task message.
-    Notes: used during testing to compare efficiency of each step"""
+    Notes: used during testing to compare efficiency of each step
+    """
     end = time.clock()
     comp_time = time.strftime("%H:%M:%S", time.gmtime(end-start))
     message("Run time for " + task + ": " + str(comp_time))
@@ -465,7 +463,8 @@ def del_exists(item):
 
 def check_vars(outTbl, addresses, popRast):
     """Check variables
-    Purpose: make sure population var has correct spatial reference."""
+    Purpose: make sure population var has correct spatial reference.
+    """
     if addresses is not None:
         addresses = checkSpatialReference(outTbl, addresses) #check spatial ref
         message("Addresses OK")
@@ -482,13 +481,13 @@ def check_vars(outTbl, addresses, popRast):
 
 def checkSpatialReference(match_dataset, in_dataset, output = None):
     """Check Spatial Reference
-    Purpose: Checks that the spatial reference name of one dataset (in_dataset)
-             matches that of another (match_dataset) and re-projects if not.
-    Inputs: \n match_dataset (Feature Class / Feature Layer / Feature Dataset):
+    Purpose: Checks that in_dataset spatial reference name matches
+             match_dataset and re-projects if not.
+    Inputs: \n match_dataset(Feature Class/Feature Layer/Feature Dataset):
             The dataset with the spatial reference that will be matched.
-            in_dataset (Feature Class / Feature Layer / Feature Dataset):
+            in_dataset (Feature Class/Feature Layer/Feature Dataset):
             The dataset that will be projected if it does not match.
-    output: \n Path, filename and extension where projected in_dataset is saved
+    output: \n Path, filename and extension for projected in_dataset
             Defaults to match_dataset location.
     Return: \n Either the original FC or the projected 'output' is returned.
     """
@@ -518,7 +517,7 @@ def buffer_donut(FC, outFC, buf, units):
     """Donut Buffer
     Purpose: Takes inside buffer and creates outside buffers.
              Ensures sort is done on "orig_ID", since FID/OID may change.
-    Notes: There can be multiple buffer distances, but must be in list form
+    Note: There can be multiple buffer distances in list form
     """
     ext = get_ext(FC)
     #the buffers should all be in the outTbl folder
@@ -545,16 +544,16 @@ def buffer_contains(poly, pnts):
     Example: lst = buffer_contains(view_50, addresses).
     """
     ext = get_ext(poly)
-    polyOut = os.path.splitext(poly)[0] + "_2" + ext
-    del_exists(polyOut) #delete intermediate if it exists
+    plyOut = os.path.splitext(poly)[0] + "_2" + ext
+    del_exists(plyOut) #delete intermediate if it exists
     # Use spatial join to count points in buffers.
     join = "JOIN_ONE_TO_ONE" #one line for each buffer
     match = "INTERSECT" #pnts matched if they intersect target poly
-    arcpy.SpatialJoin_analysis(poly, pnts, polyOut, join, "", "", match, "", "")
+    arcpy.SpatialJoin_analysis(poly, pnts, plyOut, join, "", "", match, "", "")
     # Check for fields to sort with, then "Join_Count" is the number of pnts
-    field = find_ID(polyOut)
-    lst = field_to_lst(polyOut, [field, "Join_Count"])
-    arcpy.Delete_management(polyOut)
+    field = find_ID(plyOut)
+    lst = field_to_lst(plyOut, [field, "Join_Count"])
+    arcpy.Delete_management(plyOut)
     return lst
 
 
@@ -797,51 +796,54 @@ def FR_MODULE(PARAMS):
 
     path = os.path.dirname(outTbl) + os.sep
     ext = get_ext(outTbl)
-    #OID_field = arcpy.Describe(outTbl).OIDFieldName
+
     # Check for "orig_ID" then "ORIG_FID" then use OID@
     OID_field = find_ID(outTbl)
 
-    #set variables
-    FA = path + "temp_FloodArea_" #naming convention for flood intermediates
-
+    # Naming convention for flood intermediates
+    FA = path + "temp_FloodArea_" 
+    # Name intermediate files
+    assets = FA + "_assets" + ext #addresses/population in flood zone
     fld_A1 = FA + "1_buffer" + ext #buffers
     fld_A2 = FA + "2_zone" + ext #flood zone in buffer
-    fld_A3_clip = FA + "3_clip" + ext #downstream
-    # single site's downstream area
+    fld_A3_clip = FA + "3_clip" + ext #downstream of a site
+    # Single site's downstream area dissolved to one row
     fld_A3_clip_1 = FA + "3_single" + ext
-    # single downstream buffer
-    clip_name = os.path.basename(FA) + "3_down" + ext
-    fld_A3_down = path + clip_name
-    assets = FA + "_assets" + ext #addresses/population in flood zone
+    # Feature Class to append single rows to 
+    cName = os.path.basename(FA) + "3_down" + ext
+    fld_A3_down = path + cName
             
     start=exec_time(start, "intiating variables for " + mod_str)
 
-    #check NHD+ inputs
+    # Check NHD+ inputs
     nhd_ck = nhdPlus_check(Catchment, InputField, Flow)
     if not nhd_ck:
         message("Flood benefits will not be assessed")
-    else: #assign defaults via nhdPlus_check(
+    else: #assign defaults via nhdPlus_check()
         Catchment, InputField, Flow = nhd_ck
     
-    #3.2 - NUMBER WHO BENEFIT                    
-    #3.2 - Step 1: check that there are people in the flood zone
+    # Check that there are assets in the flood zone.
     if flood_zone is not None:
         # check spatial ref
         flood_zone = checkSpatialReference(outTbl, flood_zone)
         if addresses is not None: #if using addresses
+            del_exists(assets)
             arcpy.Clip_analysis(addresses, flood_zone, assets)
             total_cnt = arcpy.GetCount_management(assets) #count addresses
             # If there are no addresses in flood zones stop analysis.
             if int(total_cnt.getOutput(0)) <= 0:
-                arcpy.AddError("No addresses were found within the flood area.")
-                print("No addresses were found within the flooded area.")
+                arcpy.AddError("No addresses within the flood area.")
+                print("No addresses within the flooded area.")
                 raise arcpy.ExecuteError
         elif popRast is not None: #NOT YET TESTED
-            cp_geo = "ClippingGeometry" #use geometry of flood_zone to clip
-            extent_no = "NO_MAINTAIN_EXTENT" #maintain cells, no resampling
-            arcpy.Clip_management(popRast, "", assets, flood_zone, "", cp_geo, extent_no)
+            geo = "ClippingGeometry" #use geometry of flood_zone to clip
+            e = "NO_MAINTAIN_EXTENT" #maintain cells, no resampling
+            del_exists(assets)
+            arcpy.Clip_management(popRast, "", assets, flood_zone, "", geo, e)
             # If there are no people in flood zones stop analysis
-            if arcpy.GetRasterProperties_management(assets, "MAXIMUM").getOutput(0) <= 0:
+            m = "MAXIMUM"
+            rMax = arcpy.GetRasterProperties_management(assets, m).getOutput(0)
+            if rMax <= 0:
                 arcpy.AddError("Nothing to do with input raster yet")
                 print("Nothing to do with input raster yet")
                 raise arcpy.ExecuteError
@@ -850,19 +852,22 @@ def FR_MODULE(PARAMS):
             assets = addresses
         elif popRast is not None:
             assets = popRast
-        message("WARNING: No flood zone entered, results will be analyzed us" +
-                "ing the complete area instead of just areas that flood.")
+        message("WARNING: No flood zone entered, results will be analyzed" +
+                " using the complete area instead of just areas that flood.")
 
-    #3.2 - Step 2: buffer each site by 2.5 mile radius
+    # Buffer each site by 2.5 mile radius
+    del_exists(fld_A1)
     arcpy.Buffer_analysis(outTbl, fld_A1, "2.5 Miles")
-    #3.2 - Step 3A: clip the buffer to flood polygon
+    # Clip the buffer to flood polygon
     message("Reducing flood zone to 2.5 Miles from sites...")
     if flood_zone is not None:
+        del_exists(fld_A2)
         arcpy.Clip_analysis(fld_A1, flood_zone, fld_A2)
     else:
         fld_A2 = fld_A1
-    #3.2 Step 3B: clip the buffered flood area to downstream basins (OPTIONAL?)
-    #if Catchment is not None:
+        
+    # Clip the buffered flood area to downstream basins
+    #MAKE OPTIONAL? if Catchment is not None: 
     message("Determining downstream flood zone area from:\n" + Catchment)
 
     arcpy.MakeFeatureLayer_management(fld_A1, "buffer")
@@ -870,67 +875,66 @@ def FR_MODULE(PARAMS):
     arcpy.MakeFeatureLayer_management(Catchment, "catchment")
 
     UpCOMs, DownCOMs = setNHD_dict(Flow) #REDUCE TO DownCOMs ONLY
-    #create empty FC for downstream catchments
+
+    # Create empty FC for downstream catchments
     del_exists(fld_A3_down)
-    arcpy.CreateFeatureclass_management(path, clip_name, "POLYGON", spatial_reference = "flood_lyr")
-    #if OID field doesn't exist add it
-    if field_exists(fld_A3_down, OID_field) == False:
+    spatial_reference = "flood_lyr"
+    p = "POLYGON"
+    arcpy.CreateFeatureclass_management(path, cName, p, spatial_reference)
+    if field_exists(fld_A3_down, OID_field) == False: #Add OID field
         arcpy.AddField_management(fld_A3_down, OID_field, "LONG")
 
     site_cnt = arcpy.GetCount_management(outTbl)
-    
     slct = "NEW_SELECTION"
     with arcpy.da.SearchCursor(outTbl, ["SHAPE@", OID_field]) as cursor:
         for site in cursor:
-            #select buffer for site
+            # Select buffer for site
             wClause = str(OID_field) + " = " + str(site[1])
             arcpy.SelectLayerByAttribute_management("buffer", slct, wClause)
             
-            #list catchments in buffer
+            # List catchments in buffer
             bufferCatchments = list_buffer("catchment", InputField, "buffer")
 
-            #subset DownCOMs to only those in buffer (keeps them consecutive)
+            # Subset DownCOMs to only those in buffer (helps limit coast)
             shortDownCOMs = defaultdict(list)
-            for item in bufferCatchments:
-                shortDownCOMs[item].append(DownCOMs[item])
-                #shortDownCOMs[item] = list(itertools.chain.from_iterable(shortDownCOMs[item]))
-                shortDownCOMs[item] = list(chain.from_iterable(shortDownCOMs[item]))
+            for i in bufferCatchments:
+                shortDownCOMs[i].append(DownCOMs[i])
+                shortDownCOMs[i] = list(chain.from_iterable(shortDownCOMs[i]))
 
             # Select catchment(s) where the restoration site overlaps
-            oType = "INTERSECT" #overlap type
-            arcpy.SelectLayerByLocation_management("catchment", oType, site[0])
+            oTyp = "INTERSECT" #overlap type
+            arcpy.SelectLayerByLocation_management("catchment", oTyp, site[0])
 
-            #list catchments downstream selection
-            downCatchments = list_downstream("catchment", InputField, shortDownCOMs)
+            # List catchments downstream selection
+            downCatch = list_downstream("catchment", InputField, shortDownCOMs)
+            # Catchments in both downCatch and bufferCatchments
+            catchment_lst = list(set(downCatch).intersection(bufferCatchments))
+            # SELECT downstream catchments in buffer
+            #Redundant- the last catchment will already be outside the buffer
+            qryDown = selectStr_by_list(InputField, catchment_lst)
+            arcpy.SelectLayerByAttribute_management("catchment", slct, qryDown)
+            #MAY need to dissolve selection into single FC for popRaster
+            #arcpy.Dissolve_management("catchment", fld_A3_clip_1)
 
-            #catchments in both lists
-            # NOTE: this is redundant, the last catchment will already be
-            #       outside the buffer clip
-            catchment_lst = list(set(downCatchments).intersection(bufferCatchments))
-            #SELECT downstream catchments in buffer
-            slt_qry_down = selectStr_by_list(InputField, catchment_lst)
-            arcpy.SelectLayerByAttribute_management("catchment", slct, slt_qry_down)
-            #may need to make this selection into single feature for population as raster
-            #arcpy.Dissolve_management("catchment_lyr", flood_areaD_clip_single)
-
-            #select and clip corresponding flood zone
+            # Select and clip corresponding flood zone to catchments
             arcpy.SelectLayerByAttribute_management("flood_lyr", slct, wClause)
             arcpy.Clip_analysis("flood_lyr", "catchment", fld_A3_clip)
             arcpy.MakeFeatureLayer_management(fld_A3_clip, "fZone_down")
-            arcpy.Dissolve_management("fZone_down", fld_A3_clip_1, OID_field)
-                               
-            #append to empty clipped set
+            # Dissolve down to one row
+            arcpy.Dissolve_management("fZone_down", fld_A3_clip_1, OID_field) 
+            # Append single row to empty clipped set
             arcpy.Append_management(fld_A3_clip_1, fld_A3_down, "NO_TEST")
             clip_rows = arcpy.GetCount_management(fld_A3_down)
-            message("Determined catchments downstream for site "+ 
+            message("Determined catchments downstream for site " +
                     "{}, of {}".format(clip_rows, site_cnt))
 
     message("Finished reducing flood zone areas to downstream from sites...")
 
-    #3.2 - Step 3C: calculate flood area as benefitting percentage
+    #3.2 Calculate flood area as benefitting percentage
     message("Measuring flood zone area downstream of each site...")
+    aD = "areaD" #area of flood zone downstream
 
-    #Add/calculate fields for flood
+    # Add/calculate fields for flood
     arcpy.AddField_management(fld_A2, "area", "Double")
     arcpy.AddField_management(fld_A2, "area_pct", "Double")
     exprs = "!SHAPE.area!" #sql expression
@@ -938,39 +942,38 @@ def FR_MODULE(PARAMS):
     arcpy.CalculateField_management(fld_A2, "area", exprs, py_exp, "")
     arcpy.AddField_management(fld_A2, "areaD_pct", "Double")
 
-    #Add/calculate fields for downstream flood zone
-    arcpy.AddField_management(fld_A3_down, "areaD", "Double")
-    arcpy.CalculateField_management(fld_A3_down, "areaD", exprs, py_exp, "")
+    # Add/calculate fields for downstream flood zone
+    arcpy.AddField_management(fld_A3_down, aD, "Double")
+    arcpy.CalculateField_management(fld_A3_down, aD, exprs, py_exp, "")
 
-    #move downstream area result to flood zone table
-    arcpy.JoinField_management(fld_A2, OID_field, fld_A3_down, OID_field, ["areaD"])
+    # Move downstream area result to flood zone table
+    arcpy.JoinField_management(fld_A2, OID_field, fld_A3_down, OID_field, [aD])
 
-    #calculate percent area fields
+    #3.2 Calculate percent area fields
     with arcpy.da.UpdateCursor(fld_A2, ["area_pct", "area", "BUFF_DIST",
-                                             "areaD_pct", "areaD"]) as cursor:
-        # BUFF_DIST is used rather than 25 sq miles because it is in the datum
-        #units used for area calculation
-        #if BUFF_DIST is field in wetlands it was renamed by index in flood_area
+                                             "areaD_pct", aD]) as cursor:
+        # BUFF_DIST is in datum units (better for area calculation than 25 mi2)
+        #if fields_exists(wetlands, BUFF_DIST) it is renamed by index in fld_A2
         for row in cursor:
-            # percent of zone (2.5 mile radius) that is flood zone
+            # Percent of area (2.5 mile radius) that is flood zone
             row[0] = row[1]/(math.pi*((row[2]**2.0)))
             if row[4] is not None:
                 # Percent of flood zone in range that is downstream of site
                 row[3] = row[4]/row[1]
             cursor.updateRow(row)
-
+    # Extract results to lists
     lst_floodzoneArea_pct = field_to_lst(fld_A2, "area_pct")
-    lst_floodzoneD = field_to_lst(fld_A2, "areaD")
+    lst_floodzoneD = field_to_lst(fld_A2, aD)
     lst_floodzoneD_pct = field_to_lst(fld_A2, "areaD_pct")
 
-    #3.2 - Step 4: calculate number of people benefitting
+    #3.2 Calculate number of people benefitting
     message("Counting people who benefit...")
     if addresses is not None:
         # Addresses in buffer/flood zone/downstream.
         lst_flood_cnt = buffer_contains(str(fld_A3_down), assets)
 
-    elif popRast is not None: #not yet tested
-        # population in buffer/flood zone/downstream 
+    elif popRast is not None: #NOT TESTED
+        # Population in buffer/flood zone/downstream 
         lst_flood_cnt = buffer_population(fld_A3_down, popRast)
         
     start=exec_time(start, mod_str + ": 3.2 How Many Benefit")
@@ -978,7 +981,7 @@ def FR_MODULE(PARAMS):
     # 3.3.A: SERVICE QUALITY
     message("Measuring area of each restoration site...")
 
-    # calculate area of each restoration site
+    # Calculate area of each restoration site
     siteAreaLst =[]
     with arcpy.da.SearchCursor(outTbl, ["SHAPE@"]) as cursor:
         for row in cursor:
@@ -992,32 +995,28 @@ def FR_MODULE(PARAMS):
                 "downstream of restoration site...")
         subs = checkSpatialReference(outTbl, subs)
 
-        # subs in buffer/flood/downstream
+        # Subs in buffer/flood/downstream
         lst_subs_cnt = buffer_contains(str(fld_A3_down), subs)
 
-        # convert lst to binary list
+        # Convert lst to binary list
         lst_subs_cnt_boolean = quant_to_qual_lst(lst_subs_cnt)
 
         start = exec_time (start, mod_str + ": 3.3.B Scarcity " +
                            "(substitutes - 'FR_3B_boo')")
     else:
-        message("Substitutes (dams and levees) input not specified, 'FR_sub' " +
-                "will all be '0' and 'FR_3B_boo' will be left blank.")
+        message("No Substitutes (dams and levees) specified, 'FR_sub' will" +
+                " all be '0' and 'FR_3B_boo' will be left blank.")
         lst_subs_cnt, lst_subs_cnt_boolean = [], []
             
     #3.3.B: SCARCITY
+    # This uses the complete buffer (fld_A1), alternatively,
+    #this could be restricted to the flood zone or upstream/downstream.
     if OriWetlands is not None:
         message("Estimating area of wetlands within 2.5 miles in both " +
-                "directions (5 miles total) of restoration site...")
-        #lst_floodRet_Density = percent_cover(OriWetlands, flood_areaC)
-        #analysis for scarcity
-        #CONCERN- the above only looks at wetlands in the flood areas
-        #         within 2.5 miles, the below does entire buffer.
-        #Should this be restricted to upstream/downstream?
-        #analysis for scarcity
+                "directions (5 miles total) of restoration sites...")
+
         lst_floodRet_Density = percent_cover(OriWetlands, fld_A1)
-        #CONCERN: THIS IS WICKED SLOW
-        start = exec_time (start, mod_str + ": Scarcity (scarcity - 'FR_3B_sca')")
+        start = exec_time (start, mod_str + ": Scarcity ('FR_3B_sca')")
     else:
         message("Substitutes (existing wetlands) input not specified, " +
                 "'FR_3B_sca' will all be '0'.")
@@ -1034,10 +1033,10 @@ def FR_MODULE(PARAMS):
     lst_to_AddField_lst(outTbl, fields_lst, list_lst, type_lst)
 
     #cleanup
-    deleteFC_Lst([fld_A3_clip_sngl, fld_A3_clip, str(fld_A3_down),
+    deleteFC_Lst([fld_A3_clip_1, fld_A3_clip, str(fld_A3_down),
                   fld_A2, fld_A1, assets])
-    deleteFC_Lst(["flood_zone_lyr", "flood_zone_down_lyr", "catchment_lyr",
-                  "polyLyr", "buffer_lyr"])
+    deleteFC_Lst(["flood_zone_lyr", "flood_zone_down_lyr", "catchment",
+                  "polyLyr", "buffer"])
                                        
     message(mod_str + " Module Complete")
     start1=exec_time(start1, "full flood module")
