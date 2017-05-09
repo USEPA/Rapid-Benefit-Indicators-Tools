@@ -513,15 +513,16 @@ def checkSpatialReference(match_dataset, in_dataset, output = None):
         return in_dataset
 
 
-def buffer_donut(FC, outFC, buffer_distance):
+def buffer_donut(FC, outFC_name, buffer_distance):
     """Donut Buffer
     Purpose: Takes inside buffer and creates outside buffers.
              Ensures sort is done on find_ID(), since FID/OID may change.
     Note: Same results as MultipleRingBuffer_analysis(FC, outFC, buf,
           units, "", "None", "OUTSIDE_ONLY") - just faster.
     """
-    del_exists(outFC)
-    arcpy.Buffer_analysis(FC, outFC, buffer_distance)
+    # Make complete buffer first
+    outFC = simple_buffer(FC, outFC_name, buffer_distance)
+    
     # Make sure it has ID field (should always anyway)
     field = find_ID(FC)
     if not field_exists(outFC, field):
@@ -543,6 +544,17 @@ def buffer_donut(FC, outFC, buffer_distance):
     return outFC
 
 
+def simple_buffer(outTbl, tempName, bufferDist):
+    """ Create buffer using tempName"""
+    path = os.path.dirname(outTbl) + os.sep
+    ext = get_ext(outTbl)
+    # Set temp file
+    buf = path + tempName + ext
+    del_exists(buf)
+    arcpy.Buffer_analysis(outTbl, buf, bufferDist)
+    return buf
+
+    
 def buffer_contains(poly, pnts):
     """Buffer Contains
     Purpose: Returns number of points in buffer as list.
@@ -711,6 +723,7 @@ def field_to_lst(table, field):
     else:
         message("Something went wrong with the field to list function")
 
+
 def lst_to_field(table, field, lst): #handle empty list
     """Add List to Field
     Purpose:
@@ -814,7 +827,6 @@ def FR_MODULE(PARAMS):
     FA = path + "temp_FloodArea_" 
     # Name intermediate files
     assets = FA + "_assets" + ext #addresses/population in flood zone
-    fld_A1 = FA + "1_buffer" + ext #buffers
     fld_A2 = FA + "2_zone" + ext #flood zone in buffer
     fld_A3_clip = FA + "3_clip" + ext #downstream of a site
     # Single site's downstream area dissolved to one row
@@ -866,8 +878,8 @@ def FR_MODULE(PARAMS):
                 " using the complete area instead of just areas that flood.")
 
     # Buffer each site by 2.5 mile radius
-    del_exists(fld_A1)
-    arcpy.Buffer_analysis(outTbl, fld_A1, "2.5 Miles")
+    fld_A1 = simple_buffer(outTbl, "temp_FloodArea_1_buffer", "2.5 Miles")
+
     # Clip the buffer to flood polygon
     message("Reducing flood zone to 2.5 Miles from sites...")
     if flood_zone is not None:
@@ -1193,7 +1205,7 @@ def NHD_get_MODULE(PARAMS):
 ##############################
 def View_MODULE(PARAMS):
     """Scenic View Benefits"""
-    start1 = time.clock() #start the clock
+    start = time.clock() #start the clock
     mod_str = "Scenic View Benefits analysis"
     message(mod_str + "...")
 
@@ -1204,50 +1216,38 @@ def View_MODULE(PARAMS):
     field, fieldLst = PARAMS[6], PARAMS[7]
     outTbl = PARAMS[8]
 
+    # Set variables
     path = os.path.dirname(outTbl) + os.sep
     ext = get_ext(outTbl)
-
-    # Set variables
-    vUnit = "Meters"
-    VA = path + "int_ViewArea" #naming convention for view intermediates
-    view50, view100 = VA + "_50" + ext, VA + "_100" + ext #50 and 100m buffers
-    view100_int =  VA + "_100int" + ext
-    view200 = VA + "_200" + ext #200m buffer
     wetlands_dis = path + "wetland_dis" + ext #wetlands dissolved
-
-    start = time.clock() #start the clock
 
     # 2 How Many Benefit
     step_str = "3.2 How Many Benefit?"
     message(mod_str + " - " + step_str)
 
-    # Create buffers
-    del_exists(view50)
-    arcpy.Buffer_analysis(outTbl, view50, "50 Meters") #buffer sites by 50m
-    buffer_donut(view50, view100, "50 Meters") #distance past original buffer
+    # Create 50m buffer
+    view50 = simple_buffer(outTbl, "int_ViewArea_50", "50 Meters")
+    # Create 50m to 100m buffer
+    view100 = buffer_donut(view50, "int_ViewArea_100", "50 Meters")
     
     # Calculate number benefitting in buffers
     if addresses is not None: #address based method
         lst_view50 = buffer_contains(view50, addresses)
         lst_view100 = buffer_contains(view100, addresses)
         msg = mod_str + "{} - {} (from addresses)".format(mod_str, step_str)
-        start=exec_time(start, msg)
-        #cleanup
-        arcpy.Delete_management(view50)
-        arcpy.Delete_management(view100)
+        start = exec_time(start, msg)
         
     elif popRast is not None: #population based method
         lst_view50 = buffer_population(view50, popRast)
         lst_view100 = buffer_population(view100, popRast)
         msg = "{} - {} (from population raster)".format(mod_str, step_str)
-        start=exec_time(start, msg)
+        start = exec_time(start, msg)
 
     # Calculate weighted scores
     lst_view_score = view_score(lst_view50, lst_view100) 
 
     # Generate a complete 100m buffer and determine if trails/roads interstect
-    del_exists(view100_int)
-    arcpy.Buffer_analysis(outTbl, view100_int, "100 Meters")
+    view100_int = simple_buffer(outTbl, "int_ViewArea_100int", "100 Meters")
     # Generate a Yes/No list from trails and roads
     if trails is not None or roads is not None:
         rteLst = buffer_contains_multiset(trails, roads, view100_int)
@@ -1255,17 +1255,18 @@ def View_MODULE(PARAMS):
         message("No roads or trails specified")
 
     msg =  "{} - {} (from trails or roads)".format(mod_str, step_str)
-    start=exec_time(start, msg)
-    start1= exec_time(start1, "{} - {} Total".format(mod_str, step_str))
+    start = exec_time(start, msg)
+    start1 = exec_time(start1, "{} - {} Total".format(mod_str, step_str))
 
     # 3.B Substitutes/Scarcity
     message(mod_str + " - 3.B Scarcity")
     if wetlandsOri is not None: 
         # Make a 200m buffer that doesn't include the site                      
-        buffer_donut(outTbl, view200, "200 Meters")
+        view200 = buffer_donut(outTbl, "int_ViewArea_200", "200 Meters")
 
     #FIX next line?
         #may require lyr input
+        del_exists(wetlands_dis)
         arcpy.Dissolve_management(wetlandsOri, wetlands_dis)
         wetlandsOri = wetlands_dis
         #wetlands in 200m
@@ -1273,7 +1274,7 @@ def View_MODULE(PARAMS):
     else:
         message("No existing wetlands input specified")
         lst_view_Density = []
-    start=exec_time(start, mod_str + ": 3.3B Scarcity")
+    start = exec_time(start, mod_str + ": 3.3B Scarcity")
 
     # 3.C Complements
     message(mod_str + " - 3.C Complements") #PARAMS[landUse, fieldLst, field]
@@ -1291,7 +1292,7 @@ def View_MODULE(PARAMS):
 
         #number of unique LU in LU list which intersect each buffer
         lst_comp = buffer_contains(view200, landUse2)
-        start=exec_time(start, mod_str + ": 3.3C Complements")
+        start = exec_time(start, mod_str + ": 3.3C Complements")
     else:
         message("No land use input specified")
         lst_comp = []
@@ -1308,6 +1309,8 @@ def View_MODULE(PARAMS):
 
     # Cleanup FC, then lyrs
     #deleteFC_Lst([100int, 200sp, wetland_dis?])
+    arcpy.Delete_management(view50)
+    arcpy.Delete_management(view100)
     
     message("{} Complete".format(mod_str))
 
@@ -1323,33 +1326,25 @@ def Edu_MODULE(PARAMS):
     wetlandsOri = PARAMS[1]
     outTbl = PARAMS[2]
 
-    path = os.path.dirname(outTbl) + os.sep
-    ext = get_ext(outTbl)
-
-    #set variables
-    eduArea = path + "eduArea" + ext
-    edu_2 = path + "edu_2" + ext #buffer 1/2 mile
-
-    #3.2 - NUMBER WHO BENEFIT 
-    start1 = time.clock() #start the clock
+    # 3.2 NUMBER WHO BENEFIT 
     message(mod_str + " - 3.2 How Many benefit?") 
     if edu_inst is not None:
         edu_inst = checkSpatialReference(outTbl, edu_inst) #check spatial ref
         # Buffer each site by 0.25 miles
-        
-        arcpy.Buffer_analysis(outTbl , eduArea, "0.25 Miles")
-        #list how many schools in buffer
-        lst_edu_cnt = buffer_contains(eduArea, edu_inst)
+        buf25 = simple_buffer(outTbl, "eduArea", "0.25 Miles")
+        # List how many schools in buffer
+        lst_edu_cnt = buffer_contains(buf25, edu_inst)
     else:
         message("No educational institutions specified")
         lst_edu_cnt = []
     start=exec_time(start, mod_str + " - 3.2 How Many benefit (institutions)")
 
-    #3.3.B - Scarcity
-    message("Environmental Education analysis - 3.3B Scarcity")
+    # 3.3.B Scarcity
+    message(mod_str + " - 3.3B Scarcity")
     if wetlandsOri is not None:
-        arcpy.Buffer_analysis(outTbl, edu_2, "0.5 Miles") #not a circle
-        #analysis for scarcity
+        # Buffer each site by 0.25 miles
+        buf50 = simple_buffer(outTbl, "edu_2", "0.5 Miles")
+        # Wetland scarcity in buffer
         lst_edu_Density = percent_cover(wetlandsOri, edu_2)
     else:
         message("No pre-existing wetlands specified to determine scarcity")
@@ -1357,15 +1352,16 @@ def Edu_MODULE(PARAMS):
     start=exec_time(start, mod_str + " - 3.3B Scarcity (existing wetlands)")
 
     #FINAL STEP: move results to results file
-    message("Saving Environmental Education Benefits results to Output...")
-    fields_lst = ["EE_2_cnt", "EE_3A_boo", "EE_3B_sca", "EE_3C_boo", "EE_3D_boo"]
+    message("Saving " + mod_str + " results to Output...")
+    fields_lst = ["EE_2_cnt", "EE_3A_boo", "EE_3B_sca",
+                  "EE_3C_boo", "EE_3D_boo"]
     list_lst = [lst_edu_cnt, [], lst_edu_Density, [], []]
     type_lst = ["", "Text", "", "Text", "Text"]
 
     lst_to_AddField_lst(outTbl, fields_lst, list_lst, type_lst)
 
-    #cleanup FC, then lyrs
-    #deleteFC_Lst([eduArea, eduArea_2?, edu_2])
+    # Cleanup FC
+    deleteFC_Lst([buf25, buf50])
 
     message(mod_str + " Complete")
     
@@ -1386,15 +1382,6 @@ def Rec_MODULE(PARAMS):
 
     path = os.path.dirname(outTbl) + os.sep
     ext = get_ext(outTbl)
-
-    #set variables
-    recArea = path + "recArea"
-    #buffer names
-    rec_500m, rec_1000m = recArea + "_03mi" + ext, recArea + "_05mi" + ext
-    rec_10000m = recArea + "_6mi" + ext
-    #scarcity buffer names
-    rec_06, rec_1, = recArea + "_Add_06mi" + ext, recArea + "_Add_1mi" + ext
-    rec12 = recArea + "_Add_12mi" + ext
     #dissolved landuse
     landuseTEMP = path + "landuse_temp" + ext
 
@@ -1402,10 +1389,9 @@ def Rec_MODULE(PARAMS):
     message(mod_str + " - 3.2 How Many Benefit")
     start = time.clock() #start the clock
     #3.2 - A: buffer each site by 500m, 1km, and 10km
-    arcpy.Buffer_analysis(outTbl , rec_500m, "0.333333 Miles")
-    #buffer_donut(rec_500m, rec_1000m, [0.166667], "Miles")
-    arcpy.Buffer_analysis(outTbl , rec_1000m, "0.5 Miles")
-    buffer_donut(rec_1000m , rec_10000m, "5.5 Miles")
+    rec_500m = simple_buffer(outTbl, "recArea_03mi", "0.333333 Miles") #walk
+    rec_1000m = simple_buffer(outTbl, "recArea_05mi", "0.5 Miles") #drive
+    rec_10000m = buffer_donut(rec_1000m , "recArea_6mi", "5.5 Miles") #drive
 
     #3.2 - B: overlay population
     if addresses is not None: #address based method
@@ -1414,7 +1400,7 @@ def Rec_MODULE(PARAMS):
         lst_rec_cnt_6 = buffer_contains(rec_10000m, addresses)
 
         msg = "{} - 3.2 How Many Benefit? (from addresses)".format(mod_str)
-        start=exec_time(start, msg)
+        start = exec_time(start, msg)
 
     elif popRast is not None: #check for population raster
         lst_rec_cnt_03 = buffer_population(rec_500m, popRast)
@@ -1422,7 +1408,7 @@ def Rec_MODULE(PARAMS):
         lst_rec_cnt_6 = buffer_population(rec_10000m, popRast)
 
         msg = "{} - 3.2 How Many Benefit? (raster population)".format(mod_str)
-        start=exec_time(start, msg)
+        start = exec_time(start, msg)
     else: #this should never happen
         message("Neither addresses or a population raster were found.")
         lst_rec_cnt_03 = []
@@ -1465,15 +1451,16 @@ def Rec_MODULE(PARAMS):
         #arcpy.SelectLayerByAttribute_management("lyr", "NEW_SELECTION", whereClause)
         #arcpy.Dissolve_management("lyr", landuseTEMP, "", "", "SINGLE_PART")
         name = os.path.basename(landuseTEMP)
+        del_exists(landuseTEMP)
         arcpy.FeatureClassToFeatureClass_conversion(landuse, path, name, wClause)
         #make into selectable layer    
         arcpy.MakeFeatureLayer_management(landuseTEMP, "greenLyr")
 
         with arcpy.da.SearchCursor(outTbl, ["SHAPE@"]) as cursor:
             for site in cursor: #for each site
-                # Atart with site area
+                # Start with site area
                 var = dec(site[0].getArea("PLANAR", "ACRES"))
-                #select green space that intersects the site
+                # Select green space that intersects the site
                 oTyp = "INTERSECT"
                 arcpy.SelectLayerByLocation_management("greenLyr", oTyp, site[0])
                 with arcpy.da.SearchCursor("greenLyr", ["SHAPE@"]) as cursor2:
@@ -1491,7 +1478,7 @@ def Rec_MODULE(PARAMS):
         message("No landuse specified for determining area of green space " +
                 "around site (R_3A_acr)")
 
-    start=exec_time(start, "{}: 3.3.A Service Quality".format(mod_str))
+    start = exec_time(start, "{}: 3.3.A Service Quality".format(mod_str))
 
     #3.3.B SCARCITY - green space within 2/3 mi, 1 mi and 12 mi of site
     message(mod_str + " - 3.3.B Scarcity")
@@ -1502,38 +1489,40 @@ def Rec_MODULE(PARAMS):
         else:
             if wetlandsOri is not None:
                 subs = wetlandsOri
-                message("No landuse input specified, existing wetlands used " +
-                        "for scarcity instead")
+                message("No landuse input specified, existing wetlands used" +
+                        " for scarcity instead")
 
         #buffer each site by double original buffer
-        arcpy.Buffer_analysis(outTbl, rec_06, "0.666666 Miles")
-        arcpy.Buffer_analysis(outTbl, rec_1, "1 Miles")
-        arcpy.Buffer_analysis(outTbl, rec12, "12 Miles")
+        rec_06 = simple_buffer(outTbl, 'recArea_Add_06mi', "0.666666 Miles")
+        rec_1 = simple_buffer(outTbl, 'recArea_Add_1mi', "1 Miles")
+        rec12 = simple_buffer(outTbl, 'recArea_Add_126mi', "12 Miles")
+
         #overlay buffers with substitutes
-        lst_rec_06_Density = percent_cover(subs, rec_06)
-        lst_rec_1_Density = percent_cover(subs, rec_1)
-        lst_rec_12_Density = percent_cover(subs, rec12)
+        lst_rec06_Density = percent_cover(subs, rec_06)
+        lst_rec1_Density = percent_cover(subs, rec_1)
+        lst_rec12_Density = percent_cover(subs, rec12)
     else:
-        message("No substitutes (landuse or existing wetlands) inputs " +
-                "specified for recreation benefits.")
-        lst_rec_06_Density = []
-        lst_rec_1_Density = []
-        lst_rec_12_Density = []
-    start=exec_time(start, mod_str + " - 3.3B Scarcity")
+        message("No substitutes (landuse or existing wetlands) inputs" +
+                " specified for recreation benefits.")
+        lst_rec06_Density = []
+        lst_rec1_Density = []
+        lst_rec12_Density = []
+    start = exec_time(start, mod_str + " - 3.3B Scarcity")
 
     #Add results from lists
     message("Saving Recreation Benefits results to Output...")    
-    fields_lst = ["R_2_03", "R_2_03_tb", "R_2_03_bb", "R_2_05", "R_2_6", "R_3A_acr",
-                  "R_3B_sc06", "R_3B_sc1", "R_3B_sc12", "R_3C_boo", "R_3D_boo"]
+    fields_lst = ["R_2_03", "R_2_03_tb", "R_2_03_bb", "R_2_05", "R_2_6",
+                  "R_3A_acr", "R_3B_sc06", "R_3B_sc1", "R_3B_sc12",
+                  "R_3C_boo", "R_3D_boo"]
     list_lst = [lst_rec_cnt_03, rteLst_rec_trails, rteLst_rec_bus,
                 lst_rec_cnt_05, lst_rec_cnt_6, lst_green_neighbor,
-                lst_rec_06_Density, lst_rec_1_Density, lst_rec_12_Density, [], []]
+                lst_rec06_Density, lst_rec1_Density, lst_rec12_Density, [], []]
     type_lst = ["", "Text", "Text", "", "", "", "", "", "", "Text", "Text"]
 
     lst_to_AddField_lst(outTbl, fields_lst, list_lst, type_lst)
 
     #cleanup FC, then lyrs
-    #deleteFC_Lst([#arcpy.Delete_management(eduArea
+    #deleteFC_Lst([rec_06, rec_1, rec12])
 
     message(mod_str + " complete.")
 
@@ -1541,54 +1530,47 @@ def Rec_MODULE(PARAMS):
 #############BIRD#############
 def Bird_MODULE(PARAMS):
     """Bird Watching Benefits"""
-    start1 = time.clock() #start the clock
+    start = time.clock() #start the clock
     mod_str = "Bird Watching Benefits analysis"
     message(mod_str + "...")
 
     addresses, popRast = PARAMS[0], PARAMS[1]
     trails, roads = PARAMS[2], PARAMS[3]
     outTbl = PARAMS[4]
-
-    path = os.path.dirname(outTbl) + os.sep
-    ext = get_ext(outTbl)
-
-    #set variables
-    birdArea = path + "birdArea" + ext
-
+    
     #3.2 - NUMBER WHO BENEFIT
-    start = time.clock()
     message(mod_str + ": 3.2 How Many Benefit?")
-     # Buffer each site by 0.2 miles.
-    arcpy.Buffer_analysis(outTbl , birdArea, "0.2 Miles")
+    
+    # Buffer sites by 0.2 miles.
+    buf = simple_buffer(outTbl, "birdArea", "0.2 Miles")
+
     if addresses is not None:
-        lst_bird_cnt = buffer_contains(birdArea, addresses)
+        lst_bird_cnt = buffer_contains(buf, addresses)
         start=exec_time(start, mod_str +
                         ": 3.2 How Many Benefit? (from addresses)")
     elif popRast is not None:
-        lst_bird_cnt = buffer_population(birdArea, popRast)
+        lst_bird_cnt = buffer_population(buf, popRast)
         start=exec_time(start, mod_str +
                         ": 3.2 How Many Benefit? (from population Raster)")
 
     #3.2 - are there roads or trails that could see birds on the site?      
     if trails is not None or roads is not None:
-        rteLstBird = buffer_contains_multiset(trails, roads, birdArea)
+        rteLstBird = buffer_contains_multiset(trails, roads, buf)
     else:
         message("No trails or roads specified to determine if birds at the " +
                 "site will be visible from these")
-    start = exec_time(start, mod_str +
-                      ": 3.2 How Many Benefit? (from trails or roads)")
-    start1 = exec_time(start1, mod_str + ": 3.2 How Many Benefit? Total")
+
+    start = exec_time(start, mod_str + ": 3.2 How Many Benefit?")
                        
-    #Add results from lists
-    message("Saving " + mod_str + " results to Output...")
+    # Add results from lists
+    message("Saving {} results to Output...".format(mod_str))
     fields_lst = ["B_2_cnt", "B_2_boo", "B_3A_boo", "B_3C_boo", "B_3D_boo"]
     list_lst = [lst_bird_cnt, rteLstBird, [], [], []]
     type_lst = ["", "Text", "Text", "Text", "Text"]
 
     lst_to_AddField_lst(outTbl, fields_lst, list_lst, type_lst)
 
-    #cleanup FC, then lyrs
-    #deleteFC_Lst([#arcpy.Delete_management(eduArea
+    arcpy.Delete_management(buf) #cleanup
 
     message(mod_str + " complete.")
 
@@ -1605,30 +1587,28 @@ def socEq_MODULE(PARAMS):
     bufferDist = PARAMS[3]
     outTbl = PARAMS[4]
 
-    path = os.path.dirname(outTbl) + os.sep
-    ext = get_ext(outTbl)
-
-    #set variables
-    #tempPoly = path + "SoviTemp" + ext
-    buf = path + "sovi_buffer" + ext
-
+    message("Checking input variables...")
     sovi = checkSpatialReference(outTbl, sovi) #check projection
-    
-    arcpy.Buffer_analysis(outTbl, buf, bufferDist)
+    message("Input variables OK")
 
-    #select sovi layer by buffer
+    # Buffer sites by specified distance
+    buf = simple_buffer(outTbl, "sovi_buffer", bufferDist)
+
+    # List all the unique values in the specified field
     arcpy.MakeFeatureLayer_management(sovi, "soviLyr")
-    #arcpy.SelectLayerByLocation_management("soviLyr", "INTERSECT", buf)
-
-    #list all the unique values in the specified field
     full_fieldLst = unique_values("soviLyr", field)
     fieldLst = [x for x in full_fieldLst if x not in SoVI_High]
 
-    #add/populate field for SoVI_High
+    # Add field for SoVI_High
     name = "Vul_High"
-    sel = "NEW_SELECTION"
     f_type = "DOUBLE"
-    arcpy.AddField_management(outTbl, name, f_type, "", "", "", "", "", "", "")
+    if not field_exists(outTbl, name):
+        arcpy.AddField_management(outTbl, name, f_type, "", "", "", "", "", "", "")
+    else:
+        message("'{}' values overwritten in table:\n{}".format(name, outTbl))
+        
+    # Populate new field
+    sel = "NEW_SELECTION"
     wClause = selectStr_by_list(field, SoVI_High)
     arcpy.SelectLayerByAttribute_management("soviLyr", sel, wClause)
     pct_lst = percent_cover("soviLyr", buf)
@@ -1641,8 +1621,12 @@ def socEq_MODULE(PARAMS):
         #add fields for each unique in field
         for val in fieldLst:
             name = val.replace(".", "_")[0:9]
-            arcpy.AddField_management(outTbl, name, f_type, "", "", "", val,
-                                      "", "", "")
+            if not field_exists(outTbl, name):
+                arcpy.AddField_management(outTbl, name, f_type, "", "", "",
+                                          val, "", "", "")
+            else: #field already existed
+                message("'{}' values overwritten in table:\n{}".format(name,
+                                                                       outTbl))
             wClause = selectStr_by_list(field, [val])
             arcpy.SelectLayerByAttribute_management("soviLyr", sel, wClause)
             pct_lst = percent_cover("soviLyr", buf)
@@ -1651,6 +1635,7 @@ def socEq_MODULE(PARAMS):
         message("This is too many values to create unique fields for each, " +
                 "just calculating {} coverage".format(SoVI_High))
 
+    arcpy.Delete_management(buf) #cleanup
     message(mod_str + " complete.")
     
 ##############################
@@ -1666,24 +1651,17 @@ def reliability_MODULE(PARAMS):
     consLst, threatLst = PARAMS[2], PARAMS[3]
     bufferDist = PARAMS[4]
     outTbl = PARAMS[5]
-
-    path = os.path.dirname(outTbl) + os.sep
-    ext = get_ext(outTbl)
-    
-    #set variables
-    buf = path + "conservation" + ext
     
     message("Checking input variables...")
-    #remove None from lists
+    # Remove None/0 from lists
     consLst = [x for x in consLst if x is not None]
-    threatLst = [x for x in threatLst if x is not None] #removes 0?
-    
+    threatLst = [x for x in threatLst if x is not None]
     cons_poly = checkSpatialReference(outTbl, cons_poly)
     message("Input variables OK")
     
-    #buffer site by user specified distance
-    arcpy.Buffer_analysis(outTbl, buf, bufferDist)
-    
+    # Buffer site by user specified distance
+    buf = simple_buffer(outTbl, "conservation", bufferDist)
+   
     #make selection from FC based on fields to include
     sel = "NEW_SELECTION"
     arcpy.MakeFeatureLayer_management(cons_poly, "consLyr")
@@ -1708,6 +1686,7 @@ def reliability_MODULE(PARAMS):
 
     lst_to_AddField_lst(outTbl, fields_lst, list_lst, ["", ""])
 
+    arcpy.Delete_management(buf) #cleanup
     message(mod_str + " complete")
 
 ##############################
@@ -1889,34 +1868,23 @@ def Report_MODULE(PARAMS):
 ######PRESENCE/ABSENCE########
 def absTest_MODULE(PARAMS):
     """Presence Absence Test"""
-    #start1 = time.clock() #start the clock
     
     outTbl, field = PARAMS[0], PARAMS[1]
     FC = PARAMS[2]
     buff_dist = PARAMS[3]
-    
-    path = os.path.dirname(outTbl) + os.sep
-    ext = get_ext(outTbl)
 
-    #set variables
-    buff_temp = path + "feature_buffer" + ext
-    FC = checkSpatialReference(outTbl, FC) #check spatial ref
+    # Check spatial ref
+    FC = checkSpatialReference(outTbl, FC)
 
     # Create buffers for each site by buff_dist.
-    arcpy.Buffer_analysis(outTbl, buff_temp, buff_dist)
+    buf = simple_buffer(outTbl, "feature_buffer", buff_dist)
 
-    #check if feature is present
-    lst_present = buffer_contains(buff_temp, FC)
-    booleanLst = []
-    for item in lst_present:
-        if item == 0:
-            booleanLst.append("NO")
-        else:
-            booleanLst.append("YES")
+    # If feature not present "NO", else "YES"
+    booleanLst = quant_to_qual_lst(buffer_contains(buf, FC))
 
-    #move results to outTbl.field
+    # Move results to outTbl.field
     lst_to_AddField_lst(outTbl, [field], [booleanLst], ["Text"])
-    arcpy.Delete_management(buff_temp)
+    arcpy.Delete_management(buf)
     
 ##############################
 #############MAIN#############
