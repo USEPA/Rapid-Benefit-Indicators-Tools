@@ -658,12 +658,11 @@ def selectStr_by_list(field, lst):
     exp = ''
     for item in lst:
         if type(item) in [str, unicode]: #sequence
-            #exp += '"' + field + '" = ' + "'" + str(item) + "' OR "
-            exp += field + " = '" + str(item) + "' OR "
+            exp += "{} = '{}' OR ".format(field, item)
         elif type(item) == float:
-            exp += '"' + field + '" = ' + str(dec(item)) + " OR "
+            exp += '"{}" = {} OR '.format(field, dec(item))
         elif type(item) in [int, long, complex]: #numeric
-            exp += '"' + field + '" = ' + str(item) + " OR "
+            exp += '"{}" = {} OR '.format(field, item)
         else:
             message("'{}' in list, unknown type '{}'".format(item, type(item)))
     return (exp[:-4])
@@ -899,7 +898,7 @@ def FR_MODULE(PARAMS):
     with arcpy.da.SearchCursor(outTbl, ["SHAPE@", OID_field]) as cursor:
         for site in cursor:
             # Select buffer for site
-            wClause = str(OID_field) + " = " + str(site[1])
+            wClause = "{} = {}".format(OID_field, site[1])
             arcpy.SelectLayerByAttribute_management("buffer", sel, wClause)
             
             # List catchments in buffer
@@ -1303,7 +1302,7 @@ def View_MODULE(PARAMS):
 
     lst_to_AddField_lst(outTbl, fields_lst, list_lst, type_lst)
 
-    #cleanup FC, then lyrs
+    # Cleanup FC, then lyrs
     #deleteFC_Lst([100int, 200sp, wetland_dis?])
     
     message("{} Complete".format(mod_str))
@@ -1328,11 +1327,12 @@ def Edu_MODULE(PARAMS):
     edu_2 = path + "edu_2" + ext #buffer 1/2 mile
 
     #3.2 - NUMBER WHO BENEFIT 
-    start = time.clock() #start the clock
+    start1 = time.clock() #start the clock
     message(mod_str + " - 3.2 How Many benefit?") 
     if edu_inst is not None:
         edu_inst = checkSpatialReference(outTbl, edu_inst) #check spatial ref
-        #buffer each site by 0.25 miles
+        # Buffer each site by 0.25 miles
+        
         arcpy.Buffer_analysis(outTbl , eduArea, "0.25 Miles")
         #list how many schools in buffer
         lst_edu_cnt = buffer_contains(eduArea, edu_inst)
