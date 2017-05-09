@@ -519,7 +519,8 @@ def buffer_donut(FC, outFC, buffer_distance):
              Ensures sort is done on find_ID(), since FID/OID may change.
     Note: Same results as MultipleRingBuffer_analysis(FC, outFC, buf,
           units, "", "None", "OUTSIDE_ONLY") - just faster.
-    """   
+    """
+    del_exists(outFC)
     arcpy.Buffer_analysis(FC, outFC, buffer_distance)
     # Make sure it has ID field (should always anyway)
     field = find_ID(FC)
@@ -1216,11 +1217,12 @@ def View_MODULE(PARAMS):
 
     start = time.clock() #start the clock
 
-    # How Many Benefit
+    # 2 How Many Benefit
     step_str = "3.2 How Many Benefit?"
     message(mod_str + " - " + step_str)
 
-    # Create buffers 
+    # Create buffers
+    del_exists(view50)
     arcpy.Buffer_analysis(outTbl, view50, "50 Meters") #buffer sites by 50m
     buffer_donut(view50, view100, "50 Meters") #distance past original buffer
     
@@ -1244,6 +1246,7 @@ def View_MODULE(PARAMS):
     lst_view_score = view_score(lst_view50, lst_view100) 
 
     # Generate a complete 100m buffer and determine if trails/roads interstect
+    del_exists(view100_int)
     arcpy.Buffer_analysis(outTbl, view100_int, "100 Meters")
     # Generate a Yes/No list from trails and roads
     if trails is not None or roads is not None:
@@ -1253,12 +1256,12 @@ def View_MODULE(PARAMS):
 
     msg =  "{} - {} (from trails or roads)".format(mod_str, step_str)
     start=exec_time(start, msg)
-    start1= exec_time(start1, mod_str + " - " + step_str + " Total")
+    start1= exec_time(start1, "{} - {} Total".format(mod_str, step_str))
 
-    #Part3: Substitutes/Scarcity
-    message("Scenic Views - 3.B Scarcity")
+    # 3.B Substitutes/Scarcity
+    message(mod_str + " - 3.B Scarcity")
     if wetlandsOri is not None: 
-    #make a 200m buffer that doesn't include the site
+        # Make a 200m buffer that doesn't include the site                      
         buffer_donut(outTbl, view200, "200 Meters")
 
     #FIX next line?
@@ -1272,7 +1275,7 @@ def View_MODULE(PARAMS):
         lst_view_Density = []
     start=exec_time(start, mod_str + ": 3.3B Scarcity")
 
-    #Part4: complements
+    # 3.C Complements
     message(mod_str + " - 3.C Complements") #PARAMS[landUse, fieldLst, field]
 
     if landuse is not None:
@@ -1283,6 +1286,7 @@ def View_MODULE(PARAMS):
         # reduce to desired LU
         arcpy.SelectLayerByAttribute_management("lyr", sel, whereClause)
         landUse2 = os.path.splitext(outTbl)[0] + "_comp" + ext
+        del_exists(landUse2)
         arcpy.Dissolve_management("lyr", landUse2, field) #reduce to unique
 
         #number of unique LU in LU list which intersect each buffer
