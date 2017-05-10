@@ -654,13 +654,13 @@ def percent_cover(poly, bufPoly, units = "SQUAREMETERS"):
     return lst
         
 
-def list_areas(table, units = None, typ = "PLANAR"):
+def list_areas(table, units = "SQUAREMETERS", typ = "PLANAR"):
     """return list of polygon areas"""
     lst = []
     if units is None: #use SHAPE@AREA token
         with arcpy.da.SearchCursor(table, ["SHAPE@AREA"]) as cursor:
             for row in cursor:
-                lst.append(row[0]) #units based on spatial refenerence
+                lst.append(row[0].area) #units based on spatial refenerence
     else:
         with arcpy.da.SearchCursor(table, ["SHAPE@"]) as cursor:
             for row in cursor:
@@ -913,9 +913,8 @@ def FR_MODULE(PARAMS):
 
     # Create empty FC for downstream catchments
     del_exists(fld_A3_down)
-    spatial_reference = "flood_lyr"
-    p = "POLYGON"
-    arcpy.CreateFeatureclass_management(path, cName, p, spatial_reference)
+    arcpy.CreateFeatureclass_management(path, cName, "POLYGON",
+                                        spatial_reference = "flood_lyr")
     if field_exists(fld_A3_down, OID_field) == False: #Add OID field
         arcpy.AddField_management(fld_A3_down, OID_field, "LONG")
 
@@ -967,71 +966,18 @@ def FR_MODULE(PARAMS):
 
     #3.2 Calculate flood area as benefitting percentage
     message("Measuring flood zone area downstream of each site...")
-######TEST########
-    # Get areas for buffers
+
+    # Get areas for buffer
     lst_FA1_area = list_areas(fld_A1)
-    message(str(lst_FA1_area))
     # Get areas for flood zones in buffer
     lst_FA2_area = list_areas(fld_A2)
-    message(str(lst_FA2_area))
     # Get areas for downstream flood zones in buffer
     lst_FA3_areaD = list_areas(fld_A3_down)
-    message(str(fld_A3_down))
-    message(str(lst_FA3_areaD))
+
     # Percent of buffer in flood zone
     lst_FA2_pct = [a/b for a, b in zip(lst_FA2_area, lst_FA1_area)]
-    message(str(lst_FA2_pct))
     # Percent of flood zone downstream
     lst_FA3_Dpct = [a/b for a, b in zip(lst_FA3_areaD, lst_FA2_area)]
-    message(str(lst_FA3_Dpct))
-##    # Get areas for flood zones in buffer
-##    lst_FA2_pct = [] #percent of buffer in flood zone
-##    lst_FA3_Dpct = [] #percent of flood zone downstream
-##    with arcpy.da.SearchCursor(fld_A2, ["SHAPE@", "BUFF_DIST"]) as cursor:
-##        for i, row in enumerate(cursor):
-##            area = dec(row[0].getArea("PLANAR", "SQUAREMETERS"))
-##            lst_FA2_pct.append(area/dec(math.pi*((row[1]**2.0))))
-##            if lst_FA3_areaD[i] is not None:
-##                # Percent of flood zone in range that is downstream of site
-##                lst_FA3_Dpct.append(dec(lst_FA3_areaD[i])/area)
-##            else:
-##                lst_FA3_Dpct.append(None)
-                               
-######TEST########    
-##    aD = "areaD" #area of flood zone downstream
-##
-##    # Add/calculate fields for flood
-##    arcpy.AddField_management(fld_A2, "area", "Double")
-##    arcpy.AddField_management(fld_A2, "area_pct", "Double")
-##    exprs = "!SHAPE.area!" #sql expression
-##    py_exp = "PYTHON_9.3" #python expression method
-##    arcpy.CalculateField_management(fld_A2, "area", exprs, py_exp, "")
-##    arcpy.AddField_management(fld_A2, "areaD_pct", "Double")
-##
-##    # Add/calculate fields for downstream flood zone
-##    arcpy.AddField_management(fld_A3_down, aD, "Double")
-##    arcpy.CalculateField_management(fld_A3_down, aD, exprs, py_exp, "")
-##
-##    # Move downstream area result to flood zone table
-##    arcpy.JoinField_management(fld_A2, OID_field, fld_A3_down, OID_field, [aD])
-##
-##    #3.2 Calculate percent area fields
-##    with arcpy.da.UpdateCursor(fld_A2, ["area_pct", "area", "BUFF_DIST",
-##                                             "areaD_pct", aD]) as cursor:
-##        # BUFF_DIST is in datum units (better for area calculation than 25 mi2)
-##        #if fields_exists(wetlands, BUFF_DIST) it is renamed by index in fld_A2
-##        for row in cursor:
-##            # Percent of area (2.5 mile radius) that is flood zone
-##            row[0] = row[1]/(math.pi*((row[2]**2.0)))
-##            
-##            if row[4] is not None:
-##                # Percent of flood zone in range that is downstream of site
-##                row[3] = row[4]/row[1]
-##            cursor.updateRow(row)
-##    # Extract results to lists
-##    lst_floodzoneArea_pct = field_to_lst(fld_A2, "area_pct")
-##    lst_floodzoneD = field_to_lst(fld_A2, aD)
-##    lst_floodzoneD_pct = field_to_lst(fld_A2, "areaD_pct")
 
     #3.2 Calculate number of people benefitting
     message("Counting people who benefit...")
@@ -1048,9 +994,6 @@ def FR_MODULE(PARAMS):
     # 3.3.A: SERVICE QUALITY - Calculate area of each restoration site
     message("Measuring area of each restoration site...")
     siteAreaLst = list_areas(outTbl, "ACRES", "GEODESIC")
-##    with arcpy.da.SearchCursor(outTbl, ["SHAPE@"]) as cursor:
-##        for row in cursor:
-##            siteAreaLst.append(row[0].getArea("GEODESIC", "ACRES"))
     start = exec_time (start, mod_str + ": 3.3.A Service Quality")
 
     # 3.3.B: SUBSTITUTES
