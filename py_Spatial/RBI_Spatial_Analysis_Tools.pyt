@@ -1230,7 +1230,7 @@ def View_MODULE(PARAMS):
     start = exec_time(start, msg)
 
     # Calculate weighted scores
-    lst_view_score = view_score(lst_view50, lst_view100) 
+    lst_view_scr = view_score(lst_view50, lst_view100) 
 
     # Generate a complete 100m buffer and determine if trails/roads interstect
     view100_int = simple_buffer(outTbl, "int_ViewArea_100int", "100 Meters")
@@ -1244,7 +1244,7 @@ def View_MODULE(PARAMS):
     start = exec_time(start, msg + "(from trails or roads)")
     start1 = exec_time(start1, msg + "Total")
 
-    # 3.B Substitutes/Scarcity
+    # 3.3.B Substitutes/Scarcity
     step_str = "3.B Scarcity"
     message(mod_str + " - " + step_str)
     
@@ -1258,13 +1258,13 @@ def View_MODULE(PARAMS):
         arcpy.Dissolve_management(wetlandsOri, wetlands_dis)
         wetlandsOri = wetlands_dis
         # Wetlands in 200m
-        lst_view_Density = percent_cover(wetlandsOri, view200)
+        lst_3B = percent_cover(wetlandsOri, view200)
     else:
         message("No existing wetlands input specified")
-        lst_view_Density = []
+        lst_3B = []
     start = exec_time(start, "{} - {}".format(mod_str, step_str))
 
-    # 3.C Complements
+    # 3.3.C Complements
     step_str = "3.C Complements"
     message(mod_str + " - " + step_str)
 
@@ -1290,16 +1290,14 @@ def View_MODULE(PARAMS):
     #FINAL STEP: move results to results file
     fields_lst = ["V_2_50", "V_2_100", "V_2_score", "V_2_boo",
                   "V_3A_boo", "V_3B_scar", "V_3C_comp", "V_3D_boo"]
-    list_lst = [lst_view50, lst_view100, lst_view_score, rteLst,
-                [], lst_view_Density, lst_comp, []]
+    list_lst = [lst_view50, lst_view100, lst_view_scr, rteLst,
+                [], lst_3B, lst_comp, []]
     type_lst = ["", "", "", "Text", "Text", "", "", "Text"]
 
     lst_to_AddField_lst(outTbl, fields_lst, list_lst, type_lst)
 
-    # Cleanup FC, then lyrs
-    #deleteFC_Lst([100int, 200sp, wetland_dis?])
-    arcpy.Delete_management(view50)
-    arcpy.Delete_management(view100)
+    # Cleanup
+    deleteFC_Lst([view50, view100, view100_int, view200, wetlands_dis])
     
     message("{} Complete".format(mod_str))
 
@@ -1339,17 +1337,17 @@ def Edu_MODULE(PARAMS):
         # Buffer each site by 0.25 miles
         buf50 = simple_buffer(outTbl, "edu_2", "0.5 Miles")
         # Wetland scarcity in buffer
-        lst_edu_Density = percent_cover(wetlandsOri, edu_2)
+        lst_edu_33B = percent_cover(wetlandsOri, buf50)
     else:
         message("No pre-existing wetlands specified to determine scarcity")
-        lst_edu_Density = []
+        lst_edu_33B = []
     start = exec_time(start, "{} - {}".format(mod_str, step_str))
 
     # Final Step - move results to results file
     message("Saving {} results to Output...".format(mod_str))
     fields_lst = ["EE_2_cnt", "EE_3A_boo", "EE_3B_sca",
                   "EE_3C_boo", "EE_3D_boo"]
-    list_lst = [lst_edu_cnt, [], lst_edu_Density, [], []]
+    list_lst = [lst_edu_cnt, [], lst_edu_33B, [], []]
     type_lst = ["", "Text", "", "Text", "Text"]
 
     lst_to_AddField_lst(outTbl, fields_lst, list_lst, type_lst)
@@ -1409,27 +1407,23 @@ def Rec_MODULE(PARAMS):
         lst_rec_cnt_03, lst_rec_cnt_05, lst_rec_cnt_6 = [], [], []
 
     # Overlay trails
-    rteLst_rec_trails = []
     if trails is not None:
         lst_rec_trails = buffer_contains(rec_500m, trails) #bike trails in 500m
-        rteLst_rec_trails = quant_to_qual_lst(lst_rec_trails) #present = YES
+        rLst_rec_trails = quant_to_qual_lst(lst_rec_trails) #present = YES
     else:
         message("No trails specified for determining if there are bike " +
                 "paths within 1/3 mi of site (R_2_03_tb)")
-        lst_rec_trails = []
-        rteLst_rec_trails = []
+        rLst_rec_trails = []
         
     # Overlay bus stops
-    rteLst_rec_bus = []
     if bus_Stp is not None:
         bus_Stp = checkSpatialReference(outTbl, bus_Stp) #check projections
         lst_rec_bus = buffer_contains(rec_500m, bus_Stp) #bus stops in 500m
-        rteLst_rec_bus = quant_to_qual_lst(lst_rec_bus) #if there are = YES
+        rLst_rec_bus = quant_to_qual_lst(lst_rec_bus) #if there are = YES
     else:
         message("No bus stops specified for determining if there are bus " +
                 "stops within 1/3 mi of site (R_2_03_bb)")
-        lst_rec_bus = []
-        rteLst_rec_bus = []
+        rLst_rec_bus = []
 
     msg =  "{} - {} ".format(mod_str, step_str)
     start = exec_time(start, msg + "(from trails and bus stops)")
@@ -1440,7 +1434,7 @@ def Rec_MODULE(PARAMS):
     message(mod_str + " - " + step_str)
 
     # Total area of green space around site ("R_3A_acr")
-    lst_green_neighbor = []
+    lst_rec_3A = []
     if landuse is not None:
         #reduce to desired LU
         wClause = selectStr_by_list(field, fieldLst)
@@ -1467,7 +1461,7 @@ def Rec_MODULE(PARAMS):
                         interArea = dec(overlap.getArea("PLANAR", "ACRES"))
                         #add area of greenspace - overlap to site and previous rows
                         var += areaGreen - interArea
-                lst_green_neighbor.append(var)
+                lst_rec_3A.append(var)
     else:
         message("No landuse specified for determining area of green space " +
                 "around site (R_3A_acr)")
@@ -1489,19 +1483,19 @@ def Rec_MODULE(PARAMS):
                 message("No landuse input specified, existing wetlands used" +
                         " for scarcity instead")
 
-        #buffer each site by double original buffer
+        # Buffer each site by double original buffer
         rec_06 = simple_buffer(outTbl, 'recArea_Add_06mi', "0.666666 Miles")
         rec_1 = simple_buffer(outTbl, 'recArea_Add_1mi', "1 Miles")
         rec12 = simple_buffer(outTbl, 'recArea_Add_126mi', "12 Miles")
 
-        #overlay buffers with substitutes
-        lst_rec06_Density = percent_cover(subs, rec_06)
-        lst_rec1_Density = percent_cover(subs, rec_1)
-        lst_rec12_Density = percent_cover(subs, rec12)
+        # Overlay buffers with substitutes
+        lst_rec06_3B = percent_cover(subs, rec_06)
+        lst_rec1_3B = percent_cover(subs, rec_1)
+        lst_rec12_3B = percent_cover(subs, rec12)
     else:
         message("No substitutes (landuse or existing wetlands) inputs" +
                 " specified for recreation benefits.")
-        lst_rec06_Density, lst_rec1_Density, lst_rec12_Density = [], [], []
+        lst_rec06_3B, lst_rec1_3B, lst_rec12_3B = [], [], []
 
     start = exec_time(start, "{} - {} ".format(mod_str, step_str))
 
@@ -1510,15 +1504,16 @@ def Rec_MODULE(PARAMS):
     fields_lst = ["R_2_03", "R_2_03_tb", "R_2_03_bb", "R_2_05", "R_2_6",
                   "R_3A_acr", "R_3B_sc06", "R_3B_sc1", "R_3B_sc12",
                   "R_3C_boo", "R_3D_boo"]
-    list_lst = [lst_rec_cnt_03, rteLst_rec_trails, rteLst_rec_bus,
-                lst_rec_cnt_05, lst_rec_cnt_6, lst_green_neighbor,
-                lst_rec06_Density, lst_rec1_Density, lst_rec12_Density, [], []]
+    list_lst = [lst_rec_cnt_03, rLst_rec_trails, rLst_rec_bus,
+                lst_rec_cnt_05, lst_rec_cnt_6, lst_rec_3A,
+                lst_rec06_3B, lst_rec1_3B, lst_rec12_3B, [], []]
     type_lst = ["", "Text", "Text", "", "", "", "", "", "", "Text", "Text"]
 
     lst_to_AddField_lst(outTbl, fields_lst, list_lst, type_lst)
 
-    #cleanup FC, then lyrs
-    #deleteFC_Lst([rec_06, rec_1, rec12])
+    # Cleanup
+    deleteFC_Lst([landuseTEMP, rec_500m, rec_1000m, rec_10000m,
+                  rec_06, rec_1, rec_12])
 
     message(mod_str + " complete.")
 
@@ -1574,7 +1569,6 @@ def Bird_MODULE(PARAMS):
 ##########SOC_EQUITY##########
 def socEq_MODULE(PARAMS):
     """Social Equity of Benefits"""
-    #start = time.clock() #start the clock
     mod_str = "Social Equity of Benefits analysis"
     message(mod_str + "...")
     
@@ -1593,7 +1587,6 @@ def socEq_MODULE(PARAMS):
     # List all the unique values in the specified field
     arcpy.MakeFeatureLayer_management(sovi, "soviLyr")
     full_fieldLst = unique_values("soviLyr", field)
-    fieldLst = [x for x in full_fieldLst if x not in SoVI_High]
 
     # Add field for SoVI_High
     name = "Vul_High"
@@ -1611,6 +1604,7 @@ def socEq_MODULE(PARAMS):
     lst_to_field(outTbl, name, pct_lst)
 
     #add fields for the rest of the possible values if 6 or less
+    fieldLst = [x for x in full_fieldLst if x not in SoVI_High]
     message("There are {} unique values for {}.".format(len(fieldLst), field))
     if len(fieldLst) <6: 
         message("Creating new fields for each...")
