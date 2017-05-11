@@ -456,9 +456,12 @@ def del_exists(item):
     Purpose: if a file exists it is deleted and noted in a message.
     """
     if arcpy.Exists(item):
-        arcpy.Delete_management(item)
-        message("'{}' already exists and will be replaced.".format(item))
-
+        try:
+            arcpy.Delete_management(item)
+            message("'{}' already exists and will be replaced.".format(item))
+        except:
+            message("'{}' exists but could not be deleted.".format(item))
+            
 
 def check_vars(outTbl, addresses, popRast):
     """Check variables
