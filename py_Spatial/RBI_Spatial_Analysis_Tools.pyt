@@ -269,15 +269,15 @@ def list_downstream(lyr, field, COMs):
     """List catchments downstream of catchments in layer
     Notes: can be re-written to work for upstream
     """
-    #list lyr IDs
+    # List lyr IDs
     HUC_ID_lst = field_to_lst(lyr, field)
-    #list catchments downstream of site
+    # List catchments downstream of site
     downCatchments = []
     for ID in set(HUC_ID_lst):
         downCatchments.append(children(ID, COMs))
         #upCatchments.append(children(ID, UpCOMs))
         #list catchments upstream of site #alt
-    #flatten list and remove any duplicates
+    # Flatten list and remove any duplicates
     downCatchments = set(list(chain.from_iterable(downCatchments)))
     return(list(downCatchments))
 
@@ -669,12 +669,11 @@ def list_areas(table, units = "SQUAREMETERS", typ = "PLANAR"):
 
 
 def list_buffer(lyr, field, lyr_range):
-    """List in buffer
+    """List values for field from layer intersecting layer range
     Purpose: generates a list of catchments in buffer"""
     arcpy.SelectLayerByAttribute_management(lyr, "CLEAR_SELECTION")
     arcpy.SelectLayerByLocation_management(lyr, "INTERSECT", lyr_range)
-    HUC_ID_lst = field_to_lst(lyr, field) #list catchment IDs
-    return (HUC_ID_lst)
+    return field_to_lst(lyr, field) #list field values
 
 
 def selectStr_by_list(field, lst):
@@ -839,14 +838,9 @@ def FR_MODULE(PARAMS):
     # Naming convention for flood intermediates
     FA = path + "temp_FloodArea_" 
     # Name intermediate files
-    assets = FA + "_assets" + ext #addresses/population in flood zone
-    fld_A2 = FA + "2_zone" + ext #flood zone in buffer
-    fld_A3_clip = FA + "3_clip" + ext #downstream of a site
-    # Single site's downstream area dissolved to one row
-    fld_A3_clip_1 = FA + "3_single" + ext
-    # Feature Class to append single rows to 
-    cName = os.path.basename(FA) + "3_down" + ext
-    fld_A3_down = path + cName
+    assets = "{}assets{}".format(FA, ext) #addresses/population in flood zone
+    fld_A2 = "{}2_zone{}".format(FA, ext) #flood zone in buffer
+    fld_A3 = "{}3_downstream{}".format(FA, ext) #flood zone downstream
 
     # Check NHD+ inputs
     nhd_ck = nhdPlus_check(Catchment, InputField, Flow)
@@ -854,6 +848,8 @@ def FR_MODULE(PARAMS):
         message("Flood benefits will not be assessed")
     else: #assign defaults via nhdPlus_check()
         Catchment, InputField, Flow = nhd_ck
+        # This is time intensive, but should make more robust
+        Catchment = checkSpatialReference(outTbl, Catchment)
     
     # Check that there are assets in the flood zone.
     if flood_zone is not None:
@@ -905,26 +901,27 @@ def FR_MODULE(PARAMS):
     #MAKE OPTIONAL? if Catchment is not None: 
     message("Determining downstream flood zone area from:\n" + Catchment)
 
+    # Copy flood zone in buffer to clip by downstream catchments
+    del_exists(fld_A3)
+    arcpy.CopyFeatures_management(fld_A2, fld_A3)
+    if field_exists(fld_A3, OID_field) == False: #Add OID field
+        arcpy.AddField_management(fld_A3, OID_field, "LONG")
+    
     arcpy.MakeFeatureLayer_management(fld_A1, "buffer")
     arcpy.MakeFeatureLayer_management(fld_A2, "flood_lyr")
     arcpy.MakeFeatureLayer_management(Catchment, "catchment")
+    arcpy.MakeFeatureLayer_management(fld_A3, "down_lyr")
 
     UpCOMs, DownCOMs = setNHD_dict(Flow) #REDUCE TO DownCOMs ONLY
-
-    # Create empty FC for downstream catchments
-    del_exists(fld_A3_down)
-    arcpy.CreateFeatureclass_management(path, cName, "POLYGON",
-                                        spatial_reference = "flood_lyr")
-    if field_exists(fld_A3_down, OID_field) == False: #Add OID field
-        arcpy.AddField_management(fld_A3_down, OID_field, "LONG")
 
     site_cnt = arcpy.GetCount_management(outTbl)
     sel = "NEW_SELECTION"
     with arcpy.da.SearchCursor(outTbl, ["SHAPE@", OID_field]) as cursor:
         for site in cursor:
-            # Select buffer for site
+            # Select buffer and flood zone for site
             wClause = "{} = {}".format(OID_field, site[1])
             arcpy.SelectLayerByAttribute_management("buffer", sel, wClause)
+            arcpy.SelectLayerByAttribute_management("down_lyr", sel, wClause)
             
             # List catchments in buffer
             bufferCatchments = list_buffer("catchment", InputField, "buffer")
@@ -939,32 +936,36 @@ def FR_MODULE(PARAMS):
             oTyp = "INTERSECT" #overlap type
             arcpy.SelectLayerByLocation_management("catchment", oTyp, site[0])
 
-            # List catchments downstream selection
+            # List Subset catchments downstream selection
             downCatch = list_downstream("catchment", InputField, shortDownCOMs)
             # Catchments in both downCatch and bufferCatchments
+            #Redundant, the last catchment will already be outside the buffer
             catchment_lst = list(set(downCatch).intersection(bufferCatchments))
-            # SELECT downstream catchments in buffer
-            #Redundant- the last catchment will already be outside the buffer
+            # SELECT downstream catchments in catchment_lst
             qryDown = selectStr_by_list(InputField, catchment_lst)
             arcpy.SelectLayerByAttribute_management("catchment", sel, qryDown)
-            #MAY need to dissolve selection into single FC for popRaster
-            #arcpy.Dissolve_management("catchment", fld_A3_clip_1)
 
-            # Select and clip corresponding flood zone to catchments
-            arcpy.SelectLayerByAttribute_management("flood_lyr", sel, wClause)
-            arcpy.Clip_analysis("flood_lyr", "catchment", fld_A3_clip)
-            arcpy.MakeFeatureLayer_management(fld_A3_clip, "fZone_down")
-            # Dissolve down to one row
-            arcpy.Dissolve_management("fZone_down", fld_A3_clip_1, OID_field) 
-            # Append single row to empty clipped set
-            arcpy.Append_management(fld_A3_clip_1, fld_A3_down, "NO_TEST")
-            clip_rows = arcpy.GetCount_management(fld_A3_down)
+            # Clip corresponding flood zone to selected catchments     
+            with arcpy.da.UpdateCursor("down_lyr", ["SHAPE@"]) as cursor2:
+                for zone in cursor2:
+                    geo = {}
+                    with arcpy.da.SearchCursor("catchment", ["SHAPE@"]) as cursor3:
+                        for row in cursor3: 
+                            if geo == {}:
+                                geo = row[0]
+                            else:                               
+                                geo = row[0].union(geo)
+                    # Update flood zone geometry
+                    zone[0] = zone[0].intersect(geo, 4)
+                    cursor2.updateRow(zone)
+
+            clip_rows = arcpy.GetCount_management(fld_A3)
             message("Determined catchments downstream for site " +
                     "{}, of {}".format(clip_rows, site_cnt))
 
     message("Finished reducing flood zone areas to downstream from sites...")
 
-    #3.2 Calculate flood area as benefitting percentage
+    # 3.2 Calculate flood area as benefitting percentage
     message("Measuring flood zone area downstream of each site...")
 
     # Get areas for buffer
@@ -972,22 +973,22 @@ def FR_MODULE(PARAMS):
     # Get areas for flood zones in buffer
     lst_FA2_area = list_areas(fld_A2)
     # Get areas for downstream flood zones in buffer
-    lst_FA3_areaD = list_areas(fld_A3_down)
+    lst_FA3_areaD = list_areas(fld_A3)
 
     # Percent of buffer in flood zone
     lst_FA2_pct = [a/b for a, b in zip(lst_FA2_area, lst_FA1_area)]
     # Percent of flood zone downstream
     lst_FA3_Dpct = [a/b for a, b in zip(lst_FA3_areaD, lst_FA2_area)]
 
-    #3.2 Calculate number of people benefitting
+    # 3.2 How Many Benefit
     message("Counting people who benefit...")
     if addresses is not None:
         # Addresses in buffer/flood zone/downstream.
-        lst_flood_cnt = buffer_contains(str(fld_A3_down), assets)
+        lst_flood_cnt = buffer_contains(fld_A3, assets)
 
     elif popRast is not None: #NOT TESTED
         # Population in buffer/flood zone/downstream 
-        lst_flood_cnt = buffer_population(fld_A3_down, popRast)
+        lst_flood_cnt = buffer_population(fld_A3, popRast)
         
     start=exec_time(start, mod_str + ": 3.2 How Many Benefit")
 
@@ -1003,7 +1004,7 @@ def FR_MODULE(PARAMS):
         subs = checkSpatialReference(outTbl, subs)
 
         # Subs in buffer/flood/downstream
-        lst_subs_cnt = buffer_contains(str(fld_A3_down), subs)
+        lst_subs_cnt = buffer_contains(fld_A3, subs)
 
         # Convert lst to binary list
         lst_subs_cnt_boolean = quant_to_qual_lst(lst_subs_cnt)
@@ -1015,7 +1016,7 @@ def FR_MODULE(PARAMS):
                 " all be '0' and 'FR_3B_boo' will be left blank.")
         lst_subs_cnt, lst_subs_cnt_boolean = [], []
             
-    #3.3.B: SCARCITY
+    # 3.3.B: SCARCITY
     # This uses the complete buffer (fld_A1), alternatively,
     #this could be restricted to the flood zone or upstream/downstream.
     if OriWetlands is not None:
@@ -1029,7 +1030,7 @@ def FR_MODULE(PARAMS):
                 "'FR_3B_sca' will all be '0'.")
         lst_floodRet_Density = []
         
-    #FINAL STEP: move results to results file
+    # FINAL STEP: move results to results file
     fields_lst = ["FR_2_cnt", "FR_zPct", "FR_zDown", "FR_zDoPct", "FR_3A_acr",
                   "FR_3A_boo", "FR_sub", "FR_3B_boo", "FR_3B_sca", "FR_3D_boo"]
     list_lst = [lst_flood_cnt, lst_FA2_pct, lst_FA3_areaD,
@@ -1039,9 +1040,8 @@ def FR_MODULE(PARAMS):
 
     lst_to_AddField_lst(outTbl, fields_lst, list_lst, type_lst)
 
-    #cleanup
-##    deleteFC_Lst([fld_A3_clip_1, fld_A3_clip, str(fld_A3_down),
-##                  fld_A2, fld_A1, assets])
+    # Cleanup
+    deleteFC_Lst([fld_A3, fld_A2, fld_A1, assets])
     deleteFC_Lst(["flood_zone_lyr", "flood_zone_down_lyr", "catchment",
                   "polyLyr", "buffer"])
                                        
@@ -1179,7 +1179,7 @@ def NHD_get_MODULE(PARAMS):
         flow_f = "NHDPlusV21_{}_{}_{}_{}{}".format(DA, ID, ff_comp, ff_vv, ext)
         # Download flow table
         HTTP_download(request, local, flow_f)
-        # unzip flow table using winzip
+        # Unzip flow table using winzip
         WinZip_unzip(local, flow_f)
         # Pull flow table into gdb
         flow_folder = ID_folder + os.sep + ff_comp
@@ -1206,7 +1206,7 @@ def View_MODULE(PARAMS):
     ext = get_ext(outTbl)
     wetlands_dis = path + "wetland_dis" + ext #wetlands dissolved
 
-    # 2 How Many Benefit
+    # 3.2 How Many Benefit
     step_str = "3.2 How Many Benefit?"
     message(mod_str + " - " + step_str)
 
@@ -1311,7 +1311,7 @@ def Edu_MODULE(PARAMS):
     wetlandsOri = PARAMS[1]
     outTbl = PARAMS[2]
 
-    # 3.2 NUMBER WHO BENEFIT 
+    # 3.2 How Many Benefit
     message(mod_str + " - 3.2 How Many benefit?") 
     if edu_inst is not None:
         edu_inst = checkSpatialReference(outTbl, edu_inst) #check spatial ref
@@ -1370,15 +1370,15 @@ def Rec_MODULE(PARAMS):
     #dissolved landuse
     landuseTEMP = path + "landuse_temp" + ext
 
-    #3.2 - NUMBER WHO BENEFIT
+    # 3.2 How Many Benefit
     message(mod_str + " - 3.2 How Many Benefit")
     start = time.clock() #start the clock
-    #3.2 - A: buffer each site by 500m, 1km, and 10km
+    # Buffer each site by 500m, 1km, and 10km
     rec_500m = simple_buffer(outTbl, "recArea_03mi", "0.333333 Miles") #walk
     rec_1000m = simple_buffer(outTbl, "recArea_05mi", "0.5 Miles") #drive
     rec_10000m = buffer_donut(rec_1000m , "recArea_6mi", "5.5 Miles") #drive
 
-    #3.2 - B: overlay population
+    # Overlay population
     if addresses is not None: #address based method
         lst_rec_cnt_03 = buffer_contains(rec_500m, addresses)
         lst_rec_cnt_05 = buffer_contains(rec_1000m, addresses)
@@ -1400,7 +1400,7 @@ def Rec_MODULE(PARAMS):
         lst_rec_cnt_05 = []
         lst_rec_cnt_6 = []
 
-    #3.2 - C: overlay trails
+    # Overlay trails
     rteLst_rec_trails = []
     if trails is not None:
         lst_rec_trails = buffer_contains(rec_500m, trails) #bike trails in 500m
@@ -1411,7 +1411,7 @@ def Rec_MODULE(PARAMS):
         lst_rec_trails = []
         rteLst_rec_trails = []
         
-    #3.2 - C2: overlay bus stops
+    # Overlay bus stops
     rteLst_rec_bus = []
     if bus_Stp is not None:
         bus_Stp = checkSpatialReference(outTbl, bus_Stp) #check projections
@@ -1426,7 +1426,7 @@ def Rec_MODULE(PARAMS):
     start=exec_time(start, msg + "(from trails or bus)")
     start1=exec_time(start1, msg)
 
-    #3.3.A SERVICE QUALITY - Total area of green space around site ("R_3A_acr")
+    # 3.3.A SERVICE QUALITY - Total area of green space around site ("R_3A_acr")
     message(mod_str + " - 3.3.A Service Quality")
     lst_green_neighbor = []
     if landuse is not None:
@@ -1523,7 +1523,7 @@ def Bird_MODULE(PARAMS):
     trails, roads = PARAMS[2], PARAMS[3]
     outTbl = PARAMS[4]
     
-    #3.2 - NUMBER WHO BENEFIT
+    # 3.2 How Many Benefit
     message(mod_str + ": 3.2 How Many Benefit?")
     
     # Buffer sites by 0.2 miles.
@@ -2459,41 +2459,51 @@ class Tier_1_Indicator_Tool (object):
         #subs = in_gdb + "dams"
         dams = setParam("Dams/Levees", "flood_sub", "", opt, "")
         #edu_inst = in_gdb + "schools08"
-        edu_inst = setParam("Educational Institution Points", "edu_inst", "", opt, "")
+        edu_inst = setParam("Educational Institution Points",
+                            "edu_inst", "", opt, "")
         #bus_Stp = in_gdb + "RIPTAstops0116"
         #could it accomodate lines too?
-        bus_stp = setParam("Bus Stop Points", "bus_stp", "", opt, "")
+        bus_stp = setParam("Bus Stop Points",
+                           "bus_stp", "", opt, "")
         #trails = in_gdb + "bikepath"
-        trails = setParam("Trails (hiking, biking, etc.)", "trails", "", opt, "")
+        trails = setParam("Trails (hiking, biking, etc.)",
+                          "trails", "", opt, "")
         #roads = in_gdb + "e911Roads13q2"
-        roads = setParam("Roads (streets, highways, etc.)", "roads", "", opt, "")
+        roads = setParam("Roads (streets, highways, etc.)",
+                         "roads", "", opt, "")
         #pre-existing wetlands #OriWetlands = in_gdb + "NWI14"
         OriWetlands = setParam("Wetland Polygons", "in_wet", "", opt, "")
 
         #landuse = in_gdb + "rilu0304"
-        landUse = setParam("Landuse/Greenspace Polygons", "land_use", "", opt, "")
+        landUse = setParam("Landuse/Greenspace Polygons",
+                           "land_use", "", opt, "")
         #field = "LCLU"
         LULC_field = setParam("Greenspace Field", "LULCFld", fld, opt, "")
         # List of fields from table [430, 410, 162, 161].
-        landVal = setParam("Greenspace Field Values", "grn_field_val", GP_s, opt, "", True)
+        landVal = setParam("Greenspace Field Values",
+                           "grn_field_val", GP_s, opt, "", True)
 
         #sovi = in_gdb + "SoVI0610_RI"
         socVul = setParam("Social Vulnerability", "sovi_poly", "", opt, "")
         # User must select 1 field to base calculation on.
         #sovi_field = "SoVI0610_1"
-        soc_Field = setParam("Vulnerability Field", "SoVI_ScoreFld", fld, opt, "")
+        soc_Field = setParam("Vulnerability Field",
+                             "SocVul_Field", fld, opt, "")
         #sovi_High = "High"
-        socVal = setParam("Vulnerable Field Values", "soc_field_val", GP_s, opt, "", True)
+        socVal = setParam("Vulnerable Field Values",
+                          "soc_field_val", GP_s, opt, "", True)
 
         #conserved = in_gdb + "LandUse2025"
         conserve = setParam("Conservation Lands", "cons_poly", "", opt, "")
         #rel_field = "Map_Legend"
-        conserve_Field = setParam("Conservation Field", "Conservation_Field", fld, opt, "")
+        conserve_Field = setParam("Conservation Field",
+                                  "Conservation_Field", fld, opt, "")
         #user must select 1 field to base calculation on
         #cons_fieldLst = ['Conservation/Limited', 'Major Parks & Open Space',
         #                 'Narragansett Indian Lands', 'Reserve',
         #                 'Water Bodies']
-        useVal = setParam("Conservation Types", "Conservation_Type", GP_s, opt, "", True)
+        useVal = setParam("Conservation Types",
+                          "Conservation_Type", GP_s, opt, "", True)
                 
         #outputs
         #outTbl = r"~\Test_Results\IntermediatesFinal77.gdb\Results_full"
