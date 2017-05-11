@@ -1190,7 +1190,8 @@ def NHD_get_MODULE(PARAMS):
 ##############################
 def View_MODULE(PARAMS):
     """Scenic View Benefits"""
-    start = time.clock() #start the clock
+    start1 = time.clock() #start the clock
+    
     mod_str = "Scenic View Benefits analysis"
     message(mod_str + "...")
 
@@ -1207,6 +1208,7 @@ def View_MODULE(PARAMS):
     wetlands_dis = path + "wetland_dis" + ext #wetlands dissolved
 
     # 3.2 How Many Benefit
+    start = time.clock()
     step_str = "3.2 How Many Benefit?"
     message(mod_str + " - " + step_str)
 
@@ -1219,14 +1221,13 @@ def View_MODULE(PARAMS):
     if addresses is not None: #address based method
         lst_view50 = buffer_contains(view50, addresses)
         lst_view100 = buffer_contains(view100, addresses)
-        msg = mod_str + "{} - {} (from addresses)".format(mod_str, step_str)
-        start = exec_time(start, msg)
-        
+        msg = "{} - {} (from addresses)".format(mod_str, step_str)
+
     elif popRast is not None: #population based method
         lst_view50 = buffer_population(view50, popRast)
         lst_view100 = buffer_population(view100, popRast)
         msg = "{} - {} (from population raster)".format(mod_str, step_str)
-        start = exec_time(start, msg)
+    start = exec_time(start, msg)
 
     # Calculate weighted scores
     lst_view_score = view_score(lst_view50, lst_view100) 
@@ -1239,50 +1240,53 @@ def View_MODULE(PARAMS):
     else:
         message("No roads or trails specified")
 
-    msg =  "{} - {} (from trails or roads)".format(mod_str, step_str)
-    start = exec_time(start, msg)
-    start1 = exec_time(start1, "{} - {} Total".format(mod_str, step_str))
+    msg =  "{} - {} ".format(mod_str, step_str)
+    start = exec_time(start, msg + "(from trails or roads)")
+    start1 = exec_time(start1, msg + "Total")
 
     # 3.B Substitutes/Scarcity
-    message(mod_str + " - 3.B Scarcity")
+    step_str = "3.B Scarcity"
+    message(mod_str + " - " + step_str)
+    
     if wetlandsOri is not None: 
         # Make a 200m buffer that doesn't include the site                      
         view200 = buffer_donut(outTbl, "int_ViewArea_200", "200 Meters")
 
     #FIX next line?
-        #may require lyr input
+        #lyr input may speed this up
         del_exists(wetlands_dis)
         arcpy.Dissolve_management(wetlandsOri, wetlands_dis)
         wetlandsOri = wetlands_dis
-        #wetlands in 200m
+        # Wetlands in 200m
         lst_view_Density = percent_cover(wetlandsOri, view200)
     else:
         message("No existing wetlands input specified")
         lst_view_Density = []
-    start = exec_time(start, mod_str + ": 3.3B Scarcity")
+    start = exec_time(start, "{} - {}".format(mod_str, step_str))
 
     # 3.C Complements
-    message(mod_str + " - 3.C Complements") #PARAMS[landUse, fieldLst, field]
+    step_str = "3.C Complements"
+    message(mod_str + " - " + step_str)
 
     if landuse is not None:
         arcpy.MakeFeatureLayer_management(landuse, "lyr")
         #construct query from field list
         whereClause = selectStr_by_list(field, fieldLst)
         sel = "NEW_SELECTION"
-        # reduce to desired LU
+        # Reduce to desired LU
         arcpy.SelectLayerByAttribute_management("lyr", sel, whereClause)
         landUse2 = os.path.splitext(outTbl)[0] + "_comp" + ext
         del_exists(landUse2)
         arcpy.Dissolve_management("lyr", landUse2, field) #reduce to unique
 
-        #number of unique LU in LU list which intersect each buffer
+        # Number of unique LU in LU list which intersect each buffer
         lst_comp = buffer_contains(view200, landUse2)
-        start = exec_time(start, mod_str + ": 3.3C Complements")
+        start = exec_time(start, "{} - {}".format(mod_str, step_str))
     else:
         message("No land use input specified")
         lst_comp = []
 
-    message("Saving Scenic View Benefits results to Output...")
+    message("Saving {} results to Output...".format(mod_str))
     #FINAL STEP: move results to results file
     fields_lst = ["V_2_50", "V_2_100", "V_2_score", "V_2_boo",
                   "V_3A_boo", "V_3B_scar", "V_3C_comp", "V_3D_boo"]
@@ -1312,7 +1316,9 @@ def Edu_MODULE(PARAMS):
     outTbl = PARAMS[2]
 
     # 3.2 How Many Benefit
-    message(mod_str + " - 3.2 How Many benefit?") 
+    step_str = "3.2 How Many Benefit?"
+    message(mod_str + " - " + step_str)
+    
     if edu_inst is not None:
         edu_inst = checkSpatialReference(outTbl, edu_inst) #check spatial ref
         # Buffer each site by 0.25 miles
@@ -1322,10 +1328,13 @@ def Edu_MODULE(PARAMS):
     else:
         message("No educational institutions specified")
         lst_edu_cnt = []
-    start=exec_time(start, mod_str + " - 3.2 How Many benefit (institutions)")
+    msg = "{} - {} (Institutions)".format(mod_str, step_str)
+    start = exec_time(start, msg)
 
-    # 3.3.B Scarcity
-    message(mod_str + " - 3.3B Scarcity")
+    # 3.B Substitutes/Scarcity
+    step_str = "3.B Scarcity"
+    message(mod_str + " - " + step_str)
+    
     if wetlandsOri is not None:
         # Buffer each site by 0.25 miles
         buf50 = simple_buffer(outTbl, "edu_2", "0.5 Miles")
@@ -1334,10 +1343,10 @@ def Edu_MODULE(PARAMS):
     else:
         message("No pre-existing wetlands specified to determine scarcity")
         lst_edu_Density = []
-    start=exec_time(start, mod_str + " - 3.3B Scarcity (existing wetlands)")
+    start = exec_time(start, "{} - {}".format(mod_str, step_str))
 
-    #FINAL STEP: move results to results file
-    message("Saving " + mod_str + " results to Output...")
+    # Final Step - move results to results file
+    message("Saving {} results to Output...".format(mod_str))
     fields_lst = ["EE_2_cnt", "EE_3A_boo", "EE_3B_sca",
                   "EE_3C_boo", "EE_3D_boo"]
     list_lst = [lst_edu_cnt, [], lst_edu_Density, [], []]
@@ -1365,14 +1374,15 @@ def Rec_MODULE(PARAMS):
     field, fieldLst = PARAMS[6], PARAMS[7]
     outTbl = PARAMS[8]
 
-    path = os.path.dirname(outTbl) + os.sep
-    ext = get_ext(outTbl)
     #dissolved landuse
-    landuseTEMP = path + "landuse_temp" + ext
+    path = os.path.dirname(outTbl) + os.sep
+    landuseTEMP = path + "landuse_temp" + get_ext(outTbl)
 
     # 3.2 How Many Benefit
-    message(mod_str + " - 3.2 How Many Benefit")
-    start = time.clock() #start the clock
+    start = time.clock()
+    step_str = "3.2 How Many Benefit?"
+    message(mod_str + " - " + step_str)
+    
     # Buffer each site by 500m, 1km, and 10km
     rec_500m = simple_buffer(outTbl, "recArea_03mi", "0.333333 Miles") #walk
     rec_1000m = simple_buffer(outTbl, "recArea_05mi", "0.5 Miles") #drive
@@ -1384,7 +1394,7 @@ def Rec_MODULE(PARAMS):
         lst_rec_cnt_05 = buffer_contains(rec_1000m, addresses)
         lst_rec_cnt_6 = buffer_contains(rec_10000m, addresses)
 
-        msg = "{} - 3.2 How Many Benefit? (from addresses)".format(mod_str)
+        msg = "{} - {} (from addresses)".format(mod_str, step_str)
         start = exec_time(start, msg)
 
     elif popRast is not None: #check for population raster
@@ -1392,13 +1402,11 @@ def Rec_MODULE(PARAMS):
         lst_rec_cnt_05 = buffer_population(rec_1000m, popRast)
         lst_rec_cnt_6 = buffer_population(rec_10000m, popRast)
 
-        msg = "{} - 3.2 How Many Benefit? (raster population)".format(mod_str)
+        msg = "{} - {} (raster population)".format(mod_str, step_str)
         start = exec_time(start, msg)
     else: #this should never happen
         message("Neither addresses or a population raster were found.")
-        lst_rec_cnt_03 = []
-        lst_rec_cnt_05 = []
-        lst_rec_cnt_6 = []
+        lst_rec_cnt_03, lst_rec_cnt_05, lst_rec_cnt_6 = [], [], []
 
     # Overlay trails
     rteLst_rec_trails = []
@@ -1422,23 +1430,24 @@ def Rec_MODULE(PARAMS):
                 "stops within 1/3 mi of site (R_2_03_bb)")
         lst_rec_bus = []
         rteLst_rec_bus = []
-    msg =  "{}: 3.2 How Many Benefit?".format(mod_str)
-    start=exec_time(start, msg + "(from trails or bus)")
-    start1=exec_time(start1, msg)
 
-    # 3.3.A SERVICE QUALITY - Total area of green space around site ("R_3A_acr")
-    message(mod_str + " - 3.3.A Service Quality")
+    msg =  "{} - {} ".format(mod_str, step_str)
+    start = exec_time(start, msg + "(from trails and bus stops)")
+    start1 = exec_time(start1, msg + "Total")
+    
+    # 3.3.A Service Quality
+    step_str = "3.3.A Service Quality"
+    message(mod_str + " - " + step_str)
+
+    # Total area of green space around site ("R_3A_acr")
     lst_green_neighbor = []
     if landuse is not None:
         #reduce to desired LU
-        #arcpy.MakeFeatureLayer_management(landuse, "lyr")
         wClause = selectStr_by_list(field, fieldLst)
-        #arcpy.SelectLayerByAttribute_management("lyr", "NEW_SELECTION", whereClause)
-        #arcpy.Dissolve_management("lyr", landuseTEMP, "", "", "SINGLE_PART")
         name = os.path.basename(landuseTEMP)
         del_exists(landuseTEMP)
         arcpy.FeatureClassToFeatureClass_conversion(landuse, path, name, wClause)
-        #make into selectable layer    
+        # Make into selectable layer    
         arcpy.MakeFeatureLayer_management(landuseTEMP, "greenLyr")
 
         with arcpy.da.SearchCursor(outTbl, ["SHAPE@"]) as cursor:
@@ -1463,10 +1472,13 @@ def Rec_MODULE(PARAMS):
         message("No landuse specified for determining area of green space " +
                 "around site (R_3A_acr)")
 
-    start = exec_time(start, "{}: 3.3.A Service Quality".format(mod_str))
+    start = exec_time(start, "{} - {} ".format(mod_str, step_str))
 
-    #3.3.B SCARCITY - green space within 2/3 mi, 1 mi and 12 mi of site
-    message(mod_str + " - 3.3.B Scarcity")
+    # 3.3.B Substitutes/Scarcity
+    step_str = "3.3.B Scarcity"
+    message(mod_str + " - " + step_str)
+
+    # Green space within 2/3 mi, 1 mi and 12 mi of site
     if landuse is not None or wetlandsOri is not None:
         #sub are greenspace or wetlands?
         if landuse is not None:
@@ -1489,13 +1501,12 @@ def Rec_MODULE(PARAMS):
     else:
         message("No substitutes (landuse or existing wetlands) inputs" +
                 " specified for recreation benefits.")
-        lst_rec06_Density = []
-        lst_rec1_Density = []
-        lst_rec12_Density = []
-    start = exec_time(start, mod_str + " - 3.3B Scarcity")
+        lst_rec06_Density, lst_rec1_Density, lst_rec12_Density = [], [], []
 
-    #Add results from lists
-    message("Saving Recreation Benefits results to Output...")    
+    start = exec_time(start, "{} - {} ".format(mod_str, step_str))
+
+    # Final Step - move results to results file
+    message("Saving {} results to Output...".format(mod_str)) 
     fields_lst = ["R_2_03", "R_2_03_tb", "R_2_03_bb", "R_2_05", "R_2_6",
                   "R_3A_acr", "R_3B_sc06", "R_3B_sc1", "R_3B_sc12",
                   "R_3C_boo", "R_3D_boo"]
@@ -1524,30 +1535,30 @@ def Bird_MODULE(PARAMS):
     outTbl = PARAMS[4]
     
     # 3.2 How Many Benefit
-    message(mod_str + ": 3.2 How Many Benefit?")
+    step_str = "3.2 How Many Benefit?"
+    message(mod_str + " - " + step_str)
     
     # Buffer sites by 0.2 miles.
     buf = simple_buffer(outTbl, "birdArea", "0.2 Miles")
 
     if addresses is not None:
         lst_bird_cnt = buffer_contains(buf, addresses)
-        start=exec_time(start, mod_str +
-                        ": 3.2 How Many Benefit? (from addresses)")
+        msg = "(from addresses)"
     elif popRast is not None:
         lst_bird_cnt = buffer_population(buf, popRast)
-        start=exec_time(start, mod_str +
-                        ": 3.2 How Many Benefit? (from population Raster)")
-
-    #3.2 - are there roads or trails that could see birds on the site?      
+        msg = "(from population Raster)"
+    start = exec_time(start, "{} - {} {}".format(mod_str, step_str, msg))
+                    
+    # Are there roads or trails that could see birds on the site?      
     if trails is not None or roads is not None:
         rteLstBird = buffer_contains_multiset(trails, roads, buf)
     else:
         message("No trails or roads specified to determine if birds at the " +
                 "site will be visible from these")
-
-    start = exec_time(start, mod_str + ": 3.2 How Many Benefit?")
+    msg = "(from trails or roads)"
+    start = exec_time(start, "{} - {} {}".format(mod_str, step_str, msg))
                        
-    # Add results from lists
+    # Final Step - move results to results file
     message("Saving {} results to Output...".format(mod_str))
     fields_lst = ["B_2_cnt", "B_2_boo", "B_3A_boo", "B_3C_boo", "B_3D_boo"]
     list_lst = [lst_bird_cnt, rteLstBird, [], [], []]
