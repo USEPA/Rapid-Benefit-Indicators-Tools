@@ -236,7 +236,7 @@ def nhdPlus_check(catchment, joinField, relTbl):
     if catchment == None:
         catchment = script_dir + NHD_gdb + os.sep + "Catchment"
     if arcpy.Exists(catchment):
-        message("Catchment file for downstream:\n{}".format(catchment))
+        message("Catchment file found:\n{}".format(catchment))
         if joinField == None:
             joinField = "FEATUREID" #field from feature layer
         #check catchment for field
@@ -250,7 +250,7 @@ def nhdPlus_check(catchment, joinField, relTbl):
     if relTbl == None:
         relTbl = script_dir + NHD_gdb + os.sep + "PlusFlow"
     if arcpy.Exists(relTbl):
-        message("Downstream relationships table:\n{}".format(relTbl))
+        message("Downstream relationships table found:\n{}".format(relTbl))
         #check relationship table for field "FROMCOMID" & "TOCOMID"
         for targetField in ["FROMCOMID", "TOCOMID"]:
             if not field_exists(relTbl , targetField):
@@ -821,8 +821,7 @@ def quant_to_qual_lst(lst):
 ###########MODULES############
 def FR_MODULE(PARAMS):
     """Flood Risk Benefits"""
-    start1 = time.clock() #start the clock (full module)
-    start = time.clock() #start the clock (parts)
+    start = time.clock() #start the clock
     mod_str = "Flood Risk Reduction Benefits analysis"
     message(mod_str + "...")
 
@@ -920,7 +919,7 @@ def FR_MODULE(PARAMS):
     site_cnt = arcpy.GetCount_management(outTbl)
     sel = "NEW_SELECTION"
     with arcpy.da.SearchCursor(outTbl, ["SHAPE@", OID_field]) as cursor:
-        for site in cursor:
+        for j, site in enumerate(cursor):
             # Select buffer and flood zone for site
             wClause = "{} = {}".format(OID_field, site[1])
             arcpy.SelectLayerByAttribute_management("buffer", sel, wClause)
@@ -962,14 +961,13 @@ def FR_MODULE(PARAMS):
                     zone[0] = zone[0].intersect(geo, 4)
                     cursor2.updateRow(zone)
 
-            clip_rows = arcpy.GetCount_management(fld_A3)
             message("Determined catchments downstream for site " +
-                    "{}, of {}".format(clip_rows, site_cnt))
+                    "{}, of {}".format(j+1, site_cnt))
 
-    message("Finished reducing flood zone areas to downstream from sites...")
-
-    # 3.2 Calculate flood area as benefitting percentage
-    message("Measuring flood zone area downstream of each site...")
+    start = exec_time(start, "reducing flood zones to downstream from sites")
+    # 3.2 How Many Benefit - Area
+    step_str = "3.2 How Many Benefit?"
+    message("{} - {}".format(mod_str, step_str))
 
     # Get areas for buffer
     lst_FA1_area = list_areas(fld_A1)
@@ -983,7 +981,7 @@ def FR_MODULE(PARAMS):
     # Percent of flood zone downstream
     lst_FA3_Dpct = [a/b for a, b in zip(lst_FA3_areaD, lst_FA2_area)]
 
-    # 3.2 How Many Benefit
+    # 3.2 How Many Benefit - People
     message("Counting people who benefit...")
     if addresses is not None:
         # Addresses in buffer/flood zone/downstream.
@@ -993,31 +991,32 @@ def FR_MODULE(PARAMS):
         # Population in buffer/flood zone/downstream 
         lst_flood_cnt = buffer_population(fld_A3, popRast)
         
-    start=exec_time(start, mod_str + ": 3.2 How Many Benefit")
+    start = exec_time(start, "{} - {}".format(mod_str, step_str))
 
-    # 3.3.A: SERVICE QUALITY - Calculate area of each restoration site
-    message("Measuring area of each restoration site...")
-    siteAreaLst = list_areas(outTbl, "ACRES", "GEODESIC")
-    start = exec_time (start, mod_str + ": 3.3.A Service Quality")
+    # 3.3.A SERVICE QUALITY
+    step_str = "3.3.A Service Quality"
+    message("{} - {}".format(mod_str, step_str))
+    # Calculate area of each restoration site
+    lst_siteArea = list_areas(outTbl, "ACRES", "GEODESIC")
+    start = exec_time (start, "{} - {}".format(mod_str, step_str))
 
     # 3.3.B: SUBSTITUTES
     if subs is not None:
-        message("Estimating number of substitutes within 2.5 miles " +
-                "downstream of restoration site...")
+        step_str = "3.3.B Scarcity"
+        message("{} - {}".format(mod_str, step_str))
+        message("Estimating substitutes within 2.5 miles downstream")
         subs = checkSpatialReference(outTbl, subs)
 
         # Subs in buffer/flood/downstream
         lst_subs_cnt = buffer_contains(fld_A3, subs)
-
         # Convert lst to binary list
-        lst_subs_cnt_boolean = quant_to_qual_lst(lst_subs_cnt)
+        lst_subs_cnt_boo = quant_to_qual_lst(lst_subs_cnt)
 
-        start = exec_time (start, mod_str + ": 3.3.B Scarcity " +
-                           "(substitutes - 'FR_3B_boo')")
+        start = exec_time(start, "{} - {} - 'FR_3B_boo'".format(mod_str,
+                                                                 step_str))
     else:
-        message("No Substitutes (dams and levees) specified, 'FR_sub' will" +
-                " all be '0' and 'FR_3B_boo' will be left blank.")
-        lst_subs_cnt, lst_subs_cnt_boolean = [], []
+        message("No Substitutes (dams & levees) specified")
+        lst_subs_cnt, lst_subs_cnt_boo = [], []
             
     # 3.3.B: SCARCITY
     # This uses the complete buffer (fld_A1), alternatively,
@@ -1025,20 +1024,20 @@ def FR_MODULE(PARAMS):
     if OriWetlands is not None:
         message("Estimating area of wetlands within 2.5 miles in both " +
                 "directions (5 miles total) of restoration sites...")
-
-        lst_floodRet_Density = percent_cover(OriWetlands, fld_A1)
-        start = exec_time (start, mod_str + ": Scarcity ('FR_3B_sca')")
+        lst_FR_3B = percent_cover(OriWetlands, fld_A1)
     else:
         message("Substitutes (existing wetlands) input not specified, " +
                 "'FR_3B_sca' will all be '0'.")
-        lst_floodRet_Density = []
-        
+        lst_FR_3B = []
+    start = exec_time (start, "{} - {} - 'FR_3B_sca'".format(mod_str, step_str))
+    
     # FINAL STEP: move results to results file
+    message("Saving {} results to Output...".format(mod_str))
     fields_lst = ["FR_2_cnt", "FR_zPct", "FR_zDown", "FR_zDoPct", "FR_3A_acr",
                   "FR_3A_boo", "FR_sub", "FR_3B_boo", "FR_3B_sca", "FR_3D_boo"]
     list_lst = [lst_flood_cnt, lst_FA2_pct, lst_FA3_areaD,
-                lst_FA3_Dpct, siteAreaLst, [], lst_subs_cnt,
-                lst_subs_cnt_boolean, lst_floodRet_Density, []]
+                lst_FA3_Dpct, lst_siteArea, [], lst_subs_cnt,
+                lst_subs_cnt_boo, lst_FR_3B, []]
     type_lst = ["", "", "", "", "", "Text", "", "Text", "", "Text"]
 
     lst_to_AddField_lst(outTbl, fields_lst, list_lst, type_lst)
@@ -1047,10 +1046,8 @@ def FR_MODULE(PARAMS):
     deleteFC_Lst([fld_A3, fld_A2, fld_A1, assets])
     deleteFC_Lst(["flood_zone_lyr", "flood_zone_down_lyr", "catchment",
                   "polyLyr", "buffer"])
-                                       
-    message(mod_str + " Module Complete")
-    start1=exec_time(start1, "full flood module")
-
+                                 
+    message(mod_str + " complete")
 
 ##############################
 def NHD_get_MODULE(PARAMS):
@@ -1248,7 +1245,7 @@ def View_MODULE(PARAMS):
     start1 = exec_time(start1, msg + "Total")
 
     # 3.3.B Substitutes/Scarcity
-    step_str = "3.B Scarcity"
+    step_str = "3.3.B Scarcity"
     message(mod_str + " - " + step_str)
     
     if wetlandsOri is not None: 
@@ -1268,7 +1265,7 @@ def View_MODULE(PARAMS):
     start = exec_time(start, "{} - {}".format(mod_str, step_str))
 
     # 3.3.C Complements
-    step_str = "3.C Complements"
+    step_str = "3.3.C Complements"
     message(mod_str + " - " + step_str)
 
     if landuse is not None:
@@ -1278,7 +1275,7 @@ def View_MODULE(PARAMS):
         sel = "NEW_SELECTION"
         # Reduce to desired LU
         arcpy.SelectLayerByAttribute_management("lyr", sel, whereClause)
-        landUse2 = os.path.splitext(outTbl)[0] + "_comp" + ext
+        landUse2 = "{}{}_comp{}".format(path, os.path.basename(landuse), ext)
         del_exists(landUse2)
         arcpy.Dissolve_management("lyr", landUse2, field) #reduce to unique
 
@@ -1301,8 +1298,8 @@ def View_MODULE(PARAMS):
 
     # Cleanup
     deleteFC_Lst([view50, view100, view100_int, view200, wetlands_dis])
-    
-    message("{} Complete".format(mod_str))
+
+    message(mod_str + " complete")
 
 ##############################
 ############ENV EDU###########
@@ -1333,7 +1330,7 @@ def Edu_MODULE(PARAMS):
     start = exec_time(start, msg)
 
     # 3.B Substitutes/Scarcity
-    step_str = "3.B Scarcity"
+    step_str = "3.3.B Scarcity"
     message(mod_str + " - " + step_str)
     
     if wetlandsOri is not None:
@@ -1358,7 +1355,7 @@ def Edu_MODULE(PARAMS):
     # Cleanup FC
     deleteFC_Lst([buf25, buf50])
 
-    message(mod_str + " Complete")
+    message(mod_str + " complete")
     
 ##############################
 ##############REC#############
@@ -1516,9 +1513,9 @@ def Rec_MODULE(PARAMS):
 
     # Cleanup
     deleteFC_Lst([landuseTEMP, rec_500m, rec_1000m, rec_10000m,
-                  rec_06, rec_1, rec_12])
+                  rec_06, rec_1, rec12])
 
-    message(mod_str + " complete.")
+    message(mod_str + " complete")
 
 ##############################
 #############BIRD#############
@@ -1566,7 +1563,7 @@ def Bird_MODULE(PARAMS):
 
     arcpy.Delete_management(buf) #cleanup
 
-    message(mod_str + " complete.")
+    message(mod_str + " complete")
 
 ##############################
 ##########SOC_EQUITY##########
@@ -1608,7 +1605,7 @@ def socEq_MODULE(PARAMS):
 
     #add fields for the rest of the possible values if 6 or less
     fieldLst = [x for x in full_fieldLst if x not in SoVI_High]
-    message("There are {} unique values for {}.".format(len(fieldLst), field))
+    message("There are {} unique values for '{}'".format(len(fieldLst), field))
     if len(fieldLst) <6: 
         message("Creating new fields for each...")
         #add fields for each unique in field
@@ -1629,7 +1626,7 @@ def socEq_MODULE(PARAMS):
                 "just calculating {} coverage".format(SoVI_High))
 
     arcpy.Delete_management(buf) #cleanup
-    message(mod_str + " complete.")
+    message(mod_str + " complete")
     
 ##############################
 #########RELIABILITY##########
@@ -1672,8 +1669,8 @@ def reliability_MODULE(PARAMS):
         traceback.print_exc()
         pass
 
-    #move results to outTbl
-    message("Writing results to 'Conserved' field...")
+    # Final Step - move results to results file
+    message("Saving {} results to 'Conserved' in Output...".format(mod_str))
     fields_lst = ["Conserved", "Threatene"]
     list_lst = [pct_consLst, pct_threatLst]
 
@@ -1951,12 +1948,12 @@ def main(params):
     if socEq == True:
         #buff_dist = params[22].valueAsText #"2.5 Miles"
         buff_dist = SocEqu_BuffDist(ck[0:5])
-        message("Default buffer distance of {} used" +
-                " for Social Equity".format(buff_dist))
+        message("Default buffer distance of {} used".format(buff_dist) +
+                " for Social Equity")
     if rel == True:
         rel_buff_dist = "500 Feet"
-        message("Default buffer distance of " + rel_buff_dist +
-                " used for Benefit Reliability")
+        message("Default buffer distance of {} used".format(rel_buff_dist) +
+                " for Benefit Reliability")
 
     #check for NHD+ files to prep correct datasets
     if not nhdPlus_check(None, None, None):
@@ -2515,7 +2512,7 @@ class Tier_1_Indicator_Tool (object):
                 
         #outputs
         #outTbl = r"~\Test_Results\IntermediatesFinal77.gdb\Results_full"
-        outTbl = setParam("Output", "outTable", "DEFeatureClass", "", "Output")
+        outTbl = setParam("Output (Required)", "outTable", "DEFeatureClass", "", "Output")
         #outTbl = setParam("Output", "outTable", "DEWorkspace", "", "Output")
 
         pdf = setParam("PDF Report", "outReport", "DEFile", opt, "Output")
