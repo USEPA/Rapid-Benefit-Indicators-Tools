@@ -534,6 +534,7 @@ def buffer_donut(FC, outFC_name, buffer_distance):
     arcpy.MakeFeatureLayer_management(FC, "lyr")
     sel = "NEW_SELECTION" #selection type
 
+    # Use shape token tokens to remove inner from outter
     with arcpy.da.UpdateCursor(outFC, ["SHAPE@", field]) as cursor:
         for buf in cursor:
             # Select FC based on field
@@ -543,6 +544,7 @@ def buffer_donut(FC, outFC_name, buffer_distance):
                 for row in cursor2:
                     buf[0] = buf[0].difference(row[0])
             cursor.updateRow(buf)
+    arcpy.Delete_management("lyr") #delete
     return outFC
 
 
@@ -614,14 +616,17 @@ def buffer_population(poly, popRast):
     if  sa_Status == "CheckedOut":
         # Check for "orig_ID" then "ORIG_FID" then use OID@
         fld = find_ID(poly)
-        arcpy.sa.ZonalStatisticsAsTable(poly, fld, popRast, tempDBF, "", "SUM")
-        # check for if fld is a reserved field that would be renamed
-        if fld == str(arcpy.Describe(poly).OIDFieldName):
-            fld2 = fld + "_" #hoping the assignment is consistent
-        else: fld2 = fld
-        
-        lst = field_to_lst(tempDBF, [fld2, "SUM"]) #"AREA" "OID" "COUNT"
-        arcpy.Delete_management(tempDBF)
+        try:
+            arcpy.sa.ZonalStatisticsAsTable(poly, fld, popRast, tempDBF, "", "SUM")
+            # check for if fld is a reserved field that would be renamed
+            if fld == str(arcpy.Describe(poly).OIDFieldName):
+                fld2 = fld + "_" #hoping the assignment is consistent
+            else: fld2 = fld
+            
+            lst = field_to_lst(tempDBF, [fld2, "SUM"]) #"AREA" "OID" "COUNT"
+            arcpy.Delete_management(tempDBF)
+        except:
+            message("Unable to perform analysis on Raster of population")
     else:
         message("Spatial Analyst is " + sa_Status)
         message("Population in area could not be estimated.")
@@ -987,7 +992,8 @@ def FR_MODULE(PARAMS):
         # Addresses in buffer/flood zone/downstream.
         lst_flood_cnt = buffer_contains(fld_A3, assets)
 
-    elif popRast is not None: #NOT TESTED
+    elif popRast is not None:
+
         # Population in buffer/flood zone/downstream 
         lst_flood_cnt = buffer_population(fld_A3, popRast)
         
@@ -1044,8 +1050,7 @@ def FR_MODULE(PARAMS):
 
     # Cleanup
     deleteFC_Lst([fld_A3, fld_A2, fld_A1, assets])
-    deleteFC_Lst(["flood_zone_lyr", "flood_zone_down_lyr", "catchment",
-                  "polyLyr", "buffer"])
+    deleteFC_Lst(["buffer", "flood_lyr", "catchment", "down_lyr", "VUB"])
                                  
     message(mod_str + " complete")
 
@@ -1278,6 +1283,7 @@ def View_MODULE(PARAMS):
         landUse2 = "{}{}_comp{}".format(path, os.path.basename(landuse), ext)
         del_exists(landUse2)
         arcpy.Dissolve_management("lyr", landUse2, field) #reduce to unique
+        arcpy.Delete_management("lyr") #done with lyr
 
         # Number of unique LU in LU list which intersect each buffer
         lst_comp = buffer_contains(view200, landUse2)
@@ -1462,6 +1468,7 @@ def Rec_MODULE(PARAMS):
                         #add area of greenspace - overlap to site and previous rows
                         var += areaGreen - interArea
                 lst_rec_3A.append(var)
+        arcpy.Delete_management("greenLyr")
     else:
         message("No landuse specified for determining area of green space " +
                 "around site (R_3A_acr)")
@@ -1585,8 +1592,8 @@ def socEq_MODULE(PARAMS):
     buf = simple_buffer(outTbl, "sovi_buffer", bufferDist)
 
     # List all the unique values in the specified field
-    arcpy.MakeFeatureLayer_management(sovi, "soviLyr")
-    full_fieldLst = unique_values("soviLyr", field)
+    arcpy.MakeFeatureLayer_management(sovi, "lyr")
+    full_fieldLst = unique_values("lyr", field)
 
     # Add field for SoVI_High
     name = "Vul_High"
@@ -1599,8 +1606,8 @@ def socEq_MODULE(PARAMS):
     # Populate new field
     sel = "NEW_SELECTION"
     wClause = selectStr_by_list(field, SoVI_High)
-    arcpy.SelectLayerByAttribute_management("soviLyr", sel, wClause)
-    pct_lst = percent_cover("soviLyr", buf)
+    arcpy.SelectLayerByAttribute_management("lyr", sel, wClause)
+    pct_lst = percent_cover("lyr", buf)
     lst_to_field(outTbl, name, pct_lst)
 
     #add fields for the rest of the possible values if 6 or less
@@ -1618,14 +1625,15 @@ def socEq_MODULE(PARAMS):
                 message("'{}' values overwritten in table:\n{}".format(name,
                                                                        outTbl))
             wClause = selectStr_by_list(field, [val])
-            arcpy.SelectLayerByAttribute_management("soviLyr", sel, wClause)
-            pct_lst = percent_cover("soviLyr", buf)
+            arcpy.SelectLayerByAttribute_management("lyr", sel, wClause)
+            pct_lst = percent_cover("lyr", buf)
             lst_to_field(outTbl, name, pct_lst)
     else:
         message("This is too many values to create unique fields for each, " +
                 "just calculating {} coverage".format(SoVI_High))
 
     arcpy.Delete_management(buf) #cleanup
+    arcpy.Delete_management("lyr")
     message(mod_str + " complete")
     
 ##############################
@@ -1654,18 +1662,18 @@ def reliability_MODULE(PARAMS):
    
     #make selection from FC based on fields to include
     sel = "NEW_SELECTION"
-    arcpy.MakeFeatureLayer_management(cons_poly, "consLyr")
+    arcpy.MakeFeatureLayer_management(cons_poly, "lyr")
     whereClause = selectStr_by_list(field, consLst)
-    arcpy.SelectLayerByAttribute_management("consLyr", sel, whereClause)
+    arcpy.SelectLayerByAttribute_management("lyr", sel, whereClause)
     #determine percent of buffer which is each conservation type
-    pct_consLst = percent_cover("consLyr", buf)
+    pct_consLst = percent_cover("lyr", buf)
     try:
         #make list based on threat use types
         whereThreat = selectStr_by_list(field, threatLst)
-        arcpy.SelectLayerByAttribute_management("consLyr", sel, whereThreat)
-        pct_threatLst = percent_cover("consLyr", buf)
+        arcpy.SelectLayerByAttribute_management("lyr", sel, whereThreat)
+        pct_threatLst = percent_cover("lyr", buf)
     except Exception:
-        message("Error occured determining percent cover of non-conserved areas.")
+        message("Error occured determining percent non-conserved areas.")
         traceback.print_exc()
         pass
 
@@ -1677,6 +1685,7 @@ def reliability_MODULE(PARAMS):
     lst_to_AddField_lst(outTbl, fields_lst, list_lst, ["", ""])
 
     arcpy.Delete_management(buf) #cleanup
+    arcpy.Delete_management("lyr")
     message(mod_str + " complete")
 
 ##############################
@@ -1722,14 +1731,14 @@ def Report_MODULE(PARAMS):
                        dbl, dbl, txt, dbl, txt, dbl, txt, txt, dbl, txt,
                        txt, dbl, dbl, dbl, dbl, dbl, dbl, txt, txt, dbl,
                        txt, txt, txt, txt, dbl, dbl]
-    fld_dct['ltorgt'] = ['gt', 'gt', '', '', 'lt', '', 'gt', 'gt', 'gt', '', '',
-                         'lt', 'gt', '', 'gt', '', 'lt', '', '', 'gt', '',
+    fld_dct['ltorgt'] = ['gt', 'gt', '', '', 'lt', '', 'gt', 'gt', 'gt', '',
+                         '', 'lt', 'gt', '', 'gt', '', 'lt', '', '', 'gt', '',
                          '', 'gt', 'gt', 'gt', 'lt', 'lt', 'lt', '', '', 'gt',
                          '', '', '', '', 'gt', 'gt']
-    fld_dct['aveBool'] = ['', '', 'YES', 'NO', '', 'YES', '', '', '', 'YES', 'YES',
-                          '', '', 'YES', '', 'YES', '', 'YES', 'YES', '', 'YES',
-                          'YES', '', '', '', '', '', '', 'YES', 'YES', '',
-                          'YES', 'YES', 'YES', 'YES', '', '']
+    fld_dct['aveBool'] = ['', '', 'YES', 'NO', '', 'YES', '', '', '', 'YES',
+                          'YES', '', '', 'YES', '', 'YES', '', 'YES', 'YES',
+                          '', 'YES', 'YES', '', '', '', '', '', '', 'YES',
+                          'YES', '', 'YES', 'YES', 'YES', 'YES', '', '']
     fld_dct['numDigits'] = [0, 2, 0, 0, 2, 0, 0, 0, 1, 0, 0,
                             1, 0, 0, 0, 0, 1, 0, 0, 0, 0,
                             0, 0, 0, 0, 1, 1, 1, 0, 0, 0,
@@ -2092,7 +2101,7 @@ class Toolbox(object):
         self.label = "RBI Spatial Analysis Tools"
         self.alias = "RBI"
         # List of tool classes associated with this toolbox
-        self.tools = [Tier_1_Indicator_Tool, FloodTool, Report, reliability,
+        self.tools = [Full_Indicator_Tool, FloodTool, Report, reliability,
                       socialVulnerability, presence_absence, FloodDataDownloader]
 
 #############################      
@@ -2146,8 +2155,8 @@ class socialVulnerability (object):
                            " benefitting to identify social equity issues."
     def getParameterInfo(self):
         sites = setParam("Restoration Site Polygons (Required)", "in_poly", "", "", "")
-        poly = setParam("Social Vulnerability", "sovi_poly", "", "", "")
-        poly_field = setParam("Vulnerability Field", "SoVI_ScoreFld","Field", "", "")
+        poly = setParam("Social Vulnerability", "soc_vul_poly", "", "", "")
+        poly_field = setParam("Vulnerability Field", "soc_field","Field", "", "")
         field_value = setParam("Vulnerable Field Values", "soc_field_val",
                                "GPString", "", "", True)
         buff_dist = setParam("Buffer Distance", "bufferUnits", "GPLinearUnit", "", "")
@@ -2271,7 +2280,7 @@ class Report (object):
         self.description = "Tool to create formated summary pdf report of" + \
                            " indicator results"
     def getParameterInfo(self):
-        outTbl = setParam("Results Table", "outTable", "DEFeatureClass", "", "")
+        outTbl = setParam("Results Table", "outTable", "", "", "")
         siteName = setParam("Site Names Field", "siteNameField", "Field", "", "")
         siteName.enabled = False
         mxd = setParam("Mapfile with report layout", "mxd", "DEMapDocument", "", "")
@@ -2426,7 +2435,7 @@ class FloodDataDownloader(object):
         
 ################################        
 #########INDICATOR_TOOL#########       
-class Tier_1_Indicator_Tool (object):
+class Full_Indicator_Tool (object):
     def __init__(self):
         self.label = "Full Indicator Assessment" 
         self.description = "This tool performs the Tier 1 Indicators" + \
@@ -2489,11 +2498,11 @@ class Tier_1_Indicator_Tool (object):
                            "grn_field_val", GP_s, opt, "", True)
 
         #sovi = in_gdb + "SoVI0610_RI"
-        socVul = setParam("Social Vulnerability", "sovi_poly", "", opt, "")
+        socVul = setParam("Social Vulnerability", "soc_vul_poly", "", opt, "")
         # User must select 1 field to base calculation on.
         #sovi_field = "SoVI0610_1"
         soc_Field = setParam("Vulnerability Field",
-                             "SocVul_Field", fld, opt, "")
+                             "soc_field", fld, opt, "")
         #sovi_High = "High"
         socVal = setParam("Vulnerable Field Values",
                           "soc_field_val", GP_s, opt, "", True)
