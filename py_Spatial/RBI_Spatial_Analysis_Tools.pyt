@@ -693,7 +693,8 @@ def selectStr_by_list(field, lst):
         if type(item) in [str, unicode]: #sequence
             exp += "{} = '{}' OR ".format(field, item)
         elif type(item) == float:
-            exp += '"{}" = {} OR '.format(field, dec(item))
+            #exp += '"{}" = {} OR '.format(field, dec(item))
+            exp += '"{}" = {} OR '.format(field, float(item))
         elif type(item) in [int, long, complex]: #numeric
             exp += '"{}" = {} OR '.format(field, item)
         else:
@@ -797,7 +798,7 @@ def buffer_contains_multiset(dataset1, dataset2, bufferFC):
             # Dataset2 in buffer?
             lst_2 = buffer_contains(bufferFC, dataset2)
             for i, item in enumerate(lst_1):
-                if 0 in [item, lst_2[i]]:
+                if 0 in [item] and 0 in[lst_2[i]]:
                     lst.append("NO")
                 else:
                     lst.append("YES")
@@ -1286,6 +1287,8 @@ def View_MODULE(PARAMS):
         arcpy.Delete_management("lyr") #done with lyr
 
         # Number of unique LU in LU list which intersect each buffer
+        if not arcpy.Exists(view200): #create if it doesn't already exist
+            view200 = buffer_donut(outTbl, "int_ViewArea_200", "200 Meters")
         lst_comp = buffer_contains(view200, landUse2)
         start = exec_time(start, "{} - {}".format(mod_str, step_str))
     else:
@@ -1303,7 +1306,8 @@ def View_MODULE(PARAMS):
     lst_to_AddField_lst(outTbl, fields_lst, list_lst, type_lst)
 
     # Cleanup
-    deleteFC_Lst([view50, view100, view100_int, view200, wetlands_dis])
+    deleteFC_Lst([view50, view100, view100_int, view200, wetlands_dis,
+                  landUse2])
 
     message(mod_str + " complete")
 
