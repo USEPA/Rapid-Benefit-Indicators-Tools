@@ -64,7 +64,8 @@ def deleteFC_Lst(lst):
     """delete listed feature classes or layers
     Purpose: delete feature classes or layers using a list."""
     for l in lst:
-        arcpy.Delete_management(l)
+        if l is not None:
+            arcpy.Delete_management(l)
         
 
 def SocEqu_BuffDist(lst):
@@ -1293,6 +1294,8 @@ def View_MODULE(PARAMS):
         start = exec_time(start, "{} - {}".format(mod_str, step_str))
     else:
         message("No land use input specified")
+        landUse2 = None
+        view200 = None
         lst_comp = []
 
     message("Saving {} results to Output...".format(mod_str))
@@ -1335,6 +1338,7 @@ def Edu_MODULE(PARAMS):
         lst_edu_cnt = buffer_contains(buf25, edu_inst)
     else:
         message("No educational institutions specified")
+        buf25 = None
         lst_edu_cnt = []
     msg = "{} - {} (Institutions)".format(mod_str, step_str)
     start = exec_time(start, msg)
@@ -1350,6 +1354,7 @@ def Edu_MODULE(PARAMS):
         lst_edu_33B = percent_cover(wetlandsOri, buf50)
     else:
         message("No pre-existing wetlands specified to determine scarcity")
+        buf50 = None
         lst_edu_33B = []
     start = exec_time(start, "{} - {}".format(mod_str, step_str))
 
@@ -1506,6 +1511,7 @@ def Rec_MODULE(PARAMS):
     else:
         message("No substitutes (landuse or existing wetlands) inputs" +
                 " specified for recreation benefits.")
+        rec_06, rec_1, rec12 = None, None, None
         lst_rec06_3B, lst_rec1_3B, lst_rec12_3B = [], [], []
 
     start = exec_time(start, "{} - {} ".format(mod_str, step_str))
@@ -1561,6 +1567,7 @@ def Bird_MODULE(PARAMS):
     else:
         message("No trails or roads specified to determine if birds at the " +
                 "site will be visible from these")
+        rteLstBird = []
     msg = "(from trails or roads)"
     start = exec_time(start, "{} - {} {}".format(mod_str, step_str, msg))
                        
@@ -1621,7 +1628,7 @@ def socEq_MODULE(PARAMS):
         message("Creating new fields for each...")
         #add fields for each unique in field
         for val in fieldLst:
-            name = val.replace(".", "_")[0:9]
+            name = "svi"+ str(val).replace(".", "_")[0:5]
             if not field_exists(outTbl, name):
                 arcpy.AddField_management(outTbl, name, f_type, "", "", "",
                                           val, "", "", "")
@@ -1656,10 +1663,13 @@ def reliability_MODULE(PARAMS):
     
     message("Checking input variables...")
     # Remove None/0 from lists
-    consLst = [x for x in consLst if x is not None]
-    threatLst = [x for x in threatLst if x is not None]
-    cons_poly = checkSpatialReference(outTbl, cons_poly)
-    message("Input variables OK")
+    if consLst is not None:
+        consLst = [x for x in consLst if x is not None]
+        threatLst = [x for x in threatLst if x is not None]
+        cons_poly = checkSpatialReference(outTbl, cons_poly)
+        message("Input variables OK")
+    else:
+        message("Reliability inputs failed: no Conservation Types selected")
     
     # Buffer site by user specified distance
     buf = simple_buffer(outTbl, "conservation", bufferDist)
@@ -1935,6 +1945,10 @@ def main(params):
         #coerce/map unicode list using field in table
         typ = tbl_fieldType(sovi, sovi_field)
         sovi_High = ListType_fromField(typ, sovi_High)
+    else: #no svi list
+        message("Social Equity of benefits will not be assessed")
+        socEq = None
+        
 
     conserved = params[23].valueAsText #in_gdb + "LandUse2025"
     rel_field = params[24].valueAsText #"Map_Legend"
@@ -1951,6 +1965,9 @@ def main(params):
         # 'Urban Development']
         uq_lst = unique_values(conserved, rel_field)
         threat_fieldLst = [x for x in uq_lst if x not in cons_fLst]
+    else: #no reliability value list
+        message("Reliability of benefits will not be assessed")
+        rel = None
         
     #r"~\Tier1_pyt\Test_Results\IntermediatesFinal77.gdb\Results_full"
     outTbl = params[26].valueAsText
