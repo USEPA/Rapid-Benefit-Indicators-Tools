@@ -1268,6 +1268,7 @@ def View_MODULE(PARAMS):
         lst_3B = percent_cover(wetlandsOri, view200)
     else:
         message("No existing wetlands input specified")
+        view200 = None
         lst_3B = []
     start = exec_time(start, "{} - {}".format(mod_str, step_str))
 
@@ -1288,7 +1289,7 @@ def View_MODULE(PARAMS):
         arcpy.Delete_management("lyr") #done with lyr
 
         # Number of unique LU in LU list which intersect each buffer
-        if not arcpy.Exists(view200): #create if it doesn't already exist
+        if view200 is None: #create if it doesn't already exist
             view200 = buffer_donut(outTbl, "int_ViewArea_200", "200 Meters")
         lst_comp = buffer_contains(view200, landUse2)
         start = exec_time(start, "{} - {}".format(mod_str, step_str))
