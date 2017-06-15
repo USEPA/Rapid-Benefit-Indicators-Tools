@@ -477,8 +477,8 @@ def check_vars(outTbl, addresses, popRast):
         message("Population Raster OK")
         return None, popRast
     else:
-        arcpy.AddError("No population inputs specified")
-        print("No population inputs specified")
+        arcpy.AddError("No population inputs specified!")
+        print("No population inputs specified!")
         raise arcpy.ExecuteError
 
 
@@ -1051,6 +1051,8 @@ def FR_MODULE(PARAMS):
     lst_to_AddField_lst(outTbl, fields_lst, list_lst, type_lst)
 
     # Cleanup
+    if assets in [addresses, popRast]:
+        assets = None #avoid deleting
     deleteFC_Lst([fld_A3, fld_A2, fld_A1, assets])
     deleteFC_Lst(["buffer", "flood_lyr", "catchment", "down_lyr", "VUB"])
                                  
@@ -1246,6 +1248,7 @@ def View_MODULE(PARAMS):
         rteLst = buffer_contains_multiset(trails, roads, view100_int)
     else:
         message("No roads or trails specified")
+        rteLst = []
 
     msg =  "{} - {} ".format(mod_str, step_str)
     start = exec_time(start, msg + "(from trails or roads)")
