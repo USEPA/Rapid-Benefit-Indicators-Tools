@@ -219,10 +219,6 @@ def ListType_fromField(typ, lst):
     """
     if typ in ["Single", "Float", "Double"]:
         return map(float, lst)
-    #elif typ in ["Double"]:
-    #    message(lst) #DELETE
-    #    message("Float : " + str(map(float, lst))) #DELETE
-    #    return lst
     elif typ in ["SmallInteger", "Integer"]: #"Short" or "Long"
         return map(int, lst)
     else: #String #Date?
@@ -625,7 +621,6 @@ def buffer_population(poly, popRast):
         # Check for "orig_ID" then "ORIG_FID" then use OID@
         try:
             fld = find_ID(poly)
-            message(fld) #Delete
             arcpy.sa.ZonalStatisticsAsTable(poly, fld, popRast, tempDBF, "", "SUM")
             # check if fld is a reserved field that would be renamed
             if fld == str(arcpy.Describe(poly).OIDFieldName):
@@ -704,12 +699,12 @@ def selectStr_by_list(field, lst):
         if type(item) in [str, unicode]: #sequence
             exp += "{} = '{}' OR ".format(field, item)
         elif type(item) == float:
-            #exp += '"{}" = {} OR '.format(field, item) #delete
-            # The following doesn't work for double
-            #exp += '"{}" = {} OR '.format(field, dec(item))
-            # The following works for single (float)
-            exp += '"{}" = {} OR '.format(field, float(item))
-        elif type(item) in [int, long, complex]: #numeric
+            dec_pl = len(repr(item).split(".")[1]) #decimal places
+            if dev_pl >= 15:
+                exp += 'ROUND({},{}) = {} OR '.format(field, dec_pl, repr(item))
+            else:
+                exp += '{} = {} OR '.format(field, repr(item))
+        elif type(item) in [int, long]: #numeric
             exp += '"{}" = {} OR '.format(field, item)
         else:
             message("'{}' in list, unknown type '{}'".format(item, type(item)))
@@ -1224,8 +1219,6 @@ def View_MODULE(PARAMS):
     field, fieldLst = PARAMS[6], PARAMS[7]
     outTbl = PARAMS[8]
 
-    message("in module: " + str(fieldLst)) #DELETE
-
     # Set variables
     path = os.path.dirname(outTbl) + os.sep
     ext = get_ext(outTbl)
@@ -1299,7 +1292,6 @@ def View_MODULE(PARAMS):
         #construct query from field list
         whereClause = selectStr_by_list(field, fieldLst)
         sel = "NEW_SELECTION"
-        message(whereClause) #DELETE
         # Reduce to desired LU
         arcpy.SelectLayerByAttribute_management("lyr", sel, whereClause)
         landUse2 = "{}{}_comp{}".format(path, os.path.basename(landuse), ext)
@@ -1954,8 +1946,7 @@ def main(params):
     field = params[18].valueAsText #"LCLU"
     fieldLst = params[19].values #[u'161', u'162', u'410', u'430']
     if fieldLst != None:
-        message(fieldLst) #DELETE
-        #coerce/map unicode list using field in table
+        # Coerce/map unicode list using field in table
         typ = tbl_fieldType(landuse, field)
         fieldLst = ListType_fromField(typ, fieldLst)
 
@@ -1963,7 +1954,7 @@ def main(params):
     sovi_field = params[21].valueAsText #"SoVI0610_1"
     sovi_High = params[22].values #"High" #this is now a list...
     if sovi_High != None:
-        #coerce/map unicode list using field in table
+        # Coerce/map unicode list using field in table
         typ = tbl_fieldType(sovi, sovi_field)
         sovi_High = ListType_fromField(typ, sovi_High)
     else: #no svi list
