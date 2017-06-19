@@ -35,7 +35,7 @@ def create_outTbl(sites, outTbl):
                 "to maintain unique site IDs")
     else:
         #create field for orig OID@
-        arcpy.AddField_management(outTbl, "orig_ID", "DOUBLE")
+        arcpy.AddField_management(outTbl, "orig_ID", "Long")
         with arcpy.da.UpdateCursor(outTbl, ["OID@", "orig_ID"]) as cursor:
             for row in cursor:
                 row[1] = row[0]
@@ -219,6 +219,10 @@ def ListType_fromField(typ, lst):
     """
     if typ in ["Single", "Float", "Double"]:
         return map(float, lst)
+    #elif typ in ["Double"]:
+    #    message(lst) #DELETE
+    #    message("Float : " + str(map(float, lst))) #DELETE
+    #    return lst
     elif typ in ["SmallInteger", "Integer"]: #"Short" or "Long"
         return map(int, lst)
     else: #String #Date?
@@ -610,24 +614,30 @@ def buffer_population(poly, popRast):
            so each location can have only one value.
     """
     lst = []
-    tempDBF = poly[:-4]+"_pop.dbf"
+    if len(get_ext(poly))== 0: #in GDB
+        tempDBF = poly + "_popTable"
+    else: #DBF
+        tempDBF = poly[:-len(get_ext(poly))] + "_pop.dbf"
     del_exists(tempDBF) #delete intermediate if it exists
     # Make sure Spatial Analyst is available.
     sa_Status = arcpy.CheckOutExtension("Spatial")
     if  sa_Status == "CheckedOut":
         # Check for "orig_ID" then "ORIG_FID" then use OID@
-        fld = find_ID(poly)
         try:
+            fld = find_ID(poly)
+            message(fld) #Delete
             arcpy.sa.ZonalStatisticsAsTable(poly, fld, popRast, tempDBF, "", "SUM")
-            # check for if fld is a reserved field that would be renamed
+            # check if fld is a reserved field that would be renamed
             if fld == str(arcpy.Describe(poly).OIDFieldName):
                 fld2 = fld + "_" #hoping the assignment is consistent
             else: fld2 = fld
-            
+
             lst = field_to_lst(tempDBF, [fld2, "SUM"]) #"AREA" "OID" "COUNT"
             arcpy.Delete_management(tempDBF)
-        except:
+        except Exception:
             message("Unable to perform analysis on Raster of population")
+            e = sys.exc_info()[1]
+            message(e.args[0])
     else:
         message("Spatial Analyst is " + sa_Status)
         message("Population in area could not be estimated.")
@@ -694,7 +704,10 @@ def selectStr_by_list(field, lst):
         if type(item) in [str, unicode]: #sequence
             exp += "{} = '{}' OR ".format(field, item)
         elif type(item) == float:
+            #exp += '"{}" = {} OR '.format(field, item) #delete
+            # The following doesn't work for double
             #exp += '"{}" = {} OR '.format(field, dec(item))
+            # The following works for single (float)
             exp += '"{}" = {} OR '.format(field, float(item))
         elif type(item) in [int, long, complex]: #numeric
             exp += '"{}" = {} OR '.format(field, item)
@@ -1211,6 +1224,8 @@ def View_MODULE(PARAMS):
     field, fieldLst = PARAMS[6], PARAMS[7]
     outTbl = PARAMS[8]
 
+    message("in module: " + str(fieldLst)) #DELETE
+
     # Set variables
     path = os.path.dirname(outTbl) + os.sep
     ext = get_ext(outTbl)
@@ -1284,6 +1299,7 @@ def View_MODULE(PARAMS):
         #construct query from field list
         whereClause = selectStr_by_list(field, fieldLst)
         sel = "NEW_SELECTION"
+        message(whereClause) #DELETE
         # Reduce to desired LU
         arcpy.SelectLayerByAttribute_management("lyr", sel, whereClause)
         landUse2 = "{}{}_comp{}".format(path, os.path.basename(landuse), ext)
@@ -1938,6 +1954,7 @@ def main(params):
     field = params[18].valueAsText #"LCLU"
     fieldLst = params[19].values #[u'161', u'162', u'410', u'430']
     if fieldLst != None:
+        message(fieldLst) #DELETE
         #coerce/map unicode list using field in table
         typ = tbl_fieldType(landuse, field)
         fieldLst = ListType_fromField(typ, fieldLst)
