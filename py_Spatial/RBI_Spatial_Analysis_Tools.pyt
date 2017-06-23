@@ -700,7 +700,7 @@ def selectStr_by_list(field, lst):
             exp += "{} = '{}' OR ".format(field, item)
         elif type(item) == float:
             dec_pl = len(repr(item).split(".")[1]) #decimal places
-            if dev_pl >= 15:
+            if dec_pl >= 15:
                 exp += 'ROUND({},{}) = {} OR '.format(field, dec_pl, repr(item))
             else:
                 exp += '{} = {} OR '.format(field, repr(item))
