@@ -100,7 +100,7 @@ def exportReport(pdfDoc, pdf_path, pg_cnt, mxd):
     arcpy.Delete_management(pdf, "")
 
 
-def textpos(theText,column,indnumber):
+def textpos(theText, column, indnumber):
     """position text on report
     Author Credit: Mike Charpentier
     """
@@ -110,11 +110,11 @@ def textpos(theText,column,indnumber):
         theText.elementPositionX = 7.15
     ypos = 9.025 - ((indnumber - 1) * 0.2)
     theText.elementPositionY = ypos
-    
 
-def boxpos(theBox,column,indnumber):
+
+def boxpos(theBox, column, indnumber):
     """position box on report
-    Author Credit: Mike Charpentier 
+    Author Credit: Mike Charpentier
     """
     if column == 1:
         theBox.elementPositionX = 5.8
@@ -124,16 +124,16 @@ def boxpos(theBox,column,indnumber):
     theBox.elementPositionY = ypos
 
 
-def fldExists(fieldName,colNumber,rowNumber, fieldInfo, blackbox):
+def fldExists(fieldName, colNumber, rowNumber, fieldInfo, blackbox):
     """report
-    Author Credit: Mike Charpentier 
+    Author Credit: Mike Charpentier
     """
     fldIndex = fieldInfo.findFieldByName(fieldName)
     if fldIndex > 0:
         return True
     else:
         newBox = blackbox.clone("_clone")
-        boxpos(newBox,colNumber,rowNumber)
+        boxpos(newBox, colNumber, rowNumber)
         return False
 
 
@@ -165,7 +165,7 @@ def proctext(fieldVal, fieldType, ndigits, ltorgt, aveVal, colNum, rowNum,
                     newBox = bluebox.clone("_clone")
                 else:
                     newBox = redbox.clone("_clone")
-        else: # Process text fields (booleans)
+        else:  # Process text fields (booleans)
             if allNos == 1:
                 newBox = graybox.clone("_clone")
             else:
@@ -173,25 +173,25 @@ def proctext(fieldVal, fieldType, ndigits, ltorgt, aveVal, colNum, rowNum,
                     newBox = bluebox.clone("_clone")
                 else:
                     newBox = redbox.clone("_clone")
-    boxpos(newBox,colNum,rowNum)
+    boxpos(newBox, colNum, rowNum)
     # Process the text
     if not (fieldVal is None or fieldVal == ' '):
         newText = indtext.clone("_clone")
-        if fieldType == "Num":  # Process numeric fields
+        if fieldType == "Num":  # process numeric fields
             if fieldVal == 0:
                 newText.text = "0"
             else:
                 if ndigits == 0:
                     if fieldVal > 10:
-                        rndnumber = round(fieldVal,0)
+                        rndnumber = round(fieldVal, 0)
                         intnumber = int(rndnumber)
                         newnum = format(intnumber, ",d")
                         newText.text = newnum
                     else:
-                        newText.text = str(round(fieldVal,1))
+                        newText.text = str(round(fieldVal, 1))
                 else:
-                    newText.text = str(round(fieldVal,ndigits))
-        else: #boolean fields
+                    newText.text = str(round(fieldVal, ndigits))
+        else:  # boolean fields
             if allNos == 1:
                 newText.text = "No"
             else:
@@ -199,7 +199,7 @@ def proctext(fieldVal, fieldType, ndigits, ltorgt, aveVal, colNum, rowNum,
                     newText.text = "Yes"
                 else:
                     newText.text = "No"
-        textpos(newText,colNum,rowNum)
+        textpos(newText, colNum, rowNum)
 
 
 def tbl_fieldType(table, field):
@@ -1704,49 +1704,48 @@ def reliability_MODULE(PARAMS):
 
     lst_to_AddField_lst(outTbl, fields_lst, list_lst, ["", ""])
 
-    arcpy.Delete_management(buf) #cleanup
+    arcpy.Delete_management(buf)
     arcpy.Delete_management("lyr")
     message(mod_str + " complete")
 
-##############################
-########Report_MODULE#########
+
 def Report_MODULE(PARAMS):
     """Report Generation"""
-    start = time.clock() #start the clock
+    start = time.clock()  # start the clock
     message("Generating report...")
-    #Report_PARAMS = [outTbl, siteName, mxd, pdf]
+    # Report_PARAMS = [outTbl, siteName, mxd, pdf]
 
     outTbl = PARAMS[0]
     siteNameFld = str(PARAMS[1])
     mxd = arcpy.mapping.MapDocument(PARAMS[2])
-    #Set file name, ext, and remove file if it already exists
+    # Set file name, ext, and remove file if it already exists
     pdf = PARAMS[3]
     if os.path.splitext(pdf)[1] == "":
         pdf += ".pdf"
     if os.path.exists(pdf):
         os.remove(pdf)
-    #Set path for intermediate pdfs
+    # Set path for intermediate pdfs
     pdf_path = os.path.dirname(pdf) + os.sep
 
-    #Create the file and append pages in the cursor loop
+    # Create the file and append pages in the cursor loop
     pdfDoc = arcpy.mapping.PDFDocumentCreate(pdf)
-    
+
     graphic = "GRAPHIC_ELEMENT"
     blackbox = arcpy.mapping.ListLayoutElements(mxd, graphic, "blackbox")[0]
     graybox = arcpy.mapping.ListLayoutElements(mxd, graphic, "graybox")[0]
 
-    #dictionary for field, type, ltorgt, numDigits, allnos, & average
+    # dictionary for field, type, ltorgt, numDigits, allnos, & average
     fld_dct = {'field': ['FR_2_cnt', 'FR_3A_acr', 'FR_3A_boo', 'FR_3B_boo',
                          'FR_3B_sca', 'FR_3D_boo', 'V_2_50', 'V_2_100',
                          'V_2_score', 'V_2_boo', 'V_3A_boo', 'V_3B_scar',
                          'V_3C_comp', 'V_3D_boo', 'EE_2_cnt', 'EE_3A_boo',
-                         'EE_3B_sca', 'EE_3C_boo', 'EE_3D_boo', 'R_2_03', 
+                         'EE_3B_sca', 'EE_3C_boo', 'EE_3D_boo', 'R_2_03',
                          'R_2_03_tb', 'R_2_03_bb', 'R_2_05', 'R_2_6',
                          'R_3A_acr', 'R_3B_sc06', 'R_3B_sc1', 'R_3B_sc12',
                          'R_3C_boo', 'R_3D_boo', 'B_2_cnt', 'B_2_boo',
                          'B_3A_boo', 'B_3C_boo', 'B_3D_boo', 'Vul_High',
                          'Conserved']}
-    txt, dbl ='Text', 'Double'
+    txt, dbl = 'Text', 'Double'
     fld_dct['type'] = [dbl, dbl, txt, txt, dbl, txt, dbl, dbl, dbl, txt, txt,
                        dbl, dbl, txt, dbl, txt, dbl, txt, txt, dbl, txt,
                        txt, dbl, dbl, dbl, dbl, dbl, dbl, txt, txt, dbl,
@@ -1770,34 +1769,34 @@ def Report_MODULE(PARAMS):
     fld_dct['allnos'] = [''] * 37
     fld_dct['average'] = [''] * 37
 
-    #make table layer from results table
-    arcpy.MakeTableView_management(outTbl,"rptbview")
+    # Make table layer from results table
+    arcpy.MakeTableView_management(outTbl, "rptbview")
     desc = arcpy.Describe("rptbview")
     fieldInfo = desc.fieldInfo
     cnt_rows = str(arcpy.GetCount_management(outTbl))
 
-    for field in fld_dct['field']: #loop through fields
+    for field in fld_dct['field']:  # loop through fields
         idx = fld_dct['field'].index(field)
-        #Check to see if field exists in results
+        # Check to see if field exists in results
         fldIndex = fieldInfo.findFieldByName(fld_dct['field'][idx])
-        if fldIndex > 0: #exists
-            if fld_dct['type'][idx] == 'Text': #narrow to yes/no
-                #copy text field to list by field index
+        if fldIndex > 0:  # exists
+            if fld_dct['type'][idx] == 'Text':  # narrow to yes/no
+                # Copy text field to list by field index
                 fld_dct[idx] = field_to_lst(outTbl, field)
-                #check if all 'NO'
+                # Check if all 'NO'
                 if fld_dct[idx].count("NO") == int(cnt_rows):
                     fld_dct['allnos'][idx] = 1
-            else: #type = Double
+            else:  # type = Double
                 l = [x for x in field_to_lst(outTbl, field) if x is not None]
-                if l != []: #if not all null
-                    #get average values
+                if l != []:  # if not all null
+                    # Get average values
                     fld_dct['average'][idx] = mean(l)
-                    
+
     start = exec_time(start, "loading data for report")
-    
+
     i = 1
     pg_cnt = 1
-    siterows = arcpy.SearchCursor(outTbl,"") #may be slow #use "rptbview"?
+    siterows = arcpy.SearchCursor(outTbl, "")  # may be slow, use "rptbview"?
     siterow = siterows.next()
 
     while siterow:
@@ -1811,12 +1810,12 @@ def Report_MODULE(PARAMS):
             column = 2
             siteText = "SiteRightText"
             site_Name = "SiteRightName"
-
-        siteText = arcpy.mapping.ListLayoutElements(mxd, "TEXT_ELEMENT", siteText)[0]
+        TE = "TEXT_ELEMENT"
+        siteText = arcpy.mapping.ListLayoutElements(mxd, TE, siteText)[0]
         siteText.text = "Site " + str(i)
 
-        #text element processing
-        siteName = arcpy.mapping.ListLayoutElements(mxd, "TEXT_ELEMENT", site_Name)[0]
+        # Text element processing
+        siteName = arcpy.mapping.ListLayoutElements(mxd, TE, site_Name)[0]
         fldNameValue = "siterow." + siteNameFld
         if fieldInfo.findFieldByName(siteNameFld) > 0:
             if eval(fldNameValue) == ' ':
@@ -1824,21 +1823,21 @@ def Report_MODULE(PARAMS):
             else:
                 siteName.text = eval(fldNameValue)
         else:
-            siteName.text = "No name" 
+            siteName.text = "No name"
 
-        #loop through expected fields in fld_dct['field']
+        # loop through expected fields in fld_dct['field']
         for field in fld_dct['field']:
             idx = fld_dct['field'].index(field)
-            #Check to see if field exists in results
-            #if it doesn't color = black
+            # Check to see if field exists in results
+            # if it doesn't color = black
             if fldExists(field, column, fld_dct['rowNum'][idx], fieldInfo, blackbox):
                 fldVal = "siterow." + field
-                if fld_dct['type'][idx] == 'Double': #is numeric   
+                if fld_dct['type'][idx] == 'Double':  # is numeric
                     proctext(eval(fldVal), "Num", fld_dct['numDigits'][idx],
                              fld_dct['ltorgt'][idx], fld_dct['average'][idx],
                              column, fld_dct['rowNum'][idx],
                              fld_dct['allnos'][idx], mxd)
-                else: #is boolean
+                else:  # is boolean
                     proctext(eval(fldVal), "Boolean", 0, "",
                              fld_dct['aveBool'][idx], column,
                              fld_dct['rowNum'][idx], fld_dct['allnos'][idx],
@@ -1848,7 +1847,7 @@ def Report_MODULE(PARAMS):
             exportReport(pdfDoc, pdf_path, pg_cnt, mxd)
             start = exec_time(start, "Page " + str(pg_cnt) + " generation")
             pg_cnt += 1
-            
+
         i += 1
         siterow = siterows.next()
 
@@ -1863,7 +1862,7 @@ def Report_MODULE(PARAMS):
         for i in range(39):
             # Not set up to process the Social Equity or Reliability scores
             newBox = graybox.clone("_clone")
-            boxpos(newBox,2,i + 1)
+            boxpos(newBox, 2, i + 1)
         exportReport(pdfDoc, pdf_path, pg_cnt, mxd)
 
     del siterow
