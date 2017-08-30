@@ -151,7 +151,7 @@ def proctext(fieldVal, fieldType, ndigits, ltorgt, aveVal, colNum, rowNum,
     indtext = arcpy.mapping.ListLayoutElements(mxd, txt, "IndText")[0]
 
     # Process the box first so that text draws on top of box
-    if fieldVal is None or fieldVal == ' ':
+    if fieldVal is None or fieldVal == '':
         newBox = blackbox.clone("_clone")
     else:
         if fieldType == "Num":  # Process numeric fields
@@ -942,7 +942,7 @@ def FR_MODULE(PARAMS):
 
             # Subset DownCOMs to only those in buffer (helps limit coast)
             shortDownCOMs = defaultdict(list)
-            for i in bufferCatchments:
+            for i in set(bufferCatchments):
                 shortDownCOMs[i].append(DownCOMs[i])
                 shortDownCOMs[i] = list(chain.from_iterable(shortDownCOMs[i]))
 
@@ -1838,11 +1838,10 @@ def Report_MODULE(PARAMS):
                              column, fld_dct['rowNum'][idx],
                              fld_dct['allnos'][idx], mxd)
                 else:  # is boolean
-                    proctext(eval(fldVal), "Boolean", 0, "",
-                             fld_dct['aveBool'][idx], column,
-                             fld_dct['rowNum'][idx], fld_dct['allnos'][idx],
-                             mxd)
-
+                    proctext(eval(fldVal), "Boolean", 0,
+                             "", fld_dct['aveBool'][idx],
+                             column, fld_dct['rowNum'][idx],
+                             fld_dct['allnos'][idx],mxd)
         if oddeven == 0:
             exportReport(pdfDoc, pdf_path, pg_cnt, mxd)
             start = exec_time(start, "Page " + str(pg_cnt) + " generation")
@@ -2102,7 +2101,7 @@ def main(params):
     if pdf is not None:
         # siteName defaults to OID unless there is a field named "siteName"
         lstFields = arcpy.ListFields(outTbl)
-        siteName = arcpy.Describe(outTbl).OIDFieldName
+        siteName = find_ID(outTbl)
         for fld in lstFields:
             if fld.name == "siteName":
                 siteName = fld.name
