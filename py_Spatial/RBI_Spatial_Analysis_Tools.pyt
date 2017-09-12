@@ -593,6 +593,16 @@ def find_ID(table):
         return arcpy.Describe(table).OIDFieldName
 
 
+def fieldName(name):
+    """return acceptable field name from string
+    """
+    Fname = name[0:8]  # Correct length <9
+    for char in ['.', ' ', ',', '!', '@', '#', '$', '%', '^', '&', '*']:
+        if char in Fname:
+            Fname = Fname.replace(char, "_")
+    return Fname
+
+
 def buffer_population(poly, popRast):
     """Buffer Population
     Purpose: Returns sum of raster cells in buffer as list.
