@@ -1154,9 +1154,9 @@ def NHD_get_MODULE(PARAMS):
             ff_vv = "05"
         if ID in ["02", "09", "11", "18"]:
             ff_vv = "06"
-        if ID in ["01", "08", "12"]:
+        if ID in ["08", "12"]:
             ff_vv = "07"
-        if ID in ["05", "15", "17"]:
+        if ID in ["01", "05", "15", "17"]:
             ff_vv = "08"
         if ID in ["06", "07", "10U", "14"]:
             ff_vv = "09"
