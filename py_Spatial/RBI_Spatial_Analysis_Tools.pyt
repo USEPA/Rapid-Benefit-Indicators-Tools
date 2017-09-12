@@ -762,7 +762,7 @@ def field_to_lst(table, field):
         message("Something went wrong with the field to list function")
 
 
-def lst_to_field(table, field, lst):  # handle empty list
+def lst_to_field(table, field, lst):
     """Add List to Field
     Purpose:
     Notes: 1 field at a time
@@ -770,12 +770,14 @@ def lst_to_field(table, field, lst):  # handle empty list
     """
     if len(lst) == 0:
         message("No values to add to '{}'.".format(field))
-    else:
+    elif field_exists(table, field):   
         with arcpy.da.UpdateCursor(table, [field]) as cursor:
             # For row in cursor:
             for i, row in enumerate(cursor):
                     row[0] = lst[i]
                     cursor.updateRow(row)
+    else:
+        message("{} field not found in {}".format(field, table))
 
 
 def lst_to_AddField_lst(table, field_lst, list_lst, type_lst):
