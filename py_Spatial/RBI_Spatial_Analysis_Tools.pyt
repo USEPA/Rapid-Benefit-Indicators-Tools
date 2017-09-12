@@ -1647,7 +1647,7 @@ def socEq_MODULE(PARAMS):
         message("Creating new fields for each...")
         # Add fields for each unique in field
         for val in fieldLst:
-            name = "svi" + str(val).replace(".", "_")[0:5]
+            name = fieldName("sv_" + str(val))
             if not field_exists(outTbl, name):
                 arcpy.AddField_management(outTbl, name, f_type, "", "", "",
                                           val, "", "", "")
