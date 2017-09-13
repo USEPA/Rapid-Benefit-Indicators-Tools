@@ -218,7 +218,7 @@ def tbl_fieldType(table, field):
 def ListType_fromField(typ, lst):
     """list type from field
     Purpose: map python list type based on field.type
-    Example: lst = type_fromField(paramas[1].type, params[2].values)
+    Example: lst = type_fromField(params[1].type, params[2].values)
              where (field Obj; list of unicode values).
     """
     if typ in ["Single", "Float", "Double"]:
@@ -976,31 +976,37 @@ def FR_MODULE(PARAMS):
             oTyp = "INTERSECT"  # overlap type
             arcpy.SelectLayerByLocation_management("catchment", oTyp, site[0])
 
-            # List Subset catchments downstream selection
-            downCatch = list_downstream("catchment", InputField, shortDownCOMs)
-            # Catchments in both downCatch and bufferCatchments
-            # Redundant, the last catchment will already be outside the buffer
-            catchment_lst = list(set(downCatch).intersection(bufferCatchments))
-            # SELECT downstream catchments in catchment_lst
-            qryDown = selectStr_by_list(InputField, catchment_lst)
-            arcpy.SelectLayerByAttribute_management("catchment", sel, qryDown)
+            #check that site overlaps catchment
+            if int(arcpy.GetCount_management("catchment").getOutput(0))>0:
 
-            # Clip corresponding flood zone to selected catchments
-            with arcpy.da.UpdateCursor("down_lyr", ["SHAPE@"]) as cursor2:
-                for zone in cursor2:
-                    geo = {}
-                    with arcpy.da.SearchCursor("catchment", ["SHAPE@"]) as c3:
-                        for row in c3:
-                            if geo == {}:
-                                geo = row[0]
-                            else:
-                                geo = row[0].union(geo)
-                    # Update flood zone geometry
-                    zone[0] = zone[0].intersect(geo, 4)
-                    cursor2.updateRow(zone)
+                # List Subset catchments downstream selection
+                downCatch = list_downstream("catchment", InputField, shortDownCOMs)
+                # Catchments in both downCatch and bufferCatchments
+                # Redundant, the last catchment will already be outside the buffer
+                catchment_lst = list(set(downCatch).intersection(bufferCatchments))
+                # SELECT downstream catchments in catchment_lst
+                qryDown = selectStr_by_list(InputField, catchment_lst)
+                arcpy.SelectLayerByAttribute_management("catchment", sel, qryDown)
 
-            message("Determined catchments downstream for site " +
-                    "{}, of {}".format(j+1, site_cnt))
+                # Clip corresponding flood zone to selected catchments
+                with arcpy.da.UpdateCursor("down_lyr", ["SHAPE@"]) as cursor2:
+                    for zone in cursor2:
+                        geo = {}
+                        with arcpy.da.SearchCursor("catchment", ["SHAPE@"]) as c3:
+                            for row in c3:
+                                if geo == {}:
+                                    geo = row[0]
+                                else:
+                                    geo = row[0].union(geo)
+                        # Update flood zone geometry
+                        zone[0] = zone[0].intersect(geo, 4)
+                        cursor2.updateRow(zone)
+
+                message("Determined catchments downstream for site " +
+                        "{}, of {}".format(j+1, site_cnt))
+            else:
+                message("Site {} does not overlap catchment.".format(wClause))
+                
 
     start = exec_time(start, "reducing flood zones to downstream from sites")
     # 3.2 How Many Benefit - Area
@@ -2414,11 +2420,14 @@ class FloodTool (object):
         OriWetlands = setParam("Wetland Polygons", "in_wet", "", "", "")
         catchment = setParam("NHD+ Catchments", "NHD_catchment", "",
                              "Optional", "")
-        FloodField = setParam("NHD Join Field", "inputField", "Field",
+        FloodField = setParam("NHD+ Join Field", "inputField", "Field",
                               "Optional", "")
-        relateTable = setParam("Relationship Table", "Flow", "DEDbaseTable",
+        relateTable = setParam("Relationship Table", "Flow", "GPTableView",
                                "Optional", "")
         outTbl = setParam("Output", "outTable", "DEFeatureClass", "", "Output")
+
+        # Set field values based on catchment fields
+        FloodField.parameterDependencies = [catchment.name]
 
         params = [sites, addresses, popRast, flood_zone, OriWetlands, dams,
                   catchment, FloodField, relateTable, outTbl]
@@ -2437,6 +2446,11 @@ class FloodTool (object):
             params[1].enabled = False
         else:
             params[1].enabled = True
+        #field selected from catchment table
+        if params[6].value is not None:
+            params[7].enabled = True
+        else:
+            params[7].enabled = False
         return
 
     def updateMessages(self, params):
