@@ -22,6 +22,10 @@ from decimal import Decimal
 from collections import deque, defaultdict
 
 
+class NHDInputError(Exception):
+    """Exception raised for NHD Plus Input errors."""
+    pass
+
 def create_outTbl(sites, outTbl):
     """create copy of sites to use for processing and results
     Notes: this also creates an "orig_ID" field to retain @OID
@@ -228,42 +232,57 @@ def ListType_fromField(typ, lst):
             message("Could not recongnize field type")
 
 
-def nhdPlus_check(catchment, joinField, relTbl):
+def nhdPlus_check(catchment, joinField, relTbl, outTbl):
     """check NHD+ inputs
     Purpose: Assigns defaults and/or checks the NHD Plus inputs.
     """
     script_dir = os.path.dirname(os.path.realpath(__file__)) + os.sep
-    NHD_gdb = "NHDPlusV21" + os.sep + "NHDPlus_Downloads.gdb"
+    NHD_gdb = "NHDPlusV21" + os.sep + "NHDPlus_Downloads.gdb" + os.sep
+    # Check catchment file
     if catchment is None:
-        catchment = script_dir + NHD_gdb + os.sep + "Catchment"
+        catchment = script_dir + NHD_gdb + "Catchment"
     if arcpy.Exists(catchment):
         message("Catchment file found:\n{}".format(catchment))
+        # Field from catchment
         if joinField is None:
-            joinField = "FEATUREID"  # field from feature layer
+            joinField = "FEATUREID"
+        else:
+            joinField = str(joinField)
         # Check catchment for field
         if not field_exists(catchment, joinField):
-            message("'{}' field could not be found in:\n".format(joinField,
-                                                                 catchment))
-            return False
+            raise NHDInputError("'{}' field not be found in:\n{}".format(
+                joinField, catchment))
+        else:
+            message("'{}' field found in {}".format(joinField, catchment))
     else:
-        message("Catchment file not in expected location:\n" + catchment)
-        return False
+        raise NHDInputError("'Catchment' file not found in:\n" + catchment)
+
+    # Check flow table    
     if relTbl is None:
-        relTbl = script_dir + NHD_gdb + os.sep + "PlusFlow"
+        relTbl = script_dir + NHD_gdb + "PlusFlow"
     if arcpy.Exists(relTbl):
         message("Downstream relationships table found:\n{}".format(relTbl))
         # Check relationship table for field "FROMCOMID" & "TOCOMID"
         for targetField in ["FROMCOMID", "TOCOMID"]:
             if not field_exists(relTbl, targetField):
-                message("'{}' field could not be found in:\n{}".format(
+                raise NHDInputError("'{}' field not found in:\n{}".format(
                     targetField, relTbl))
-                return False
     else:
-        message("Default relationship file not in expected location:\n" +
-                relTbl)
-        return False
-    message("NHD Plus Inputs are OK")
-    return catchment, joinField, relTbl
+        raise NHDInputError("Default relationship file not found in:\n" +
+                            relTbl)
+    message("All NHD Plus Inputs located")
+    
+    # Prep catchments
+    Catchment = checkSpatialReference(outTbl, catchment)
+    arcpy.MakeFeatureLayer_management(Catchment, "catchment")
+    arcpy.SelectLayerByLocation_management("catchment", "INTERSECT", outTbl)
+    # Count selected catchments
+    numCat = int(arcpy.GetCount_management("catchment").getOutput(0))
+    if numCat > 0:
+        message("NHD Plus Catchments overlap some sites")
+        return Catchment, joinField, relTbl
+    else:
+        raise NHDInputError("No overlapping NHD Plus Catchments found.")
 
 
 def list_downstream(lyr, field, COMs):
@@ -858,6 +877,10 @@ def FR_MODULE(PARAMS):
     path = os.path.dirname(outTbl) + os.sep
     ext = get_ext(outTbl)
 
+    # Check NHD+ inputs
+    Catchment, InputField, Flow = nhdPlus_check(Catchment, InputField,
+                                                Flow, outTbl)
+    
     # Check for "orig_ID" then "ORIG_FID" then use OID@
     OID_field = find_ID(outTbl)
 
@@ -867,15 +890,6 @@ def FR_MODULE(PARAMS):
     assets = "{}assets{}".format(FA, ext)  # addresses/population in flood zone
     fld_A2 = "{}2_zone{}".format(FA, ext)  # flood zone in buffer
     fld_A3 = "{}3_downstream{}".format(FA, ext)  # flood zone downstream
-
-    # Check NHD+ inputs
-    nhd_ck = nhdPlus_check(Catchment, InputField, Flow)
-    if not nhd_ck:
-        message("Flood benefits will not be assessed")
-    else:  # assign defaults via nhdPlus_check()
-        Catchment, InputField, Flow = nhd_ck
-        # This is time intensive, but should make more robust
-        Catchment = checkSpatialReference(outTbl, Catchment)
 
     # Check that there are assets in the flood zone.
     if flood_zone is not None:
@@ -1994,11 +2008,6 @@ def main(params):
         message("Default buffer distance of {} used".format(rel_buff_dist) +
                 " for Benefit Reliability")
 
-    # Check for NHD+ files to prep correct datasets
-    if not nhdPlus_check(None, None, None):
-        message("Flood benefits will not be assessed")
-        flood = None
-
     # Package dir path (based on where this file is)
     script_dir = os.path.dirname(os.path.realpath(__file__)) + os.sep
     # Check for report layout file
@@ -2060,7 +2069,24 @@ def main(params):
     if flood is True:
         Flood_PARAMS = [addresses, popRast, flood_zone, OriWetlands, subs,
                         None, None, None, outTbl]
-        FR_MODULE(Flood_PARAMS)
+        try:
+            FR_MODULE(Flood_PARAMS)
+        # Geoprocessing errors
+        except Exception as e:
+            message(e.message)
+        #Other Errors
+        except:
+            # Cycle through Geoprocessing tool specific errors
+            for msg in range(0, arcpy.GetMessageCount()):
+                if arcpy.GetSeverity(msg) == 2:
+                    arcpy.AddReturnMessage(msg)
+        
+            # Return Python specific errors
+            tb = sys.exc_info()[2]
+            tbinfo = traceback.format_tb(tb)[0]
+            pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
+                    str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
+            message(pymsg, 2)
         start1 = exec_time(start1, "Flood Risk " + BA)
     else:  # create and set all fields to none?
         message("Flood Risk Benefits not assessed")
