@@ -490,7 +490,7 @@ def check_vars(outTbl, addresses, popRast):
         addresses = checkSpatialReference(outTbl, addresses)
         message("Addresses OK")
         return addresses, None
-    elif popRast is not None:  # NOT YET TESTED
+    elif popRast is not None:
         popRast = checkSpatialReference(outTbl, popRast)  # check projection
         message("Population Raster OK")
         return None, popRast
@@ -524,11 +524,12 @@ def checkSpatialReference(match_dataset, in_dataset, output=None):
                 out_name = os.path.splitext(os.path.basename(in_dataset))[0]
                 output = path + os.sep + out_name + p_ext
             del_exists(output)  # delete if output exists
+            # Project (doesn't work on Raster)
             arcpy.Project_management(in_dataset, output, matchSR)
             message("File was re-projected and saved as:\n" + output)
             return output
         except:
-            message("Warning: spatial reference could not be updated.")
+            message("Warning: spatial reference could not be updated.", 1)
             return in_dataset
     else:
         return in_dataset
