@@ -22,10 +22,6 @@ from decimal import Decimal
 from collections import deque, defaultdict
 
 
-class NHDInputError(Exception):
-    """Exception raised for NHD Plus Input errors."""
-    pass
-
 def create_outTbl(sites, outTbl):
     """create copy of sites to use for processing and results
     Notes: this also creates an "orig_ID" field to retain @OID
@@ -235,9 +231,11 @@ def ListType_fromField(typ, lst):
 def nhdPlus_check(catchment, joinField, relTbl, outTbl):
     """check NHD+ inputs
     Purpose: Assigns defaults and/or checks the NHD Plus inputs.
+    Errors out of the flood module if an error occurs
     """
     script_dir = os.path.dirname(os.path.realpath(__file__)) + os.sep
     NHD_gdb = "NHDPlusV21" + os.sep + "NHDPlus_Downloads.gdb" + os.sep
+    errMsg = "\nCheck NHD Plus inputs and download using " + "'Part - Flood Data Download' tool if necessary."
     # Check catchment file
     if catchment is None:
         catchment = script_dir + NHD_gdb + "Catchment"
@@ -250,12 +248,12 @@ def nhdPlus_check(catchment, joinField, relTbl, outTbl):
             joinField = str(joinField)
         # Check catchment for field
         if not field_exists(catchment, joinField):
-            raise NHDInputError("'{}' field not be found in:\n{}".format(
-                joinField, catchment))
+            raise Exception("'{}' field not be found in:\n{}{}".format(
+                joinField, catchment, errMsg))
         else:
             message("'{}' field found in {}".format(joinField, catchment))
     else:
-        raise NHDInputError("'Catchment' file not found in:\n" + catchment)
+        raise Exception("'Catchment' file not found in:\n" + catchment + errMsg)
 
     # Check flow table    
     if relTbl is None:
@@ -265,11 +263,11 @@ def nhdPlus_check(catchment, joinField, relTbl, outTbl):
         # Check relationship table for field "FROMCOMID" & "TOCOMID"
         for targetField in ["FROMCOMID", "TOCOMID"]:
             if not field_exists(relTbl, targetField):
-                raise NHDInputError("'{}' field not found in:\n{}".format(
-                    targetField, relTbl))
+                raise Exception("'{}' field not found in:\n{}{}".format(
+                    targetField, relTbl, errMsg))
     else:
-        raise NHDInputError("Default relationship file not found in:\n" +
-                            relTbl)
+        raise Exception("Default relationship file not found in:\n" +
+                            relTbl + errMsg)
     message("All NHD Plus Inputs located")
     
     # Prep catchments
@@ -282,7 +280,7 @@ def nhdPlus_check(catchment, joinField, relTbl, outTbl):
         message("NHD Plus Catchments overlap some sites")
         return Catchment, joinField, relTbl
     else:
-        raise NHDInputError("No overlapping NHD Plus Catchments found.")
+        raise Exception("No overlapping NHD Plus Catchments found." + errMsg)
 
 
 def list_downstream(lyr, field, COMs):
@@ -439,12 +437,15 @@ def disableParamLst(lst):
         field.enabled = False
 
 
-def message(string):
+def message(string, severity = 0):
     """Generic message
     Purpose: prints string message in py or pyt.
     """
-    arcpy.AddMessage(string)
     print(string)
+    if severity == 1:
+        arcpy.AddWarning(string)
+    else:
+        arcpy.AddMessage(string)
 
 
 def exec_time(start, task):
@@ -657,9 +658,9 @@ def buffer_population(poly, popRast):
             lst = field_to_lst(DBF, [fld2, "SUM"])  # "AREA" "OID" "COUNT"
             arcpy.Delete_management(DBF)
         except Exception:
-            message("Unable to perform analysis on Raster of population")
+            message("Unable to perform analysis on Raster of population", 1)
             e = sys.exc_info()[1]
-            message(e.args[0])
+            message(e.args[0], 1)
     else:
         message("Spatial Analyst is " + sa_Status)
         message("Population in area could not be estimated.")
@@ -901,9 +902,7 @@ def FR_MODULE(PARAMS):
             total_cnt = arcpy.GetCount_management(assets)  # count addresses
             # If there are no addresses in flood zones stop analysis.
             if int(total_cnt.getOutput(0)) <= 0:
-                arcpy.AddError("No addresses within the flood area.")
-                print("No addresses within the flooded area.")
-                raise arcpy.ExecuteError
+                raise Exception("No addresses within the flooded area.")
         elif popRast is not None:  # NOT YET TESTED
             geo = "ClippingGeometry"  # use geometry of flood_zone to clip
             e = "NO_MAINTAIN_EXTENT"  # maintain cells, no resampling
@@ -913,16 +912,15 @@ def FR_MODULE(PARAMS):
             m = "MAXIMUM"
             rMax = arcpy.GetRasterProperties_management(assets, m).getOutput(0)
             if rMax <= 0:
-                arcpy.AddError("Nothing to do with input raster yet")
-                print("Nothing to do with input raster yet")
-                raise arcpy.ExecuteError
+                raise Exception("Nothing to do with input raster yet")
     else:
         if addresses is not None:
             assets = addresses
         elif popRast is not None:
             assets = popRast
-        message("WARNING: No flood zone entered, results will be analyzed" +
-                " using the complete area instead of just areas that flood.")
+        message("WARNING: No flood zone entered, results will be analyzed " +
+                "using the complete area instead of just areas that flood.", 1)
+        #raise Exception("No flood zone entered")
 
     start = exec_time(start, "intiating variables for " + mod_str)
 
@@ -938,7 +936,6 @@ def FR_MODULE(PARAMS):
         fld_A2 = fld_A1
 
     # Clip the buffered flood area to downstream basins
-    # MAKE OPTIONAL? if Catchment is not None:
     message("Determining downstream flood zone area from:\n" + Catchment)
 
     # Copy flood zone in buffer to clip by downstream catchments
@@ -1005,8 +1002,10 @@ def FR_MODULE(PARAMS):
                 message("Determined catchments downstream for site " +
                         "{}, of {}".format(j+1, site_cnt))
             else:
-                message("Site {} does not overlap catchment.".format(wClause))
-                
+                message("Catchments don't overlap site {}: {}.".format(
+                    j+1, wClause), 1)
+                message("Results for site {} not limied to downstream.".format(
+                    j+1), 1)
 
     start = exec_time(start, "reducing flood zones to downstream from sites")
     # 3.2 How Many Benefit - Area
@@ -1032,7 +1031,6 @@ def FR_MODULE(PARAMS):
         lst_flood_cnt = buffer_contains(fld_A3, assets)
 
     elif popRast is not None:
-
         # Population in buffer/flood zone/downstream
         lst_flood_cnt = buffer_population(fld_A3, popRast)
 
@@ -1725,7 +1723,7 @@ def reliability_MODULE(PARAMS):
         arcpy.SelectLayerByAttribute_management("lyr", sel, whereThreat)
         pct_threatLst = percent_cover("lyr", buf)
     except Exception:
-        message("Error occured determining percent non-conserved areas.")
+        message("Error occured determining percent non-conserved areas.", 1)
         traceback.print_exc()
         pass
 
@@ -2079,20 +2077,8 @@ def main(params):
             FR_MODULE(Flood_PARAMS)
         # Geoprocessing errors
         except Exception as e:
-            message(e.message)
-        #Other Errors
-        except:
-            # Cycle through Geoprocessing tool specific errors
-            for msg in range(0, arcpy.GetMessageCount()):
-                if arcpy.GetSeverity(msg) == 2:
-                    arcpy.AddReturnMessage(msg)
-        
-            # Return Python specific errors
-            tb = sys.exc_info()[2]
-            tbinfo = traceback.format_tb(tb)[0]
-            pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
-                    str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
-            message(pymsg, 2)
+            message(e.message, 1)
+            message("Reduced Flood Risk Indicators will not be calculated.", 1)
         start1 = exec_time(start1, "Flood Risk " + BA)
     else:  # create and set all fields to none?
         message("Flood Risk Benefits not assessed")
@@ -2352,7 +2338,7 @@ class reliability (object):
             reliability_MODULE(Rel_PARAMS)
             start1 = exec_time(start1, "Reliability assessment")
         except Exception:
-            message("Error occured during Reliability assessment.")
+            message("Error occured during Reliability assessment.", 1)
             traceback.print_exc()
 
 
