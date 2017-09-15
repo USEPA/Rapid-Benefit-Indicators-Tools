@@ -519,10 +519,10 @@ def checkSpatialReference(match_dataset, in_dataset, output=None):
         try:
             if output is None:
                 # Output defaults to match_dataset location
-                path = os.path.dirname(match_dataset)
-                p_ext = "_prj" + get_ext(match_dataset)
+                path = os.path.dirname(match_dataset) + os.sep
+                ext = get_ext(match_dataset)
                 out_name = os.path.splitext(os.path.basename(in_dataset))[0]
-                output = path + os.sep + out_name + p_ext
+                output = path + out_name + "_prj" + ext
             del_exists(output)  # delete if output exists
             # Project (doesn't work on Raster)
             arcpy.Project_management(in_dataset, output, matchSR)
@@ -571,9 +571,7 @@ def buffer_donut(FC, outFC_name, buffer_distance):
 def simple_buffer(outTbl, tempName, bufferDist):
     """ Create buffer using tempName"""
     path = os.path.dirname(outTbl) + os.sep
-    ext = get_ext(outTbl)
-    # Set temp file
-    buf = path + tempName + ext
+    buf = path + tempName + get_ext(outTbl) # Set temp file name
     del_exists(buf)
     arcpy.Buffer_analysis(outTbl, buf, bufferDist)
     return buf
@@ -642,7 +640,7 @@ def buffer_population(poly, popRast):
     if len(get_ext(poly)) == 0:  # in GDB
         DBF = poly + "_popTable"
     else:  # DBF
-        DBF = poly[:-len(get_ext(poly))] + "_pop.dbf"
+        DBF = os.path.splitext(poly)[0] + "_pop.dbf"
     del_exists(DBF)  # delete intermediate if it exists
     # Make sure Spatial Analyst is available.
     sa_Status = arcpy.CheckOutExtension("Spatial")
@@ -1248,10 +1246,9 @@ def View_MODULE(PARAMS):
     field, fieldLst = PARAMS[6], PARAMS[7]
     outTbl = PARAMS[8]
 
-    # Set variables
+    # Wetlands Dissolved
     path = os.path.dirname(outTbl) + os.sep
-    ext = get_ext(outTbl)
-    wetlands_dis = path + "wetland_dis" + ext  # wetlands dissolved
+    wetlands_dis = path + "wetland_dis" + get_ext(outTbl)
 
     # 3.2 How Many Benefit
     start = time.clock()
@@ -1322,7 +1319,9 @@ def View_MODULE(PARAMS):
         sel = "NEW_SELECTION"
         # Reduce to desired LU
         arcpy.SelectLayerByAttribute_management("lyr", sel, whereClause)
-        landUse2 = "{}{}_comp{}".format(path, os.path.basename(landuse), ext)
+        ext = get_ext(outTbl)
+        out_name = os.path.splitext(os.path.basename(landuse))[0]
+        landUse2 = path + out_name + "_comp" + ext
         del_exists(landUse2)
         arcpy.Dissolve_management("lyr", landUse2, field)  # reduce to unique
         arcpy.Delete_management("lyr")  # done with lyr
