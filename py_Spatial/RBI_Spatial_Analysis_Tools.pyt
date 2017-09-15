@@ -904,8 +904,11 @@ def FR_MODULE(PARAMS):
             # If there are no addresses in flood zones stop analysis.
             if int(total_cnt.getOutput(0)) <= 0:
                 raise Exception("No addresses within the flooded area.")
-        elif popRast is not None:  # NOT YET TESTED
-            geo = "ClippingGeometry"  # use geometry of flood_zone to clip
+        elif popRast is not None:
+            # This clip is inexact, loosing cells that overlap the flood zone
+            #minimally. It is not used in results, only to test overlap.
+            #geo = "NONE" # use flood_zone extent to clip
+            geo = "ClippingGeometry"  # use flood_zone geometry to clip
             e = "NO_MAINTAIN_EXTENT"  # maintain cells, no resampling
             del_exists(assets)
             arcpy.Clip_management(popRast, "", assets, flood_zone, "", geo, e)
@@ -913,12 +916,10 @@ def FR_MODULE(PARAMS):
             m = "MAXIMUM"
             rMax = arcpy.GetRasterProperties_management(assets, m).getOutput(0)
             if rMax <= 0:
-                raise Exception("Nothing to do with input raster yet")
+                raise Exception("Input raster not inside flooded area extent.")
     else:
         if addresses is not None:
             assets = addresses
-        elif popRast is not None:
-            assets = popRast
         message("WARNING: No flood zone entered, results will be analyzed " +
                 "using the complete area instead of just areas that flood.", 1)
         #raise Exception("No flood zone entered")
