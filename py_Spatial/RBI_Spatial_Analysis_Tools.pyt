@@ -636,7 +636,7 @@ def buffer_population(poly, popRast):
            for each individual polygon, because poly is converted to a raster
            so each location can have only one value.
     """
-    lst = []
+    lst = [] # defined so an empty set is returned on failure
     if len(get_ext(poly)) == 0:  # in GDB
         DBF = poly + "_popTable"
     else:  # DBF
@@ -648,13 +648,16 @@ def buffer_population(poly, popRast):
         # Check for "orig_ID" then "ORIG_FID" then use OID@
         try:
             fld = find_ID(poly)
-            arcpy.sa.ZonalStatisticsAsTable(poly, fld, popRast, DBF, "", "SUM")
+            arcpy.sa.ZonalStatisticsAsTable(poly, fld, popRast, DBF, "", "ALL")
             # check if fld is a reserved field that would be renamed
             if fld == str(arcpy.Describe(poly).OIDFieldName):
                 fld2 = fld + "_"  # hoping the assignment is consistent
             else:
                 fld2 = fld
-            lst = field_to_lst(DBF, [fld2, "SUM"])  # "AREA" "OID" "COUNT"
+            lst = field_to_lst(DBF, [fld2, "SUM"])  # Count based method
+            # The following is a density based method, uses projection units
+            #lst = [a * m for a,m in zip(field_to_lst(DBF, [fld2, "AREA"]),
+            #                            field_to_lst(DBF, [fld2, "MEAN"]))]
             arcpy.Delete_management(DBF)
         except Exception:
             message("Unable to perform analysis on Raster of population", 1)
@@ -662,7 +665,7 @@ def buffer_population(poly, popRast):
             message(e.args[0], 1)
     else:
         message("Spatial Analyst is " + sa_Status)
-        message("Population in area could not be estimated.")
+        message("Population in area could not be estimated.", 1)
     return lst
 
 
