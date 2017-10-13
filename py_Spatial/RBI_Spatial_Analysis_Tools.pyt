@@ -1127,7 +1127,7 @@ def NHD_get_MODULE(PARAMS):
 
     # Assign default boundary file if not user specified
     if NHD_VUB is None:
-        NHD_VUB = script_dir + "NHDPlusV21" + os.sep + "BoundaryUnit.shp"
+        NHD_VUB = local_gdb + os.sep + BoundaryUnit
         loc = "default location:\n" + NHD_VUB
     else:
         loc = "user specified location:\n" + NHD_VUB
