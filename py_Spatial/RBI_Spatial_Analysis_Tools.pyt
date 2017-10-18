@@ -2413,18 +2413,18 @@ class FloodTool (object):
         flood_zone = setParam("Flood Zone Polygons", "flood_zone", "", "", "")
         dams = setParam("Dams/Levee", "flood_sub", "", "", "")
         OriWetlands = setParam("Wetland Polygons", "in_wet", "", "", "")
-        catchment = setParam("NHD+ Catchments", "NHD_catchment", "",
+        catchment = setParam("Catchments", "NHD_catchment", "",
                              "Optional", "")
-        FloodField = setParam("NHD+ Join Field", "inputField", "Field",
+        FloodField = setParam("Catchment Join Field", "inputField", "Field",
                               "Optional", "")
-        relateTable = setParam("Relationship Table", "Flow", "GPTableView",
+        relateTable = setParam("Flow Table", "Flow", "GPTableView",
                                "Optional", "")
         outTbl = setParam("Output", "outTable", "DEFeatureClass", "", "Output")
 
         # Set field values based on catchment fields
         FloodField.parameterDependencies = [catchment.name]
 
-        params = [sites, addresses, popRast, flood_zone, OriWetlands, dams,
+        params = [sites, addresses, popRast, flood_zone, dams, OriWetlands,
                   catchment, FloodField, relateTable, outTbl]
         return params
 
@@ -2460,8 +2460,8 @@ class FloodTool (object):
         popRast = params[2].valueAsText
 
         flood_zone = params[3].valueAsText
-        OriWetlands = params[4].valueAsText
-        subs = params[5].valueAsText
+        subs = params[4].valueAsText
+        OriWetlands = params[5].valueAsText
         catchment = params[6].valueAsText
         inputField = params[7].valueAsText
         rel_Tbl = params[8].valueAsText
