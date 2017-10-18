@@ -1172,31 +1172,38 @@ def NHD_get_MODULE(PARAMS):
         # Componentname is the name of the NHDPlusV2 component in the file
         f_comp = "NHDPlusCatchment"
         ff_comp = "NHDPlusAttributes"
-
-        # Some Zipfiles had different vv, data content versions
-        f_vv = "01"  # Catchments
-        if ID == "06":
-            f_vv = "05"
-        if ID in ['10U', '13', '17']:
-            f_vv = "02"
-
-        ff_vv = "01"  # Attributes
-        if ID in ["20", "21", "22AS", "22GU", "22MP"]:
-            ff_vv = "02"
-        if ID in ["03N", "03S", "03W", "13", "16"]:
-            ff_vv = "05"
-        if ID in ["02", "09", "11", "18"]:
-            ff_vv = "06"
-        if ID in ["08", "12"]:
-            ff_vv = "07"
-        if ID in ["01", "05", "15", "17"]:
-            ff_vv = "08"
-        if ID in ["06", "07", "10U", "14"]:
-            ff_vv = "09"
-        if ID == "10L":
-            ff_vv = "11"
-        if ID == "04":
-            ff_vv = "12"
+        
+        # Version dictionary, ID [Catchments, Attributes]
+        vv_dict = {'10U': ["02", "09"],
+               '13': ["02", "05"],
+               '17': ["02", "08"],
+               "06": ["05", "09"],
+               "20": ["01", "02"],
+               "21": ["01", "02"],
+               "22AS": ["01", "02"],
+               "22GU": ["01", "02"],
+               "22MP": ["01", "02"],
+               "03N": ["01", "05"],
+               "03S": ["01", "06"],
+               "03W": ["01", "05"],
+               "16": ["01", "05"],
+               "02": ["01", "06"],
+               "09": ["01", "06"],
+               "11": ["01", "06"],
+               "18": ["01", "06"],
+               "01": ["01", "07"],
+               "08": ["01", "07"],
+               "12": ["01", "07"],
+               "05": ["01", "08"],
+               "15": ["01", "08"],
+               "07": ["01", "09"],
+               "14": ["01", "09"],
+               "10L": ["01", "11"],
+               "04": ["01", "12"]
+               }
+        # Assign zipfile data content version
+        f_vv = vv_dict[ID][0]
+        ff_vv = vv_dict[ID][1]
 
         # Set http zipfile is requested from
         if DA in ["SA", "MS", "CO", "PI"]:  # regions with sub-regions
@@ -1209,9 +1216,7 @@ def NHD_get_MODULE(PARAMS):
 
         # Assign catchment filenames
         f = "NHDPlusV21_{}_{}_{}_{}{}".format(DA, ID, f_comp, f_vv, ext)
-        # Fix the one they mis-named
-        if ID == "04":
-            f = f[:-6] + "s_05.7z"
+
         # Download catchment
         HTTP_download(request, local, f)
         # unzip catchment file using winzip
