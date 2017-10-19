@@ -1715,7 +1715,7 @@ def reliability_MODULE(PARAMS):
         cons_poly = checkSpatialReference(outTbl, cons_poly)
         message("Input variables OK")
     else:
-        message("Reliability inputs failed: no Conservation Types selected")
+        message("Reliability inputs failed: no Conservation Field Values selected")
 
     # Buffer site by user specified distance
     buf = simple_buffer(outTbl, "conservation", bufferDist)
@@ -1920,7 +1920,7 @@ def Report_MODULE(PARAMS):
     del mxd
     del pdfDoc
     mxd_name = os.path.basename(mxd_result)
-    message("Created PDF report: {} and {}".format(pdf, mxd_name))
+    message("Created PDF Report: {} and {}".format(pdf, mxd_name))
 
 
 def absTest_MODULE(PARAMS):
@@ -2033,7 +2033,7 @@ def main(params):
         else:
             message("Default report layout file not available in expected" +
                     "location:\n{}".format(mxd))
-            message("A PDF report will not be generated from results")
+            message("A PDF Report will not be generated from results")
             pdf = None
 
     # Copy restoration wetlands in for results
@@ -2149,7 +2149,7 @@ def main(params):
         Report_MODULE(Report_PARAMS)
         start1 = exec_time(start1, "Compiling assessment report")
     else:
-        message("pdf Report not generated")
+        message("PDF Report not generated")
 
     start = exec_time(start, "complete " + BA)
 
@@ -2175,8 +2175,8 @@ class presence_absence(object):
         sName = "Restoration Site Polygons (Required)"
         sites = setParam(sName, "in_poly", "", "", "")
         # Field in outTbl
-        field = setParam("Field Name", "siteFld", "Field", "", "")
-        FC = setParam("Features", "feat", "", "", "")
+        field = setParam("Update Field", "siteFld", "Field", "", "")
+        FC = setParam("Features of Interest", "feat", "", "", "")
         buff_dist = setParam("Buffer Distance", "bufferUnits", "GPLinearUnit",
                              "", "")
 
@@ -2224,7 +2224,7 @@ class socialVulnerability (object):
         poly = setParam("Social Vulnerability", "soc_vul_poly", "", "", "")
         poly_field = setParam("Vulnerability Field", "soc_field", "Field",
                               "", "")
-        field_value = setParam("Vulnerable Field Values", "soc_field_val",
+        field_value = setParam("Vulnerability Field Values", "soc_field_val",
                                "GPString", "", "", True)
         buff_dist = setParam("Buffer Distance", "bufferUnits", "GPLinearUnit",
                              "", "")
@@ -2291,7 +2291,7 @@ class reliability (object):
         poly = setParam("Conservation Lands", "cons_poly", "", "", "")
         poly_field = setParam("Conservation Field", "Conservation_Field",
                               "Field", "", "")
-        in_lst = setParam("Conservation Types", "Conservation_Type",
+        in_lst = setParam("Conservation Field Values", "Conservation_Type",
                           "GPString", "", "", True)
         buff_dist = setParam("Buffer Distance", "bufferUnits", "GPLinearUnit",
                              "", "")
@@ -2355,7 +2355,7 @@ class reliability (object):
 class Report (object):
     def __init__(self):
         self.label = "Part - Report Generation"
-        self.description = "Tool to create formated summary pdf report of" + \
+        self.description = "Tool to create formated summary PDF Report of" + \
                            " indicator results"
 
     def getParameterInfo(self):
@@ -2363,9 +2363,9 @@ class Report (object):
         siteName = setParam("Site Names Field", "siteNameField", "Field", "",
                             "")
         siteName.enabled = False
-        mxd = setParam("Mapfile with report layout", "mxd", "DEMapDocument",
+        mxd = setParam("Report Layout Mapfile", "mxd", "DEMapDocument",
                        "", "")
-        pdf = setParam("pdf Report", "outReport", "DEFile", "", "Output")
+        pdf = setParam("PDF Report", "outReport", "DEFile", "", "Output")
 
         siteName.parameterDependencies = [outTbl.name]
 
@@ -2412,7 +2412,7 @@ class FloodTool (object):
                            "Optional", "")
 
         flood_zone = setParam("Flood Zone Polygons", "flood_zone", "", "", "")
-        dams = setParam("Dams/Levee", "flood_sub", "", "", "")
+        dams = setParam("Dams/Levees", "flood_sub", "", "", "")
         OriWetlands = setParam("Wetland Polygons", "in_wet", "", "", "")
         catchment = setParam("Catchments", "NHD_catchment", "",
                              "Optional", "")
@@ -2560,7 +2560,7 @@ class Full_Indicator_Tool (object):
         dams = setParam("Dams/Levees", "flood_sub", "", opt, "")
         edu_inst = setParam("Educational Institution Points",
                             "edu_inst", "", opt, "")
-        bus_stp = setParam("Bus Stop Points",
+        bus_stp = setParam("Bus Stops",
                            "bus_stp", "", opt, "")
         trails = setParam("Trails (hiking, biking, etc.)",
                           "trails", "", opt, "")
@@ -2577,13 +2577,13 @@ class Full_Indicator_Tool (object):
         socVul = setParam("Social Vulnerability", "soc_vul_poly", "", opt, "")
         soc_Field = setParam("Vulnerability Field",
                              "soc_field", fld, opt, "")
-        socVal = setParam("Vulnerable Field Values",
+        socVal = setParam("Vulnerability Field Values",
                           "soc_field_val", GP_s, opt, "", True)
 
         conserve = setParam("Conservation Lands", "cons_poly", "", opt, "")
         conserve_Field = setParam("Conservation Field",
                                   "Conservation_Field", fld, opt, "")
-        useVal = setParam("Conservation Types",
+        useVal = setParam("Conservation Field Values",
                           "Conservation_Type", GP_s, opt, "", True)
 
         # Outputs
