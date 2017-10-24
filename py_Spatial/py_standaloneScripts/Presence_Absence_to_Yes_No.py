@@ -1,150 +1,201 @@
 """
-# Name: Tier 1 Rapid Benefit Indicator Assessment - Presence/Absence to Yes/No
-# Purpose: Determine is features are within a given range
+# Name: Rapid Benefit Indicator Assessment - Presence/Absence to Yes/No
+# Purpose: Calculate reliabilty of site benefit product into the future
 # Author: Justin Bousquin
+# bousquin.justin@epa.gov
 #
 # Version Notes:
 # Developed in ArcGIS 10.3
-# Date: 3/1/2017
 #0.1.0 converted from .pyt
 """
 ###########IMPORTS###########
-import os, sys, time
+import os
+import time
 import arcpy
-from arcpy import da, env
 
 arcpy.env.parallelProcessingFactor = "100%" #use all available resources
+arcpy.env.overwriteOutput = True #overwrite existing files
 
-#########USER INPUTS#########
+########USER PARAMETERS########
 #existing results outTable
-outTbl =
+outTbl = ""
 #field in outTable to overwrite
-field = #e.g. ""
+field = ""
 #dataset to test presence/absence against
-FC =
+FC = ""
 #distance within which feature matters
-buff_dist = #e.g. "1 Miles"
+buff_dist = ""
+
 ##########FUNCTIONS##########
-"""Global Timer
-Purpose: returns the message and calc time since the last time the function was used."""
-#Function Notes: used during testing to compare efficiency of each step
-def exec_time(start, message):
+###########FUNCTIONS###########
+def message(string, severity = 0):
+    """Generic message
+    Purpose: prints string message in py or pyt.
+    """
+    print(string)
+    if severity == 1:
+        arcpy.AddWarning(string)
+    else:
+        arcpy.AddMessage(string)
+
+
+def exec_time(start, task):
+    """Global Timer
+    Purpose: Returns the time since the last function assignment,
+             and a task message.
+    Notes: used during testing to compare efficiency of each step
+    """
     end = time.clock()
     comp_time = time.strftime("%H:%M:%S", time.gmtime(end-start))
-    print("Run time for " + message + ": " + str(comp_time))
+    message("Run time for " + task + ": " + str(comp_time))
     start = time.clock()
     return start
 
-"""Check Spatial Reference
-Purpose: checks that a second spatial reference matches the first and re-projects if not."""
-#Function Notes: Either the original FC or the re-projected one is returned
-def checkSpatialReference(alphaFC, otherFC):
-    alphaSR = arcpy.Describe(alphaFC).spatialReference
-    otherSR = arcpy.Describe(otherFC).spatialReference
-    if alphaSR.name != otherSR.name:
-        #e.g. .name = u'WGS_1984_UTM_Zone_19N' for Projected Coordinate System = WGS_1984_UTM_Zone_19N
-        print("Spatial reference for " + otherFC + " does not match.")
+
+def get_ext(FC):
+    """get extension"""
+    ext = arcpy.Describe(FC).extension
+    if len(ext) > 0:
+        ext = "." + ext
+    return ext
+
+
+def del_exists(item):
+    """ Delete if exists
+    Purpose: if a file exists it is deleted and noted in a message.
+    """
+    if arcpy.Exists(item):
         try:
-            path = os.path.dirname(alphaFC)
-            ext = arcpy.Describe(alphaFC).extension
-            newName = os.path.basename(otherFC)
-            output = path + os.sep + os.path.splitext(newName)[0] + "_prj" + ext
-            arcpy.Project_management(otherFC, output, alphaSR)
-            fc = output
-            print("File was re-projected and saved as " + fc)
+            arcpy.Delete_management(item)
+            message("'{}' already exists and will be replaced.".format(item))
         except:
-            print("Warning: spatial reference could not be updated.")
-            fc = otherFC
-    else:
-        fc = otherFC
-    return fc
+            message("'{}' exists but could not be deleted.".format(item))
 
-"""Buffer Contains
-Purpose: returns number of points in buffer as list"""
-#Function Notes:
-#Example: lst = buffer_contains(view_50, addresses)
-def buffer_contains(poly, pnts):
-    ext = arcpy.Describe(poly).extension
-    poly_out = os.path.splitext(poly)[0] + "_2" + ext #hopefully this is created in outTbl
-    arcpy.SpatialJoin_analysis(poly, pnts, poly_out, "JOIN_ONE_TO_ONE", "KEEP_ALL", "", "INTERSECT", "", "")
-    #When a buffer is created for a site it may get a new OBJECT_ID, but the site ID is maintained as ORIG_FID,
-    #"OID@" returns the ID generated for poly_out, based on TARGET_FID (OBJECT_ID for buffer). Since results
-    #are joined back to the site they must be sorted in that order.
-    #check for ORIG_FID
-    fields = arcpy.ListFields(poly_out)
-    if "ORIG_FID" in fields:
-        lst = field_to_lst(poly_out, ["ORIG_FID", "Join_Count"])
-    else:
-        lst = field_to_lst(poly_out, ["Join_Count"])
-    arcpy.Delete_management(poly_out)
-    return lst
 
-"""Lists to ADD Field
-Purpose: """
-#Function Notes: table, list of new fields, list of listes of field values, list of field datatypes
+def field_exists(table, field):
+    """Check if field exists in table
+    Notes: return true/false
+    """
+    fieldList = [f.name for f in arcpy.ListFields(table)]
+    return True if field in fieldList else False
+
+
+def checkSpatialReference(match_dataset, in_dataset, output=None):
+    """Check Spatial Reference
+    Purpose: Checks that in_dataset spatial reference name matches
+             match_dataset and re-projects if not.
+    Inputs: \n match_dataset(Feature Class/Feature Layer/Feature Dataset):
+            The dataset with the spatial reference that will be matched.
+            in_dataset (Feature Class/Feature Layer/Feature Dataset):
+            The dataset that will be projected if it does not match.
+    output: \n Path, filename and extension for projected in_dataset
+            Defaults to match_dataset location.
+    Return: \n Either the original FC or the projected 'output' is returned.
+    """
+    matchSR = arcpy.Describe(match_dataset).spatialReference
+    otherSR = arcpy.Describe(in_dataset).spatialReference
+    if matchSR.name != otherSR.name:
+        message("'{}' Spatial reference does not match.".format(in_dataset))
+        try:
+            if output is None:
+                # Output defaults to match_dataset location
+                path = os.path.dirname(match_dataset) + os.sep
+                ext = get_ext(match_dataset)
+                out_name = os.path.splitext(os.path.basename(in_dataset))[0]
+                output = path + out_name + "_prj" + ext
+            del_exists(output)  # delete if output exists
+            # Project (doesn't work on Raster)
+            arcpy.Project_management(in_dataset, output, matchSR)
+            message("File was re-projected and saved as:\n" + output)
+            return output
+        except:
+            message("Warning: spatial reference could not be updated.", 1)
+            return in_dataset
+    else:
+        return in_dataset
+
+
+def simple_buffer(outTbl, tempName, bufferDist):
+    """ Create buffer using tempName"""
+    path = os.path.dirname(outTbl) + os.sep
+    buf = path + tempName + get_ext(outTbl) # Set temp file name
+    del_exists(buf)
+    arcpy.Buffer_analysis(outTbl, buf, bufferDist)
+    return buf
+
+
 def lst_to_AddField_lst(table, field_lst, list_lst, type_lst):
-    if len(field_lst) != len(field_lst) or len(field_lst) != len(type_lst):
-        print("ERROR: lists aren't the same length!")
-    #"" defaults to "DOUBLE"
+    """Lists to ADD Field
+    Purpose:
+    Notes: Table, list of new fields, list of listes of field values,
+           list of field datatypes.
+    """
+    if len(field_lst) != len(list_lst) or len(field_lst) != len(type_lst):
+        message("ERROR: lists aren't the same length!")
+    #  "" defaults to "DOUBLE"
     type_lst = ["Double" if x == "" else x for x in type_lst]
 
-    i = 0
-    for field in field_lst:
-        #add fields
+    for i, field in enumerate(field_lst):
+        # Add fields
         arcpy.AddField_management(table, field, type_lst[i])
-        #add values
+        # Add values
         lst_to_field(table, field, list_lst[i])
-        i +=1
 
-"""Add List to Field
-Purpose: """
-#Function Notes: 1 field at a time
-#Example: lst_to_field(featureClass, "fieldName", lst)
-def lst_to_field(table, field, lst): #handle empty list
-    if len(lst) ==0:
-        print("No values to add to '{}'.".format(field))
-    else:
-        i=0
+
+def lst_to_field(table, field, lst):
+    """Add List to Field
+    Purpose:
+    Notes: 1 field at a time
+    Example: lst_to_field(featureClass, "fieldName", lst)
+    """
+    if len(lst) == 0:
+        message("No values to add to '{}'.".format(field))
+    elif field_exists(table, field):   
         with arcpy.da.UpdateCursor(table, [field]) as cursor:
-            for row in cursor:
-                row[0] = lst[i]
-                i+=1
-                cursor.updateRow(row)
-        
+            # For row in cursor:
+            for i, row in enumerate(cursor):
+                    row[0] = lst[i]
+                    cursor.updateRow(row)
+    else:
+        message("{} field not found in {}".format(field, table))
+
+
+def quant_to_qual_lst(lst):
+    """Quantitative List to Qualitative List
+    Purpose: convert counts of >0 to YES"""
+    qual_lst = []
+    for i in lst:
+        if (i == 0):
+            qual_lst.append("NO")
+        else:
+            qual_lst.append("YES")
+    return qual_lst
 #############################
 def absTest_MODULE(PARAMS):
+    """Presence Absence Test"""
 
     outTbl, field = PARAMS[0], PARAMS[1]
     FC = PARAMS[2]
     buff_dist = PARAMS[3]
-    
-    path = os.path.dirname(outTbl) + os.sep
-    ext = arcpy.Describe(outTbl).extension
 
-    #set variables
-    buff_temp = path + "feature_buffer" + ext
-    FC = checkSpatialReference(outTbl, FC) #check spatial ref
+    # Check spatial ref
+    FC = checkSpatialReference(outTbl, FC)
 
-    #create buffers 
-    arcpy.Buffer_analysis(outTbl, buff_temp, buff_dist) #buffer each site by buff_dist
+    # Create buffers for each site by buff_dist.
+    buf = simple_buffer(outTbl, "feature_buffer", buff_dist)
 
-    #check if feature is present
-    lst_present = buffer_contains(buff_temp, FC)
-    booleanLst = []
-    for item in lst_present:
-        if item == 0:
-            booleanLst.append("NO")
-        else:
-            booleanLst.append("YES")
+    # If feature not present "NO", else "YES"
+    booleanLst = quant_to_qual_lst(buffer_contains(buf, FC))
 
-    #move results to outTbl.field
+    # Move results to outTbl.field
     lst_to_AddField_lst(outTbl, [field], [booleanLst], ["Text"])
-    arcpy.Delete_management(buff_temp)
+    arcpy.Delete_management(buf)
     
 ###########EXECUTE###########
 try:
     start = time.clock() #start the clock
     absTest_MODULE([outTbl, field, FC, buff_dist])
     start = exec_time(start, "Presence/Absence assessment")
-else:
-    print("error occured")
+except Exception:
+    message("Error occured during assessment.", 1)
+    traceback.print_exc()
