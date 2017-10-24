@@ -56,6 +56,17 @@ def field_exists(table, field):
     fieldList = [f.name for f in arcpy.ListFields(table)]
     return True if field in fieldList else False
 
+def del_exists(item):
+    """ Delete if exists
+    Purpose: if a file exists it is deleted and noted in a message.
+    """
+    if arcpy.Exists(item):
+        try:
+            arcpy.Delete_management(item)
+            message("'{}' already exists and will be replaced.".format(item))
+        except:
+            message("'{}' exists but could not be deleted.".format(item))
+
 
 def field_to_lst(table, field):
     """Read Field to List

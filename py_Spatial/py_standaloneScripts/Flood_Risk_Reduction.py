@@ -10,6 +10,8 @@
 """
 ###########IMPORTS###########
 import os
+import sys
+import time
 import arcpy
 from decimal import Decimal
 from itertools import chain
@@ -197,6 +199,21 @@ def nhdPlus_check(catchment, joinField, relTbl, outTbl):
     message("All NHD Plus Inputs located")
 
 
+def children(token, tree):
+    """List children
+    Purpose: returns list of all children"""
+    visited = set()
+    to_crawl = deque([token])
+    while to_crawl:
+        current = to_crawl.popleft()
+        if current in visited:
+            continue
+        visited.add(current)
+        node_children = set(tree[current])
+        to_crawl.extendleft(node_children - visited)
+    return list(visited)
+
+
 def setNHD_dict(Flow):
     """Read in NHD Relates
     Purpose: read the upstream/downstream table to memory"""
@@ -323,6 +340,49 @@ def lst_to_field(table, field, lst):
                     cursor.updateRow(row)
     else:
         message("{} field not found in {}".format(field, table))
+
+
+def field_to_lst(table, field):
+    """Read Field to List
+    Purpose:
+    Notes: if field is: string, 1 field at a time;
+                        list, 1 field at a time or 1st field is used to sort
+    Example: lst = field_to_lst("table.shp", "fieldName")
+    """
+    lst = []
+    if type(field) == list:
+        if len(field) == 1:
+            field = field[0]
+        elif len(field) > 1:
+            # First field is used to sort, second field returned as list
+            order = []
+            # Check for fields in table
+            if field_exists(table, field[0]) and field_exists(table, field[1]):
+                with arcpy.da.SearchCursor(table, field) as cursor:
+                    for row in cursor:
+                        order.append(row[0])
+                        lst.append(row[1])
+                order, lst = (list(x) for x in zip(*sorted(zip(order, lst))))
+                return lst
+            else:
+                message(str(field) + " could not be found in " + str(table))
+                message("Empty values will be returned.")
+        else:
+            message("Something went wrong with the field to list function")
+            message("Empty values will be returned.")
+            return []
+    if type(field) == str:
+        # Check that field exists in table
+        if field_exists(table, field) is True:
+            with arcpy.da.SearchCursor(table, [field]) as cursor:
+                for row in cursor:
+                    lst.append(row[0])
+            return lst
+        else:
+            message(str(field) + " could not be found in " + str(table))
+            message("Empty values will be returned.")
+    else:
+        message("Something went wrong with the field to list function")
 
 
 def buffer_population(poly, popRast):

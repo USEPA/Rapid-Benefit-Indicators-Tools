@@ -80,6 +80,17 @@ def field_exists(table, field):
     return True if field in fieldList else False
 
 
+def find_ID(table):
+    """return an ID field where orig_ID > ORIG_FID > OID@
+    """
+    if field_exists(table, "orig_ID"):
+        return "orig_ID"
+    elif field_exists(table, "ORIG_FID"):
+        return "ORIG_FID"
+    else:
+        return arcpy.Describe(table).OIDFieldName
+
+
 def checkSpatialReference(match_dataset, in_dataset, output=None):
     """Check Spatial Reference
     Purpose: Checks that in_dataset spatial reference name matches
@@ -142,6 +153,49 @@ def lst_to_AddField_lst(table, field_lst, list_lst, type_lst):
         lst_to_field(table, field, list_lst[i])
 
 
+def field_to_lst(table, field):
+    """Read Field to List
+    Purpose:
+    Notes: if field is: string, 1 field at a time;
+                        list, 1 field at a time or 1st field is used to sort
+    Example: lst = field_to_lst("table.shp", "fieldName")
+    """
+    lst = []
+    if type(field) == list:
+        if len(field) == 1:
+            field = field[0]
+        elif len(field) > 1:
+            # First field is used to sort, second field returned as list
+            order = []
+            # Check for fields in table
+            if field_exists(table, field[0]) and field_exists(table, field[1]):
+                with arcpy.da.SearchCursor(table, field) as cursor:
+                    for row in cursor:
+                        order.append(row[0])
+                        lst.append(row[1])
+                order, lst = (list(x) for x in zip(*sorted(zip(order, lst))))
+                return lst
+            else:
+                message(str(field) + " could not be found in " + str(table))
+                message("Empty values will be returned.")
+        else:
+            message("Something went wrong with the field to list function")
+            message("Empty values will be returned.")
+            return []
+    if type(field) == str:
+        # Check that field exists in table
+        if field_exists(table, field) is True:
+            with arcpy.da.SearchCursor(table, [field]) as cursor:
+                for row in cursor:
+                    lst.append(row[0])
+            return lst
+        else:
+            message(str(field) + " could not be found in " + str(table))
+            message("Empty values will be returned.")
+    else:
+        message("Something went wrong with the field to list function")
+
+
 def lst_to_field(table, field, lst):
     """Add List to Field
     Purpose:
@@ -158,6 +212,30 @@ def lst_to_field(table, field, lst):
                     cursor.updateRow(row)
     else:
         message("{} field not found in {}".format(field, table))
+
+
+def buffer_contains(poly, pnts):
+    """Buffer Contains
+    Purpose: Returns number of points in buffer as list.
+    Notes: When a buffer is created for a site it may get a new OBJECT_ID, but
+           the site OID@ is maintained as ORIG_FID, buffer OID@ returns the
+           new ID. Since results are joined back to the site they must be
+           sorted in site order. The outTbl the buffer is created from was
+           assigned "orig_ID" which is preffered, then ORIG_FID, then OID@.
+    Example: lst = buffer_contains(view_50, addresses).
+    """
+    ext = get_ext(poly)
+    plyOut = os.path.splitext(poly)[0] + "_2" + ext
+    del_exists(plyOut)  # delete intermediate if it exists
+    # Use spatial join to count points in buffers.
+    join = "JOIN_ONE_TO_ONE"  # one line for each buffer
+    match = "INTERSECT"  # pnts matched if they intersect target poly
+    arcpy.SpatialJoin_analysis(poly, pnts, plyOut, join, "", "", match, "", "")
+    # Check for fields to sort with, then "Join_Count" is the number of pnts
+    field = find_ID(plyOut)
+    lst = field_to_lst(plyOut, [field, "Join_Count"])
+    arcpy.Delete_management(plyOut)
+    return lst
 
 
 def quant_to_qual_lst(lst):

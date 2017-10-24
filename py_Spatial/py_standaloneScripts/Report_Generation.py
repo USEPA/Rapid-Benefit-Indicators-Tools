@@ -12,7 +12,6 @@
 import os
 import time
 import arcpy
-import decimal
 
 arcpy.env.parallelProcessingFactor = "100%" #use all available resources
 arcpy.env.overwriteOutput = True #overwrite existing files
@@ -51,6 +50,14 @@ def exec_time(start, task):
 def mean(l):
     "get mean of list"
     return sum(l)/float(len(l))
+
+
+def field_exists(table, field):
+    """Check if field exists in table
+    Notes: return true/false
+    """
+    fieldList = [f.name for f in arcpy.ListFields(table)]
+    return True if field in fieldList else False
 
 
 def del_exists(item):
@@ -106,6 +113,7 @@ def field_to_lst(table, field):
             message("Empty values will be returned.")
     else:
         message("Something went wrong with the field to list function")
+
 
 def exportReport(pdfDoc, pdf_path, pg_cnt, mxd):
     """pdf from mxd"""
@@ -397,7 +405,7 @@ def Report_MODULE(PARAMS):
 try:
     start = time.clock()
     Report_MODULE([outTbl, siteName, mxd, pdf])
-    start = exec_time(start1, "Report Generation")
+    start = exec_time(start, "Report Generation")
 except Exception:
     message("Error occured during assessment.", 1)
     traceback.print_exc()
