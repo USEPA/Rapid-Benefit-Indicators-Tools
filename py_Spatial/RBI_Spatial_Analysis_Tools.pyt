@@ -21,6 +21,7 @@ from shutil import rmtree
 from decimal import Decimal
 from collections import deque, defaultdict
 
+arcpy.env.overwriteOutput = True
 
 def create_outTbl(sites, outTbl):
     """create copy of sites to use for processing and results
